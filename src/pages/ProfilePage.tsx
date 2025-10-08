@@ -32,9 +32,18 @@ interface ProfilePageProps {
   polls: Poll[]
   onVote: (pollId: string, option: 'A' | 'B') => void
   onLike: (pollId: string) => void
+  onNavigateToNotifications: () => void
+  onNavigateToHistory: () => void
 }
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ user, polls, onVote, onLike }) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ 
+  user, 
+  polls, 
+  onVote, 
+  onLike, 
+  onNavigateToNotifications, 
+  onNavigateToHistory 
+}) => {
   const [activeTab, setActiveTab] = useState<'polls' | 'badges' | 'stats'>('polls')
   
   const userPolls = polls.filter(poll => poll.authorId === user.id || poll.author === user.name)
@@ -197,6 +206,51 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, polls, onVote, onLike }
 
           {activeTab === 'stats' && (
           <div style={{ padding: '0 16px' }}>
+            {/* Navigation Buttons */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px', 
+              marginBottom: '20px',
+              flexWrap: 'wrap'
+            }}>
+              <IonButton 
+                expand="block" 
+                fill="outline" 
+                color="primary"
+                onClick={onNavigateToNotifications}
+                style={{ 
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  flex: 1,
+                  minWidth: '140px'
+                }}
+              >
+                <IonIcon icon={add} style={{ marginRight: '8px' }} />
+                NOTIFICATIONS
+              </IonButton>
+              <IonButton 
+                expand="block" 
+                fill="outline" 
+                color="secondary"
+                onClick={onNavigateToHistory}
+                style={{ 
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  flex: 1,
+                  minWidth: '140px'
+                }}
+              >
+                <IonIcon icon={people} style={{ marginRight: '8px' }} />
+                POLL HISTORY
+              </IonButton>
+            </div>
+
             <IonCard style={{ marginBottom: '16px' }}>
               <IonCardHeader>
                 <IonCardTitle>Debate Performance</IonCardTitle>

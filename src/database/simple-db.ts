@@ -57,6 +57,12 @@ export interface Poll {
     totalDebates: number
   }
   trendingScore?: number
+  // Enhanced poll features
+  pollType: 'question' | 'options-only'
+  timerDuration?: number
+  timerEnabled: boolean
+  notificationEnabled: boolean
+  isExpired: boolean
 }
 
 export interface Evidence {
@@ -88,12 +94,34 @@ export interface Vote {
   timestamp: Date
 }
 
+export interface PollNotification {
+  id: string
+  pollId: string
+  userId: string
+  type: 'poll_expired' | 'poll_created' | 'poll_trending'
+  message: string
+  isRead: boolean
+  createdAt: Date
+}
+
+export interface PollHistory {
+  id: string
+  pollId: string
+  userId: string
+  action: 'created' | 'voted' | 'liked' | 'shared'
+  timestamp: Date
+  pollTitle: string
+  pollCategory: string
+}
+
 export interface DatabaseSchema {
   users: User[]
   polls: Poll[]
   votes: Vote[]
   categories: string[]
   trendingPolls: Poll[]
+  notifications: PollNotification[]
+  pollHistory: PollHistory[]
 }
 
 class SimpleDatabase {
@@ -271,7 +299,13 @@ class SimpleDatabase {
           opponentWins: 3,
           totalDebates: 11
         },
-        trendingScore: 95.2
+        trendingScore: 95.2,
+        // Enhanced poll features
+        pollType: 'question',
+        timerDuration: 48,
+        timerEnabled: true,
+        notificationEnabled: true,
+        isExpired: false
       },
       {
         id: 'poll-2',
@@ -303,7 +337,13 @@ class SimpleDatabase {
           opponentWins: 2,
           totalDebates: 7
         },
-        trendingScore: 87.4
+        trendingScore: 87.4,
+        // Enhanced poll features
+        pollType: 'question',
+        timerDuration: 5,
+        timerEnabled: true,
+        notificationEnabled: true,
+        isExpired: false
       }
     ]
 
@@ -312,7 +352,9 @@ class SimpleDatabase {
       polls: initialPolls,
       votes: [],
       categories: ['Food', 'Animals', 'Lifestyle', 'Technology', 'Social', 'Work', 'Entertainment', 'Sports'],
-      trendingPolls: [...initialPolls].sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0))
+      trendingPolls: [...initialPolls].sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0)),
+      notifications: [],
+      pollHistory: []
     }
   }
 
@@ -419,6 +461,92 @@ class SimpleDatabase {
       .sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0))
       .slice(0, 10)
     await this.write()
+  }
+
+  // Notification operations
+  async createNotification(notification: Omit<PollNotification, 'id' | 'createdAt'>): Promise<PollNotification> {
+    const data = await this.read()
+    const newNotification: PollNotification = {
+      ...notification,
+      id: `notification-${Date.now()}`,
+      createdAt: new Date()
+    }
+    data.notifications.push(newNotification)
+    await this.write()
+    return newNotification
+  }
+
+  async getUserNotifications(userId: string): Promise<PollNotification[]> {
+    const data = await this.read()
+    return data.notifications.filter(n => n.userId === userId)
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    const data = await this.read()
+    const notification = data.notifications.find(n => n.id === notificationId)
+    if (notification) {
+      notification.isRead = true
+      await this.write()
+    }
+  }
+
+  // Poll history operations
+  async addPollHistory(history: Omit<PollHistory, 'id' | 'timestamp'>): Promise<PollHistory> {
+    const data = await this.read()
+    const newHistory: PollHistory = {
+      ...history,
+      id: `history-${Date.now()}`,
+      timestamp: new Date()
+    }
+    data.pollHistory.push(newHistory)
+    await this.write()
+    return newHistory
+  }
+
+  async getUserPollHistory(userId: string): Promise<PollHistory[]> {
+    const data = await this.read()
+    return data.pollHistory.filter(h => h.userId === userId).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+  }
+
+  // Timer operations
+  async updatePollTimer(pollId: string): Promise<void> {
+    const data = await this.read()
+    const poll = data.polls.find(p => p.id === pollId)
+    if (!poll) return
+
+    const now = new Date()
+    const expiresAt = new Date(poll.expiresAt)
+    
+    if (now >= expiresAt && !poll.isExpired) {
+      poll.isExpired = true
+      poll.timeLeft = 'Expired'
+      
+      // Create notification for poll expiration
+      await this.createNotification({
+        pollId: poll.id,
+        userId: poll.authorId,
+        type: 'poll_expired',
+        message: `Your poll "${poll.title}" has expired!`,
+        isRead: false
+      })
+      
+      await this.write()
+    } else if (now < expiresAt) {
+      const timeLeft = expiresAt.getTime() - now.getTime()
+      const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+      const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
+      
+      if (days > 0) {
+        poll.timeLeft = `${days} day${days > 1 ? 's' : ''} left`
+      } else if (hours > 0) {
+        poll.timeLeft = `${hours} hour${hours > 1 ? 's' : ''} left`
+      } else {
+        poll.timeLeft = `${minutes} minute${minutes > 1 ? 's' : ''} left`
+      }
+      
+      await this.write()
+    }
   }
 }
 

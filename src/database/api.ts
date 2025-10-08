@@ -1,4 +1,4 @@
-import { db, Poll, User, Vote } from './simple-db'
+import { db, Poll, User, Vote, PollNotification, PollHistory } from './simple-db'
 
 // API service for database operations
 export class PollzAPI {
@@ -300,6 +300,63 @@ export class PollzAPI {
     const intersection = words1.filter(word => words2.includes(word))
     const union = [...new Set([...words1, ...words2])]
     return intersection.length / union.length
+  }
+
+  // Notification methods
+  static async createNotification(notification: Omit<PollNotification, 'id' | 'createdAt'>): Promise<PollNotification> {
+    try {
+      return await db.createNotification(notification)
+    } catch (error) {
+      console.error('Error creating notification:', error)
+      throw new Error('Failed to create notification')
+    }
+  }
+
+  static async getUserNotifications(userId: string): Promise<PollNotification[]> {
+    try {
+      return await db.getUserNotifications(userId)
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+      throw new Error('Failed to fetch notifications')
+    }
+  }
+
+  static async markNotificationAsRead(notificationId: string): Promise<void> {
+    try {
+      return await db.markNotificationAsRead(notificationId)
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+      throw new Error('Failed to mark notification as read')
+    }
+  }
+
+  // Poll history methods
+  static async addPollHistory(history: Omit<PollHistory, 'id' | 'timestamp'>): Promise<PollHistory> {
+    try {
+      return await db.addPollHistory(history)
+    } catch (error) {
+      console.error('Error adding poll history:', error)
+      throw new Error('Failed to add poll history')
+    }
+  }
+
+  static async getUserPollHistory(userId: string): Promise<PollHistory[]> {
+    try {
+      return await db.getUserPollHistory(userId)
+    } catch (error) {
+      console.error('Error fetching poll history:', error)
+      throw new Error('Failed to fetch poll history')
+    }
+  }
+
+  // Timer methods
+  static async updatePollTimer(pollId: string): Promise<void> {
+    try {
+      return await db.updatePollTimer(pollId)
+    } catch (error) {
+      console.error('Error updating poll timer:', error)
+      throw new Error('Failed to update poll timer')
+    }
   }
 }
 

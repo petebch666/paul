@@ -35,7 +35,12 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
     optionA: '',
     optionB: '',
     timeLimit: 24,
-    context: ''
+    context: '',
+    // Enhanced poll creation
+    pollType: 'question',
+    timerEnabled: true,
+    timerDuration: 24, // hours
+    notificationEnabled: true
   })
 
   const [categorySuggestions, setCategorySuggestions] = useState<Array<{
@@ -104,7 +109,11 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
           optionA: '',
           optionB: '',
           timeLimit: 24,
-          context: ''
+          context: '',
+          pollType: 'question',
+          timerEnabled: true,
+          timerDuration: 24,
+          notificationEnabled: true
         })
         setCategorySuggestions([])
         setDuplicateCheck({ hasDuplicates: false, similarPolls: [] })
@@ -208,6 +217,70 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
                   placeholder="Why is this important to you?"
                   rows={2}
                 />
+              </IonItem>
+
+              {/* Enhanced Poll Creation Features */}
+              <IonItem>
+                <IonLabel position="stacked">POLL TYPE</IonLabel>
+                <IonSelect
+                  value={formData.pollType}
+                  onIonChange={(e) => handleInputChange('pollType', e.detail.value)}
+                  placeholder="Select poll type"
+                >
+                  <IonSelectOption value="question">Question with Options</IonSelectOption>
+                  <IonSelectOption value="options-only">Just Two Options</IonSelectOption>
+                </IonSelect>
+              </IonItem>
+
+              <IonItem>
+                <IonLabel position="stacked">TIMER SETTINGS</IonLabel>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+                  <IonButton
+                    fill={formData.timerEnabled ? 'solid' : 'outline'}
+                    color={formData.timerEnabled ? 'primary' : 'medium'}
+                    onClick={() => handleInputChange('timerEnabled', !formData.timerEnabled)}
+                    style={{ minWidth: '80px' }}
+                  >
+                    {formData.timerEnabled ? 'ON' : 'OFF'}
+                  </IonButton>
+                  {formData.timerEnabled && (
+                    <IonSelect
+                      value={formData.timerDuration}
+                      onIonChange={(e) => handleInputChange('timerDuration', e.detail.value)}
+                      placeholder="Duration"
+                      style={{ flex: 1 }}
+                    >
+                      <IonSelectOption value={1}>1 Hour</IonSelectOption>
+                      <IonSelectOption value={6}>6 Hours</IonSelectOption>
+                      <IonSelectOption value={12}>12 Hours</IonSelectOption>
+                      <IonSelectOption value={24}>1 Day</IonSelectOption>
+                      <IonSelectOption value={72}>3 Days</IonSelectOption>
+                      <IonSelectOption value={168}>1 Week</IonSelectOption>
+                    </IonSelect>
+                  )}
+                </div>
+              </IonItem>
+
+              <IonItem>
+                <IonLabel position="stacked">NOTIFICATIONS</IonLabel>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+                  <IonButton
+                    fill={formData.notificationEnabled ? 'solid' : 'outline'}
+                    color={formData.notificationEnabled ? 'primary' : 'medium'}
+                    onClick={() => handleInputChange('notificationEnabled', !formData.notificationEnabled)}
+                    style={{ minWidth: '80px' }}
+                  >
+                    {formData.notificationEnabled ? 'ON' : 'OFF'}
+                  </IonButton>
+                  <span style={{ 
+                    fontFamily: 'Courier New, Courier, monospace',
+                    fontSize: '12px',
+                    color: '#666666',
+                    flex: 1
+                  }}>
+                    Get notified when poll expires
+                  </span>
+                </div>
               </IonItem>
 
               <IonItem>

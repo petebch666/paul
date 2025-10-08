@@ -11,6 +11,8 @@ import DesktopHomePage from './pages/DesktopHomePage'
 import CreatePage from './pages/CreatePage'
 import TrendingPage from './pages/TrendingPage'
 import ProfilePage from './pages/ProfilePage'
+import NotificationsPage from './pages/NotificationsPage'
+import PollHistoryPage from './pages/PollHistoryPage'
 import './App.css'
 
 // Import test utility for development
@@ -245,6 +247,7 @@ const mockPolls = [
 
 function App() {
   const [isDesktop, setIsDesktop] = useState(false)
+  const [currentPage, setCurrentPage] = useState<'home' | 'notifications' | 'history'>('home')
   const router = useIonRouter()
   
   const {
@@ -255,12 +258,18 @@ function App() {
     error,
     hasMorePolls,
     totalPolls,
-    currentPage,
+    currentPage: currentPollPage,
+    notifications,
+    pollHistory,
     handleVote,
     handleLike,
     createPoll,
     loadPolls,
-    loadMorePolls
+    loadMorePolls,
+    loadNotifications,
+    loadPollHistory,
+    markNotificationAsRead,
+    updatePollTimers
   } = useAppState()
 
   // Detect screen size
@@ -274,6 +283,19 @@ function App() {
     return () => window.removeEventListener('resize', checkScreenSize)
   }, [])
 
+  // Navigation functions
+  const navigateToNotifications = () => {
+    setCurrentPage('notifications')
+  }
+
+  const navigateToHistory = () => {
+    setCurrentPage('history')
+  }
+
+  const navigateToHome = () => {
+    setCurrentPage('home')
+  }
+
   // Navigation handler
   const handleNavigate = (path: string) => {
     router.push(path)
@@ -282,7 +304,21 @@ function App() {
   return (
     <IonReactRouter>
       <IonApp>
-        <IonTabs>
+        {currentPage === 'notifications' ? (
+          <NotificationsPage
+            notifications={notifications}
+            loading={loading}
+            onRefresh={loadNotifications}
+            onMarkAsRead={markNotificationAsRead}
+          />
+        ) : currentPage === 'history' ? (
+          <PollHistoryPage
+            pollHistory={pollHistory}
+            loading={loading}
+            onRefresh={loadPollHistory}
+          />
+        ) : (
+          <IonTabs>
           <IonRouterOutlet>
             <Route exact path="/home">
               {isDesktop ? (
@@ -297,7 +333,7 @@ function App() {
                   loadingMore={loadingMore}
                   hasMorePolls={hasMorePolls}
                   totalPolls={totalPolls}
-                  currentPage={currentPage}
+                  currentPage={currentPollPage}
                   error={error}
                   onNavigate={handleNavigate}
                 />
@@ -332,6 +368,8 @@ function App() {
                 polls={polls}
                 onVote={handleVote}
                 onLike={handleLike}
+                onNavigateToNotifications={navigateToNotifications}
+                onNavigateToHistory={navigateToHistory}
               />
             </Route>
             <Route exact path="/">
@@ -358,6 +396,7 @@ function App() {
             </IonTabButton>
           </IonTabBar>
         </IonTabs>
+        )}
         
         {error && (
           <div className="error-banner">

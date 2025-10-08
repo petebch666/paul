@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { Poll, User, CreatePollFormData } from '../types'
+import { Poll, User, CreatePollFormData, PollNotification, PollHistory } from '../types'
 import { PollzAPI } from '../database/api'
 import { initializeDatabase } from '../database/simple-db'
 
@@ -12,6 +12,8 @@ export function useAppState() {
   const [currentPage, setCurrentPage] = useState<number>(0)
   const [hasMorePolls, setHasMorePolls] = useState<boolean>(true)
   const [totalPolls, setTotalPolls] = useState<number>(0)
+  const [notifications, setNotifications] = useState<PollNotification[]>([])
+  const [pollHistory, setPollHistory] = useState<PollHistory[]>([])
   const [user, setUser] = useState<User>({
     id: 'user-1',
     name: 'Alex Johnson',
@@ -126,6 +128,10 @@ export function useAppState() {
         console.log('Polls loaded')
         await loadUser()
         console.log('User loaded')
+        await loadNotifications()
+        console.log('Notifications loaded')
+        await loadPollHistory()
+        console.log('Poll history loaded')
       } catch (error) {
         console.error('Failed to initialize app:', error)
         setError('Failed to initialize application')
@@ -133,7 +139,16 @@ export function useAppState() {
     }
     
     init()
-  }, [loadPolls, loadUser])
+  }, [loadPolls, loadUser, loadNotifications, loadPollHistory])
+
+  // Set up timer interval for updating poll timers
+  useEffect(() => {
+    const timerInterval = setInterval(() => {
+      updatePollTimers()
+    }, 60000) // Update every minute
+
+    return () => clearInterval(timerInterval)
+  }, [updatePollTimers])
 
 
   const handleVote = useCallback(async (pollId: string, option: 'A' | 'B') => {
@@ -194,11 +209,18 @@ export function useAppState() {
       setLoading(true)
       setError(null)
 
+      // Calculate expiration time based on timer settings
+      const expirationTime = pollData.timerEnabled && pollData.timerDuration 
+        ? new Date(Date.now() + pollData.timerDuration * 60 * 60 * 1000) // Convert hours to milliseconds
+        : new Date(Date.now() + 24 * 60 * 60 * 1000) // Default 24 hours
+
       const newPoll = await PollzAPI.createPoll({
         title: pollData.title,
         description: pollData.description,
         category: pollData.category,
-        timeLeft: `${pollData.timeLimit} hours left`,
+        timeLeft: pollData.timerEnabled 
+          ? `${pollData.timerDuration} hours left`
+          : 'No time limit',
         authorId: user.id,
         author: user.name,
         context: pollData.context,
@@ -206,8 +228,34 @@ export function useAppState() {
           optionA: pollData.optionA,
           optionB: pollData.optionB
         },
-        expiresAt: new Date(Date.now() + pollData.timeLimit * 60 * 60 * 1000)
+        expiresAt: expirationTime,
+        // Enhanced poll features
+        pollType: pollData.pollType,
+        timerDuration: pollData.timerDuration,
+        timerEnabled: pollData.timerEnabled,
+        notificationEnabled: pollData.notificationEnabled,
+        isExpired: false
       })
+
+      // Add poll history entry
+      await PollzAPI.addPollHistory({
+        pollId: newPoll.id,
+        userId: user.id,
+        action: 'created',
+        pollTitle: newPoll.title,
+        pollCategory: newPoll.category
+      })
+
+      // Create notification if enabled
+      if (pollData.notificationEnabled) {
+        await PollzAPI.createNotification({
+          pollId: newPoll.id,
+          userId: user.id,
+          type: 'poll_created',
+          message: `Your poll "${newPoll.title}" has been created!`,
+          isRead: false
+        })
+      }
 
       // Add the new poll to local state
       setPolls(prev => [newPoll, ...prev])
@@ -228,6 +276,58 @@ export function useAppState() {
     }
   }, [user.id, user.name])
 
+  // Load user notifications
+  const loadNotifications = useCallback(async () => {
+    try {
+      const userNotifications = await PollzAPI.getUserNotifications(user.id)
+      setNotifications(userNotifications)
+    } catch (error) {
+      console.error('Error loading notifications:', error)
+    }
+  }, [user.id])
+
+  // Load user poll history
+  const loadPollHistory = useCallback(async () => {
+    try {
+      const userHistory = await PollzAPI.getUserPollHistory(user.id)
+      setPollHistory(userHistory)
+    } catch (error) {
+      console.error('Error loading poll history:', error)
+    }
+  }, [user.id])
+
+  // Mark notification as read
+  const markNotificationAsRead = useCallback(async (notificationId: string) => {
+    try {
+      await PollzAPI.markNotificationAsRead(notificationId)
+      setNotifications(prev => 
+        prev.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, isRead: true }
+            : notification
+        )
+      )
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
+  }, [])
+
+  // Update poll timers
+  const updatePollTimers = useCallback(async () => {
+    try {
+      // Update timers for all polls
+      for (const poll of polls) {
+        if (poll.timerEnabled && !poll.isExpired) {
+          await PollzAPI.updatePollTimer(poll.id)
+        }
+      }
+      // Reload polls to get updated timer information
+      await loadPolls(true)
+    } catch (error) {
+      console.error('Error updating poll timers:', error)
+    }
+  }, [polls, loadPolls])
+
   return {
     polls,
     user,
@@ -237,11 +337,17 @@ export function useAppState() {
     currentPage,
     hasMorePolls,
     totalPolls,
+    notifications,
+    pollHistory,
     handleVote,
     handleLike,
     createPoll,
     loadPolls,
     loadMorePolls,
+    loadNotifications,
+    loadPollHistory,
+    markNotificationAsRead,
+    updatePollTimers,
     setPolls,
     setUser,
     setError

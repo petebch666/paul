@@ -14,6 +14,12 @@ export interface Poll {
   isLiked: boolean
   createdAt?: Date
   expiresAt?: Date
+  // Enhanced Poll Creation Features
+  pollType: 'question' | 'options-only' // New: question with options or just two options
+  timerDuration?: number // Duration in minutes
+  timerEnabled: boolean
+  notificationEnabled: boolean
+  isExpired: boolean
   // Enhanced Debate Features
   context?: string
   arguments?: {
@@ -155,5 +161,30 @@ export interface CreatePollFormData {
   optionB: string
   timeLimit: number
   context?: string
+  // Enhanced poll creation
+  pollType: 'question' | 'options-only'
+  timerEnabled: boolean
+  timerDuration?: number // in minutes
+  notificationEnabled: boolean
+}
+
+export interface PollNotification {
+  id: string
+  pollId: string
+  userId: string
+  type: 'poll_expired' | 'poll_created' | 'poll_trending'
+  message: string
+  isRead: boolean
+  createdAt: Date
+}
+
+export interface PollHistory {
+  id: string
+  pollId: string
+  userId: string
+  action: 'created' | 'voted' | 'liked' | 'shared'
+  timestamp: Date
+  pollTitle: string
+  pollCategory: string
 }
 
