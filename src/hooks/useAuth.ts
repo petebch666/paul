@@ -21,15 +21,16 @@ export function useAuth() {
   // Initialize authentication on mount
   useEffect(() => {
     initializeAuth()
-    initializeOAuth()
+    // Temporarily disable OAuth initialization to debug
+    // initializeOAuth()
   }, [])
 
   // Initialize OAuth services
   const initializeOAuth = useCallback(async () => {
     try {
       // Set client IDs from environment variables (if available)
-      const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-      const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID
+      const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID
+      const appleClientId = (import.meta as any).env?.VITE_APPLE_CLIENT_ID
 
       if (googleClientId) {
         oauthService.setGoogleClientId(googleClientId)

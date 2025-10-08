@@ -253,7 +253,7 @@ function App() {
   const router = useIonRouter()
   const { logout } = useAuth()
 
-    const {
+  const {
     polls,
     user,
     loading,
@@ -261,7 +261,6 @@ function App() {
     error,
     hasMorePolls,
     totalPolls,
-    currentPage: currentPollPage,
     notifications,
     pollHistory,
     handleVote,
@@ -337,7 +336,7 @@ function App() {
                   loadingMore={loadingMore}
                   hasMorePolls={hasMorePolls}
                   totalPolls={totalPolls}
-                  currentPage={currentPollPage}
+                  currentPage={0}
                   error={error}
                   onNavigate={handleNavigate}
                 />

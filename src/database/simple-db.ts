@@ -420,8 +420,13 @@ class SimpleDatabase {
 
   async voteOnPoll(pollId: string, userId: string, option: 'A' | 'B'): Promise<void> {
     const data = await this.read()
+    console.log('Voting on poll:', pollId, 'Total polls:', data.polls.length)
+    console.log('Poll IDs:', data.polls.map(p => p.id))
     const poll = data.polls.find(p => p.id === pollId)
-    if (!poll) throw new Error('Poll not found')
+    if (!poll) {
+      console.error('Poll not found! Looking for:', pollId, 'Available polls:', data.polls.map(p => p.id))
+      throw new Error('Poll not found')
+    }
 
     // Check if user already voted
     const existingVote = data.votes.find(v => v.pollId === pollId && v.userId === userId)

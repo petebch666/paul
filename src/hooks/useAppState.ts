@@ -117,6 +117,26 @@ export function useAppState() {
     }
   }, [])
 
+  // Load user notifications
+  const loadNotifications = useCallback(async () => {
+    try {
+      const userNotifications = await PollzAPI.getUserNotifications(user.id)
+      setNotifications(userNotifications)
+    } catch (error) {
+      console.error('Error loading notifications:', error)
+    }
+  }, [user.id])
+
+  // Load user poll history
+  const loadPollHistory = useCallback(async () => {
+    try {
+      const userHistory = await PollzAPI.getUserPollHistory(user.id)
+      setPollHistory(userHistory)
+    } catch (error) {
+      console.error('Error loading poll history:', error)
+    }
+  }, [user.id])
+
   // Initialize database and data on mount
   useEffect(() => {
     const init = async () => {
@@ -275,26 +295,6 @@ export function useAppState() {
       setLoading(false)
     }
   }, [user.id, user.name])
-
-  // Load user notifications
-  const loadNotifications = useCallback(async () => {
-    try {
-      const userNotifications = await PollzAPI.getUserNotifications(user.id)
-      setNotifications(userNotifications)
-    } catch (error) {
-      console.error('Error loading notifications:', error)
-    }
-  }, [user.id])
-
-  // Load user poll history
-  const loadPollHistory = useCallback(async () => {
-    try {
-      const userHistory = await PollzAPI.getUserPollHistory(user.id)
-      setPollHistory(userHistory)
-    } catch (error) {
-      console.error('Error loading poll history:', error)
-    }
-  }, [user.id])
 
   // Mark notification as read
   const markNotificationAsRead = useCallback(async (notificationId: string) => {

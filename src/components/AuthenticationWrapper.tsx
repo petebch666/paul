@@ -16,7 +16,15 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
 
   // Show loading state while checking authentication
   if (isLoading) {
-    return <AuthPage isAuthenticated={false} isLoading={true} error={null} onRetry={() => {}} onContinue={() => {}} />
+    return (
+      <AuthPage 
+        isAuthenticated={false} 
+        isLoading={true} 
+        error={null} 
+        onRetry={() => window.location.reload()} 
+        onContinue={() => setCurrentPage('login')} 
+      />
+    )
   }
 
   // Show error state if authentication failed
@@ -27,7 +35,7 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
         isLoading={false} 
         error={error} 
         onRetry={() => window.location.reload()} 
-        onContinue={() => {}} 
+        onContinue={() => setCurrentPage('login')} 
       />
     )
   }
@@ -38,16 +46,6 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
   }
 
   // User is not authenticated, show login/signup flow
-  const { login, signUp } = useAuth()
-
-  const handleLogin = async (user: any) => {
-    // User is already logged in, component will re-render
-  }
-
-  const handleSignUp = async (user: any) => {
-    // User is already signed up, component will re-render
-  }
-
   const handleNavigateToSignUp = () => {
     setCurrentPage('signup')
   }
