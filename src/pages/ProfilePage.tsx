@@ -34,6 +34,7 @@ interface ProfilePageProps {
   onLike: (pollId: string) => void
   onNavigateToNotifications: () => void
   onNavigateToHistory: () => void
+  onLogout?: () => void
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
@@ -42,7 +43,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   onVote, 
   onLike, 
   onNavigateToNotifications, 
-  onNavigateToHistory 
+  onNavigateToHistory,
+  onLogout
 }) => {
   const [activeTab, setActiveTab] = useState<'polls' | 'badges' | 'stats'>('polls')
   
@@ -249,7 +251,27 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 <IonIcon icon={people} style={{ marginRight: '8px' }} />
                 POLL HISTORY
               </IonButton>
-            </div>
+                </div>
+
+                {onLogout && (
+                  <IonButton 
+                    expand="block" 
+                    fill="outline" 
+                    color="danger"
+                    onClick={onLogout}
+                    style={{ 
+                      fontFamily: 'Courier New, Courier, monospace',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px',
+                      marginTop: '12px'
+                    }}
+                  >
+                    <IonIcon icon="log-out-outline" style={{ marginRight: '8px' }} />
+                    LOGOUT
+                  </IonButton>
+                )}
 
             <IonCard style={{ marginBottom: '16px' }}>
               <IonCardHeader>

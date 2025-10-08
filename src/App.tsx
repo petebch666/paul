@@ -13,6 +13,8 @@ import TrendingPage from './pages/TrendingPage'
 import ProfilePage from './pages/ProfilePage'
 import NotificationsPage from './pages/NotificationsPage'
 import PollHistoryPage from './pages/PollHistoryPage'
+import AuthenticationWrapper from './components/AuthenticationWrapper'
+import { useAuth } from './hooks/useAuth'
 import './App.css'
 
 // Import test utility for development
@@ -249,8 +251,9 @@ function App() {
   const [isDesktop, setIsDesktop] = useState(false)
   const [currentPage, setCurrentPage] = useState<'home' | 'notifications' | 'history'>('home')
   const router = useIonRouter()
-  
-  const {
+  const { logout } = useAuth()
+
+    const {
     polls,
     user,
     loading,
@@ -304,22 +307,23 @@ function App() {
   return (
     <IonReactRouter>
       <IonApp>
-        {currentPage === 'notifications' ? (
-          <NotificationsPage
-            notifications={notifications}
-            loading={loading}
-            onRefresh={loadNotifications}
-            onMarkAsRead={markNotificationAsRead}
-          />
-        ) : currentPage === 'history' ? (
-          <PollHistoryPage
-            pollHistory={pollHistory}
-            loading={loading}
-            onRefresh={loadPollHistory}
-          />
-        ) : (
-          <IonTabs>
-          <IonRouterOutlet>
+        <AuthenticationWrapper>
+          {currentPage === 'notifications' ? (
+            <NotificationsPage
+              notifications={notifications}
+              loading={loading}
+              onRefresh={loadNotifications}
+              onMarkAsRead={markNotificationAsRead}
+            />
+          ) : currentPage === 'history' ? (
+            <PollHistoryPage
+              pollHistory={pollHistory}
+              loading={loading}
+              onRefresh={loadPollHistory}
+            />
+          ) : (
+            <IonTabs>
+              <IonRouterOutlet>
             <Route exact path="/home">
               {isDesktop ? (
                 <DesktopHomePage
@@ -370,6 +374,7 @@ function App() {
                 onLike={handleLike}
                 onNavigateToNotifications={navigateToNotifications}
                 onNavigateToHistory={navigateToHistory}
+                onLogout={logout}
               />
             </Route>
             <Route exact path="/">
@@ -394,22 +399,23 @@ function App() {
               <IonIcon icon={person} />
               <IonLabel>Profile</IonLabel>
             </IonTabButton>
-          </IonTabBar>
-        </IonTabs>
-        )}
-        
-        {error && (
-          <div className="error-banner">
-            <p>⚠️ {error}</p>
-            <button onClick={() => window.location.reload()}>Retry</button>
-          </div>
-        )}
-        
-        {loading && (
-          <div className="loading-overlay">
-            <div className="loading-spinner">Loading...</div>
-          </div>
-        )}
+              </IonTabBar>
+            </IonTabs>
+          )}
+          
+          {error && (
+            <div className="error-banner">
+              <p>⚠️ {error}</p>
+              <button onClick={() => window.location.reload()}>Retry</button>
+            </div>
+          )}
+          
+          {loading && (
+            <div className="loading-overlay">
+              <div className="loading-spinner">Loading...</div>
+            </div>
+          )}
+        </AuthenticationWrapper>
       </IonApp>
     </IonReactRouter>
   )
