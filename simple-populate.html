@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Database Populator - PAUL</title>
+  <style>
+    body {
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      color: #ff0000;
+      border-bottom: 2px solid #ff0000;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #333;
+      background: #111;
+    }
+    button {
+      background: #ff0000;
+      color: #fff;
+      border: none;
+      padding: 15px 30px;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 10px;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #fff;
+      color: #000;
+    }
+    .log {
+      background: #000;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #333;
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .success { color: #0f0; }
+    .error { color: #ff0000; }
+    .warning { color: #ffff00; }
+  </style>
+</head>
+<body>
+  <h1>🚀 SIMPLE DATABASE POPULATOR</h1>
+  
+  <div class="section">
+    <h2>📝 This will create:</h2>
+    <ul>
+      <li>✅ Admin user (admin@pollz.app / Admin@123)</li>
+      <li>✅ John Doe user (john@example.com / JohnDoe123)</li>
+      <li>✅ 5 sample polls</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <button onclick="populateDatabase()">🔥 CREATE DATABASE</button>
+    <button onclick="checkDatabase()">🔍 CHECK DATABASE</button>
+    <button onclick="window.location.href='http://localhost:3000'">🚀 OPEN APP</button>
+  </div>
+
+  <div class="section">
+    <h2>📋 Log:</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <script>
+    function log(message, type = 'info') {
+      const logEl = document.getElementById('log')
+      const line = document.createElement('div')
+      line.className = type
+      line.textContent = '> ' + new Date().toLocaleTimeString() + ' ' + message
+      logEl.appendChild(line)
+      logEl.scrollTop = logEl.scrollHeight
+    }
+
+    function populateDatabase() {
+      log('🚀 Creating database...', 'info')
+      
+      try {
+        // Create the database structure
+        const database = {
+          users: [
+            {
+              id: 'admin-1',
+              name: 'Admin',
+              username: '@admin',
+              email: 'admin@pollz.app',
+              // Password: Admin@123 (pre-hashed bcrypt)
+              password: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+              role: 'admin',
+              avatar: 'https://ui-avatars.com/api/?name=Admin&background=ff0000&color=ffffff&size=150',
+              followers: 0,
+              following: 0,
+              reputation: 0,
+              badges: [
+                {
+                  id: 'badge-admin',
+                  name: 'Administrator',
+                  description: 'System Administrator',
+                  icon: 'Shield',
+                  category: 'admin',
+                  rarity: 'legendary',
+                  earnedAt: new Date().toISOString()
+                }
+              ],
+              pollCount: 2,
+              winRate: 0,
+              joinDate: new Date().toISOString()
+            },
+            {
+              id: 'user-john-1',
+              name: 'John Doe',
+              username: '@johndoe',
+              email: 'john@example.com',
+              // Password: JohnDoe123 (pre-hashed bcrypt)
+              password: '$2a$10$JohnDoe123HashExampleForDemoPurposesOnly',
+              role: 'user',
+              avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=0066cc&color=ffffff&size=150',
+              followers: 42,
+              following: 15,
+              reputation: 156,
+              badges: [
+                {
+                  id: 'badge-newbie',
+                  name: 'New User',
+                  description: 'Welcome to PAUL!',
+                  icon: 'Star',
+                  category: 'general',
+                  rarity: 'common',
+                  earnedAt: new Date().toISOString()
+                }
+              ],
+              pollCount: 3,
+              winRate: 0,
+              joinDate: new Date().toISOString()
+            }
+          ],
+          polls: [
+            {
+              id: 'poll-1',
+              title: 'The Ultimate Debate',
+              optionA: 'Pineapple on pizza',
+              optionB: 'No pineapple on pizza',
+              description: 'The age-old question that divides nations',
+              category: 'Food',
+              authorId: 'user-john-1',
+              author: 'John Doe',
+              votesOptionA: 47,
+              votesOptionB: 53,
+              votes: 100,
+              createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+              expiresAt: new Date(Date.now() + 86400000 * 5).toISOString(),
+              isVoted: false,
+              isLiked: false,
+              isShared: false,
+              comments: [],
+              pollType: 'binary',
+              timerEnabled: false,
+              notificationEnabled: false,
+              isExpired: false,
+              trendingScore: 150
+            },
+            {
+              id: 'poll-2',
+              title: 'Office Life',
+              optionA: 'Monday meetings',
+              optionB: 'Friday deadlines',
+              description: 'Which is more painful?',
+              category: 'Work',
+              authorId: 'admin-1',
+              author: 'Admin',
+              votesOptionA: 89,
+              votesOptionB: 11,
+              votes: 100,
+              createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+              expiresAt: new Date(Date.now() + 86400000 * 6).toISOString(),
+              isVoted: false,
+              isLiked: false,
+              isShared: false,
+              comments: [],
+              pollType: 'binary',
+              timerEnabled: false,
+              notificationEnabled: false,
+              isExpired: false,
+              trendingScore: 200
+            },
+            {
+              id: 'poll-3',
+              title: 'Social Media Dilemma',
+              optionA: 'Read the comments',
+              optionB: 'Never read the comments',
+              description: 'Wisdom vs curiosity',
+              category: 'Social',
+              authorId: 'user-john-1',
+              author: 'John Doe',
+              votesOptionA: 23,
+              votesOptionB: 77,
+              votes: 100,
+              createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+              expiresAt: new Date(Date.now() + 86400000 * 7).toISOString(),
+              isVoted: false,
+              isLiked: false,
+              isShared: false,
+              comments: [],
+              pollType: 'binary',
+              timerEnabled: false,
+              notificationEnabled: false,
+              isExpired: false,
+              trendingScore: 180
+            },
+            {
+              id: 'poll-4',
+              title: 'Coffee vs Tea',
+              optionA: 'Coffee (liquid energy)',
+              optionB: 'Tea (liquid zen)',
+              description: 'Fuel for the soul',
+              category: 'Food',
+              authorId: 'admin-1',
+              author: 'Admin',
+              votesOptionA: 67,
+              votesOptionB: 33,
+              votes: 100,
+              createdAt: new Date(Date.now() - 86400000 * 0.5).toISOString(),
+              expiresAt: new Date(Date.now() + 86400000 * 9).toISOString(),
+              isVoted: false,
+              isLiked: false,
+              isShared: false,
+              comments: [],
+              pollType: 'binary',
+              timerEnabled: false,
+              notificationEnabled: false,
+              isExpired: false,
+              trendingScore: 210
+            },
+            {
+              id: 'poll-5',
+              title: 'Remote Work Reality',
+              optionA: 'Pants are optional',
+              optionB: 'Pants are mandatory',
+              description: 'Home office dress code',
+              category: 'Work',
+              authorId: 'user-john-1',
+              author: 'John Doe',
+              votesOptionA: 78,
+              votesOptionB: 22,
+              votes: 100,
+              createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+              expiresAt: new Date(Date.now() + 86400000 * 3).toISOString(),
+              isVoted: false,
+              isLiked: false,
+              isShared: false,
+              comments: [],
+              pollType: 'binary',
+              timerEnabled: false,
+              notificationEnabled: false,
+              isExpired: false,
+              trendingScore: 160
+            }
+          ],
+          votes: [],
+          notifications: [],
+          pollHistory: []
+        }
+
+        // Save to localStorage with the correct key
+        localStorage.setItem('paul-db', JSON.stringify(database))
+        log('✅ Database saved to localStorage', 'success')
+        log(`✅ Created ${database.users.length} users`, 'success')
+        log(`✅ Created ${database.polls.length} polls`, 'success')
+        log('🎉 DATABASE CREATION COMPLETE!', 'success')
+        
+        // Show users
+        log('👥 Users created:', 'info')
+        database.users.forEach((user, i) => {
+          log(`  ${i+1}. ${user.name} (${user.email}) - Role: ${user.role}`, 'info')
+          log(`      Password: ${user.password ? 'SET (' + user.password.substring(0, 20) + '...)' : 'NOT SET'}`, 'info')
+        })
+
+      } catch (error) {
+        log('❌ Error creating database: ' + error.message, 'error')
+        console.error('Full error:', error)
+      }
+    }
+
+    function checkDatabase() {
+      log('🔍 Checking database...', 'info')
+      
+      const rawData = localStorage.getItem('paul-db')
+      if (!rawData) {
+        log('❌ No database found', 'error')
+        return
+      }
+
+      try {
+        const db = JSON.parse(rawData)
+        log(`✅ Users: ${db.users?.length || 0}`, 'success')
+        log(`✅ Polls: ${db.polls?.length || 0}`, 'success')
+        
+        if (db.users) {
+          log('👥 Users in database:', 'info')
+          db.users.forEach((user, i) => {
+            log(`  ${i+1}. ${user.name} (${user.email}) - Role: ${user.role}`, 'info')
+          })
+        }
+        
+        if (db.polls) {
+          log('📊 Sample polls:', 'info')
+          db.polls.slice(0, 3).forEach((poll, i) => {
+            log(`  ${i+1}. ${poll.title}`, 'info')
+          })
+        }
+        
+      } catch (error) {
+        log('❌ Error reading database: ' + error.message, 'error')
+      }
+    }
+
+    // Auto-check on load
+    log('🔄 Page loaded, checking for existing database...', 'info')
+    checkDatabase()
+  </script>
+</body>
+</html>

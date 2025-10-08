@@ -74,7 +74,7 @@ const HomePage: React.FC<HomePageProps> = ({
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>Pollz</IonTitle>
+            <IonTitle>PAUL</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent>
@@ -108,7 +108,7 @@ const HomePage: React.FC<HomePageProps> = ({
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>Pollz</IonTitle>
+            <IonTitle>PAUL</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent>
@@ -149,7 +149,7 @@ const HomePage: React.FC<HomePageProps> = ({
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Pollz</IonTitle>
+          <IonTitle>PAUL</IonTitle>
         </IonToolbar>
       </IonHeader>
       
@@ -191,11 +191,8 @@ const HomePage: React.FC<HomePageProps> = ({
                   handleVoteComplete(pollId)
                 }}
                 onLike={onLike}
+                isActive={true} // Make all polls swipable
                 data-poll-index={index}
-                style={{
-                  touchAction: 'pan-y pinch-zoom', // Allow vertical scroll, prevent horizontal interference
-                  userSelect: 'none'
-                }}
               />
             ))}
           </div>

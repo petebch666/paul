@@ -137,6 +137,22 @@ export function useAppState() {
     }
   }, [user.id])
 
+  // Update poll timers
+  const updatePollTimers = useCallback(async () => {
+    try {
+      // Update timers for all polls
+      for (const poll of polls) {
+        if (poll.timerEnabled && !poll.isExpired) {
+          await PollzAPI.updatePollTimer(poll.id)
+        }
+      }
+      // Reload polls to get updated timer information
+      await loadPolls(true)
+    } catch (error) {
+      console.error('Error updating poll timers:', error)
+    }
+  }, [polls, loadPolls])
+
   // Initialize database and data on mount
   useEffect(() => {
     const init = async () => {
@@ -183,24 +199,20 @@ export function useAppState() {
 
     try {
       // Call API to vote
-      const result = await PollzAPI.voteOnPoll(pollId, user.id, option)
+      await PollzAPI.voteOnPoll(pollId, user.id, option)
       
-      if (result.success) {
-        // Update local state optimistically
-        setPolls(prev => prev.map(poll => 
-          poll.id === pollId 
-            ? { 
-                ...poll, 
-                votes: poll.votes + 1,
-                votesOptionA: option === 'A' ? poll.votesOptionA + 1 : poll.votesOptionA,
-                votesOptionB: option === 'B' ? poll.votesOptionB + 1 : poll.votesOptionB,
-                isVoted: true 
-              }
-            : poll
-        ))
-      } else {
-        setError(result.message)
-      }
+      // Update local state optimistically
+      setPolls(prev => prev.map(poll => 
+        poll.id === pollId 
+          ? { 
+              ...poll, 
+              votes: poll.votes + 1,
+              votesOptionA: option === 'A' ? poll.votesOptionA + 1 : poll.votesOptionA,
+              votesOptionB: option === 'B' ? poll.votesOptionB + 1 : poll.votesOptionB,
+              isVoted: true 
+            }
+          : poll
+      ))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to vote')
       console.error('Error voting:', err)
@@ -311,22 +323,6 @@ export function useAppState() {
       console.error('Error marking notification as read:', error)
     }
   }, [])
-
-  // Update poll timers
-  const updatePollTimers = useCallback(async () => {
-    try {
-      // Update timers for all polls
-      for (const poll of polls) {
-        if (poll.timerEnabled && !poll.isExpired) {
-          await PollzAPI.updatePollTimer(poll.id)
-        }
-      }
-      // Reload polls to get updated timer information
-      await loadPolls(true)
-    } catch (error) {
-      console.error('Error updating poll timers:', error)
-    }
-  }, [polls, loadPolls])
 
   return {
     polls,

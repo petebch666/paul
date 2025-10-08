@@ -16,7 +16,8 @@ import {
   IonSearchbar,
   IonMenu,
   IonMenuButton,
-  IonButtons
+  IonButtons,
+  useIonRouter
 } from '@ionic/react'
 import { 
   chevronForward, 
@@ -69,6 +70,7 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
   const [showSidebar, setShowSidebar] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const contentRef = useRef<HTMLIonContentElement>(null)
+  const router = useIonRouter() // Get router instance inside component
 
   // Detect screen size
   useEffect(() => {
@@ -254,7 +256,7 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
             expand="block" 
             fill="outline"
             onClick={() => {
-              onNavigate('/home')
+              router.push('/home')
               setShowSidebar(false)
             }}
             style={{
@@ -276,7 +278,7 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
             expand="block" 
             fill="outline"
             onClick={() => {
-              onNavigate('/create')
+              router.push('/create')
               setShowSidebar(false)
             }}
             style={{
@@ -298,7 +300,7 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
             expand="block" 
             fill="outline"
             onClick={() => {
-              onNavigate('/trending')
+              router.push('/trending')
               setShowSidebar(false)
             }}
             style={{
@@ -320,7 +322,7 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
             expand="block" 
             fill="outline"
             onClick={() => {
-              onNavigate('/profile')
+              router.push('/profile')
               setShowSidebar(false)
             }}
             style={{

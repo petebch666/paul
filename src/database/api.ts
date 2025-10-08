@@ -30,10 +30,10 @@ export class PollzAPI {
     }
   }
 
-  static async getPollById(id: string): Promise<Poll | null> {
+  static async getPollById(id: string): Promise<Poll | undefined> {
     try {
       const poll = await db.getPollById(id)
-      return poll || null
+      return poll
     } catch (error) {
       console.error('Error fetching poll:', error)
       throw new Error('Failed to fetch poll')
@@ -72,31 +72,30 @@ export class PollzAPI {
     }
   }
 
-  static async voteOnPoll(pollId: string, userId: string, option: 'A' | 'B'): Promise<{ success: boolean; message: string }> {
+  static async voteOnPoll(pollId: string, userId: string, option: 'A' | 'B'): Promise<void> {
     try {
       await db.voteOnPoll(pollId, userId, option)
-      return { success: true, message: 'Vote recorded successfully' }
     } catch (error) {
       console.error('Error voting on poll:', error)
-      return { success: false, message: error instanceof Error ? error.message : 'Failed to vote' }
+      throw error
     }
   }
 
   // User operations
-  static async getUserById(id: string): Promise<User | null> {
+  static async getUserById(id: string): Promise<User | undefined> {
     try {
       const user = await db.getUserById(id)
-      return user || null
+      return user
     } catch (error) {
       console.error('Error fetching user:', error)
       throw new Error('Failed to fetch user')
     }
   }
 
-  static async getUserByEmail(email: string): Promise<User | null> {
+  static async getUserByEmail(email: string): Promise<User | undefined> {
     try {
       const user = await db.getUserByEmail(email)
-      return user || null
+      return user
     } catch (error) {
       console.error('Error fetching user by email:', error)
       throw new Error('Failed to fetch user')

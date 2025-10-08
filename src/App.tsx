@@ -13,15 +13,24 @@ import TrendingPage from './pages/TrendingPage'
 import ProfilePage from './pages/ProfilePage'
 import NotificationsPage from './pages/NotificationsPage'
 import PollHistoryPage from './pages/PollHistoryPage'
+import AdminDashboard from './pages/AdminDashboard'
 import AuthenticationWrapper from './components/AuthenticationWrapper'
+import SecurityBadge from './components/SecurityBadge'
+import Navigation from './components/Navigation'
 import { useAuth } from './hooks/useAuth'
 import './App.css'
 
-// Import test utility for development
-if (process.env.NODE_ENV === 'development') {
-  import('./utils/test-api')
-  import('./utils/populate-humorous-polls')
-}
+// Import test utility for development - TEMPORARILY DISABLED TO FIX INFINITE LOOP
+// if (process.env.NODE_ENV === 'development') {
+//   import('./utils/test-api')
+//   import('./utils/reset-database')
+//   import('./utils/test-security')
+//   import('./utils/test-signup')
+//   import('./utils/admin-access')
+//   import('./utils/force-reset-with-admin')
+//   // Commented out to prevent auto-population
+//   // import('./utils/populate-humorous-polls')
+// }
 
 // Mock data (kept for reference, but no longer used)
 const mockPolls = [
@@ -250,7 +259,6 @@ const mockPolls = [
 function App() {
   const [isDesktop, setIsDesktop] = useState(false)
   const [currentPage, setCurrentPage] = useState<'home' | 'notifications' | 'history'>('home')
-  const router = useIonRouter()
   const { logout } = useAuth()
 
   const {
@@ -298,9 +306,10 @@ function App() {
     setCurrentPage('home')
   }
 
-  // Navigation handler
+  // Navigation handler - will be used inside IonReactRouter context
   const handleNavigate = (path: string) => {
-    router.push(path)
+    // Navigation will be handled by child components with access to router
+    console.log('Navigate to:', path)
   }
 
   return (
@@ -376,6 +385,9 @@ function App() {
                 onLogout={logout}
               />
             </Route>
+            <Route exact path="/admin">
+              <AdminDashboard />
+            </Route>
             <Route exact path="/">
               <Redirect to="/home" />
             </Route>
@@ -414,6 +426,9 @@ function App() {
               <div className="loading-spinner">Loading...</div>
             </div>
           )}
+
+          {/* Security Badge - visible in development */}
+          {process.env.NODE_ENV === 'development' && <SecurityBadge variant="compact" />}
         </AuthenticationWrapper>
       </IonApp>
     </IonReactRouter>

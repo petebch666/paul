@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import LoginPage from '../pages/LoginPage'
 import SignUpPage from '../pages/SignUpPage'
@@ -14,6 +14,17 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
   const { user, isAuthenticated, isLoading, error } = useAuth()
   const [currentPage, setCurrentPage] = useState<AuthPageType>('auth')
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔐 Auth State:', { 
+      isAuthenticated, 
+      hasUser: !!user, 
+      isLoading, 
+      error,
+      currentPage 
+    })
+  }, [isAuthenticated, user, isLoading, error, currentPage])
+
   // Show loading state while checking authentication
   if (isLoading) {
     return (
@@ -21,7 +32,10 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
         isAuthenticated={false} 
         isLoading={true} 
         error={null} 
-        onRetry={() => window.location.reload()} 
+        onRetry={() => {
+          console.log('🔄 Manual retry requested')
+          window.location.reload()
+        }} 
         onContinue={() => setCurrentPage('login')} 
       />
     )
@@ -34,7 +48,10 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
         isAuthenticated={false} 
         isLoading={false} 
         error={error} 
-        onRetry={() => window.location.reload()} 
+        onRetry={() => {
+          console.log('🔄 Manual retry requested')
+          window.location.reload()
+        }} 
         onContinue={() => setCurrentPage('login')} 
       />
     )
@@ -42,8 +59,11 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
 
   // User is authenticated, show the app
   if (isAuthenticated && user) {
+    console.log('✅ User authenticated, showing app')
     return <>{children}</>
   }
+
+  console.log('ℹ️ User not authenticated, showing auth pages')
 
   // User is not authenticated, show login/signup flow
   const handleNavigateToSignUp = () => {

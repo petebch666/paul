@@ -68,6 +68,7 @@ export interface User {
   email?: string
   avatar: string
   password?: string
+  role?: 'user' | 'admin' // Role-based access control
   followers: number
   following: number
   reputation: number

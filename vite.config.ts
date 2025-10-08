@@ -1,24 +1,10 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
-import { resolve } from 'path'
 
 export default defineConfig({
-  root: '.',
-  build: {
-    outDir: 'dist',
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html')
-      }
-    }
+  test: {
+    environment: 'node',
+    setupFiles: ['./src/test/setup.ts'],
+    globals: true,
   },
-  server: {
-    port: 3000,
-    open: true
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src')
-    }
-  }
 })
-

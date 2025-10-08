@@ -29,15 +29,36 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
   const [voteDirection, setVoteDirection] = useState<'A' | 'B' | null>(null)
   const [showResults, setShowResults] = useState(false)
   const [hasVoted, setHasVoted] = useState(poll.isVoted)
+  const [isHovered, setIsHovered] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const startPos = useRef({ x: 0, y: 0 })
+
+  // Update hasVoted when poll changes
+  useEffect(() => {
+    setHasVoted(poll.isVoted)
+  }, [poll.isVoted])
 
   const isCreator = poll.author === user.name
   const canVote = !hasVoted && !isCreator && isActive
 
+  // Debug logging for swipe issues
+  useEffect(() => {
+    console.log(`Poll "${poll.title}":`, {
+      hasVoted,
+      isCreator,
+      isActive,
+      canVote,
+      pollAuthor: poll.author,
+      userName: user.name
+    })
+  }, [poll.title, hasVoted, isCreator, isActive, canVote, poll.author, user.name])
+
   // Touch event handlers with improved scroll detection
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (!canVote) return
+    if (!canVote) {
+      console.log(`Cannot vote on "${poll.title}": hasVoted=${hasVoted}, isCreator=${isCreator}, isActive=${isActive}`)
+      return
+    }
     const touch = e.touches[0]
     startPos.current = { x: touch.clientX, y: touch.clientY }
     setIsDragging(true)
@@ -55,8 +76,9 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
       setDragOffset({ x: deltaX, y: 0 })
       
       // Determine vote direction based on swipe
+      // Swipe LEFT (negative) = Option A (left), Swipe RIGHT (positive) = Option B (right)
       if (Math.abs(deltaX) > 50) {
-        setVoteDirection(deltaX > 0 ? 'A' : 'B')
+        setVoteDirection(deltaX > 0 ? 'B' : 'A')
       } else {
         setVoteDirection(null)
       }
@@ -71,7 +93,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     const isSwipeRight = dragOffset.x > swipeThreshold
     
     if (isSwipeLeft || isSwipeRight) {
-      const vote = isSwipeLeft ? 'B' : 'A'
+      // Swipe LEFT = Option A (left), Swipe RIGHT = Option B (right)
+      const vote = isSwipeLeft ? 'A' : 'B'
       handleVote(vote)
     } else {
       // Reset position if not enough swipe
@@ -97,8 +120,9 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     
     setDragOffset({ x: deltaX, y: deltaY })
     
+    // Swipe LEFT (negative) = Option A (left), Swipe RIGHT (positive) = Option B (right)
     if (Math.abs(deltaX) > 50) {
-      setVoteDirection(deltaX > 0 ? 'A' : 'B')
+      setVoteDirection(deltaX > 0 ? 'B' : 'A')
     } else {
       setVoteDirection(null)
     }
@@ -112,7 +136,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     const isSwipeRight = dragOffset.x > swipeThreshold
     
     if (isSwipeLeft || isSwipeRight) {
-      const vote = isSwipeLeft ? 'B' : 'A'
+      // Swipe LEFT = Option A (left), Swipe RIGHT = Option B (right)
+      const vote = isSwipeLeft ? 'A' : 'B'
       handleVote(vote)
     } else {
       setDragOffset({ x: 0, y: 0 })
@@ -187,9 +212,10 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         opacity: getCardOpacity(),
         transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         position: 'relative',
+        zIndex: isDragging ? 100 : 1, // Bring to front when dragging
         margin: '8px auto',
         padding: '24px',
-        background: '#ffffff',
+        background: isHovered ? '#000000' : '#ffffff',
         border: '3px solid #000000',
         borderRadius: '0',
         cursor: canVote ? (isDragging ? 'grabbing' : 'grab') : 'default',
@@ -198,34 +224,68 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         maxWidth: '600px',
         width: '100%',
         boxSizing: 'border-box',
+        isolation: 'isolate', // Create new stacking context for each card
+        color: isHovered ? '#ffffff' : '#000000',
+        boxShadow: isHovered ? '0 8px 16px rgba(0, 0, 0, 0.3)' : 'none',
         ...style
       }}
-      onTouchStart={handleTouchStart}
+      onTouchStart={(e) => {
+        setIsHovered(true)
+        handleTouchStart(e)
+      }}
       onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onTouchEnd={(e) => {
+        setIsHovered(false)
+        handleTouchEnd()
+      }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={(e) => {
+        setIsHovered(false)
+        handleMouseUp()
+      }}
+      onMouseEnter={() => setIsHovered(true)}
     >
       {/* Vote direction indicators */}
       {isDragging && voteDirection && (
-        <div 
-          className={`vote-indicator ${voteDirection}`}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            [voteDirection === 'A' ? 'right' : 'left']: '20px',
-            transform: 'translateY(-50%)',
-            fontSize: '48px',
-            fontWeight: '700',
-            color: voteDirection === 'A' ? '#0066ff' : '#ff0000',
-            opacity: Math.min(1, Math.abs(dragOffset.x) / 100),
-            zIndex: 10
-          }}
-        >
-          {voteDirection === 'A' ? '👍' : '👎'}
-        </div>
+        <>
+          {/* Thumbs UP for chosen option */}
+          <div 
+            className={`vote-indicator chosen`}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              [voteDirection === 'A' ? 'left' : 'right']: '20px',
+              transform: 'translateY(-50%)',
+              fontSize: '48px',
+              fontWeight: '700',
+              color: '#00ff00',
+              opacity: Math.min(1, Math.abs(dragOffset.x) / 100),
+              zIndex: 10
+            }}
+          >
+            👍
+          </div>
+          
+          {/* Thumbs DOWN for rejected option */}
+          <div 
+            className={`vote-indicator rejected`}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              [voteDirection === 'A' ? 'right' : 'left']: '20px',
+              transform: 'translateY(-50%)',
+              fontSize: '48px',
+              fontWeight: '700',
+              color: '#ff0000',
+              opacity: Math.min(0.5, Math.abs(dragOffset.x) / 150),
+              zIndex: 10
+            }}
+          >
+            👎
+          </div>
+        </>
       )}
 
       {/* Header */}
@@ -268,7 +328,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           fontSize: '18px',
           textTransform: 'uppercase',
           letterSpacing: '2px',
-          color: '#000000',
+          color: isHovered ? '#ffffff' : '#000000',
           marginBottom: '24px',
           lineHeight: '1.2',
           textAlign: 'center'
@@ -283,7 +343,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           style={{
             fontFamily: 'Courier New, Courier, monospace',
             fontSize: '12px',
-            color: '#666666',
+            color: isHovered ? '#cccccc' : '#666666',
             marginBottom: '24px',
             textAlign: 'center',
             fontStyle: 'italic'
@@ -308,8 +368,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           style={{
             flex: 1,
             padding: '20px',
-            background: voteDirection === 'A' ? '#0066ff' : '#ffffff',
-            border: '3px solid #000000',
+            background: voteDirection === 'A' ? '#0066ff' : (isHovered ? '#333333' : '#ffffff'),
+            border: isHovered ? '3px solid #ffffff' : '3px solid #000000',
             cursor: canVote ? 'pointer' : 'default',
             transition: 'all 0.2s ease',
             position: 'relative',
@@ -336,7 +396,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               fontWeight: '700',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: voteDirection === 'A' ? '#ffffff' : '#000000',
+              color: voteDirection === 'A' ? '#ffffff' : (isHovered ? '#ffffff' : '#000000'),
               marginBottom: '8px'
             }}
           >
@@ -383,8 +443,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           style={{
             flex: 1,
             padding: '20px',
-            background: voteDirection === 'B' ? '#ff0000' : '#ffffff',
-            border: '3px solid #000000',
+            background: voteDirection === 'B' ? '#ff0000' : (isHovered ? '#333333' : '#ffffff'),
+            border: isHovered ? '3px solid #ffffff' : '3px solid #000000',
             cursor: canVote ? 'pointer' : 'default',
             transition: 'all 0.2s ease',
             position: 'relative',
@@ -411,7 +471,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               fontWeight: '700',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: voteDirection === 'B' ? '#ffffff' : '#000000',
+              color: voteDirection === 'B' ? '#ffffff' : (isHovered ? '#ffffff' : '#000000'),
               marginBottom: '8px'
             }}
           >

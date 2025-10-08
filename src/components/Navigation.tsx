@@ -16,7 +16,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate }) => {
       <div className="nav-brand">
         <div className="nav-logo">
           <div className="red-dot"></div>
-          <span className="brand-text">POLLZ</span>
+          <span className="brand-text">PAUL</span>
         </div>
       </div>
       

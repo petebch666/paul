@@ -1,32 +1,23 @@
 import React, { useState } from 'react'
 import { 
   IonPage, 
-  IonHeader, 
-  IonToolbar, 
-  IonTitle, 
   IonContent,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
-  IonItem,
-  IonLabel,
-  IonInput,
-  IonButton,
   IonIcon,
-  IonAlert,
   IonSpinner
 } from '@ionic/react'
 import { 
+  person,
+  at,
   mail, 
   lockClosed, 
   eye, 
   eyeOff,
-  person,
-  checkmarkCircle,
-  arrowBack
+  personAdd,
+  logoGoogle,
+  logoApple
 } from 'ionicons/icons'
 import { useAuth } from '../hooks/useAuth'
+import './SignUpPage.css'
 
 interface SignUpPageProps {
   onNavigateToLogin: () => void
@@ -35,7 +26,7 @@ interface SignUpPageProps {
 const SignUpPage: React.FC<SignUpPageProps> = ({ 
   onNavigateToLogin
 }) => {
-  const { signUp, signInWithGoogle, signInWithApple, isLoading, isGoogleAvailable, isAppleAvailable } = useAuth()
+  const { signUp, signInWithGoogle, signInWithApple, isLoading } = useAuth()
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -52,32 +43,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
       ...prev,
       [field]: value
     }))
-    // Clear error when user starts typing
     if (error) setError(null)
-  }
-
-  const validateForm = () => {
-    if (!formData.name || !formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
-      return 'Please fill in all fields'
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      return 'Passwords do not match'
-    }
-
-    if (formData.password.length < 6) {
-      return 'Password must be at least 6 characters long'
-    }
-
-    if (!formData.email.includes('@')) {
-      return 'Please enter a valid email address'
-    }
-
-    if (formData.username.length < 3) {
-      return 'Username must be at least 3 characters long'
-    }
-
-    return null
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,10 +51,14 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
     setError(null)
 
     try {
-      // Validate form
-      const validationError = validateForm()
-      if (validationError) {
-        throw new Error(validationError)
+      // Validate all fields
+      if (!formData.name || !formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+        throw new Error('Please fill in all fields')
+      }
+
+      // Check password match
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error('Passwords do not match')
       }
 
       const success = await signUp({
@@ -97,7 +67,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
         email: formData.email,
         password: formData.password
       })
-
+      
       if (!success) {
         throw new Error('Sign up failed. Please try again.')
       }
@@ -112,7 +82,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
     try {
       await signInWithGoogle()
     } catch (error) {
-      console.error('Google sign-in error:', error)
+      setError('Google Sign-In is not configured')
     }
   }
 
@@ -120,33 +90,17 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
     try {
       await signInWithApple()
     } catch (error) {
-      console.error('Apple sign-in error:', error)
+      setError('Apple Sign-In is not configured')
     }
   }
 
   if (isLoading) {
     return (
       <IonPage>
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle>SIGN UP</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent fullscreen className="ion-padding">
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '100%',
-            fontFamily: 'Courier New, Courier, monospace',
-            fontSize: '16px',
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: '2px',
-            color: '#000000'
-          }}>
-            <IonSpinner name="crescent" color="dark" style={{ marginRight: '10px' }} />
-            CREATING ACCOUNT...
+        <IonContent fullscreen className="signup-page">
+          <div className="loading-container">
+            <IonSpinner name="crescent" color="dark" />
+            <div>CREATING ACCOUNT...</div>
           </div>
         </IonContent>
       </IonPage>
@@ -155,321 +109,170 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>SIGN UP</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      
-      <IonContent fullscreen className="ion-padding">
-        <div className="page-header-minimal">
-          <h1>JOIN POLLZ</h1>
-          <p>CREATE YOUR ACCOUNT TO START POLLING</p>
-        </div>
+      <IonContent fullscreen className="signup-page">
+        <div className="signup-container">
+          {/* Header */}
+          <div className="signup-header">
+            <h1>PAUL</h1>
+            <p>CREATE YOUR ACCOUNT</p>
+          </div>
 
-        <div style={{ padding: '0 16px' }}>
-          <IonCard className="poll-card-minimal">
-            <IonCardHeader>
-              <IonCardTitle style={{ 
-                fontFamily: 'Courier New, Courier, monospace',
-                fontSize: '18px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-                color: '#000000',
-                textAlign: 'center'
-              }}>
-                CREATE ACCOUNT
-              </IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <form onSubmit={handleSubmit}>
-                <IonItem>
-                  <IonIcon 
-                    icon={person} 
-                    slot="start" 
-                    style={{ color: '#000000', marginRight: '8px' }}
-                  />
-                  <IonLabel position="stacked">FULL NAME</IonLabel>
-                  <IonInput
+          {/* Sign Up Form */}
+          <div className="signup-form-container">
+            <form onSubmit={handleSubmit} className="signup-form">
+              {/* Name Input */}
+              <div className="input-group">
+                <div className="input-wrapper">
+                  <IonIcon icon={person} className="input-icon" />
+                  <input
                     type="text"
                     value={formData.name}
-                    onIonInput={(e) => handleInputChange('name', e.detail.value!)}
-                    placeholder="John Doe"
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="FULL NAME"
                     required
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700'
-                    }}
+                    className="custom-input"
                   />
-                </IonItem>
+                </div>
+              </div>
 
-                <IonItem>
-                  <IonIcon 
-                    icon={person} 
-                    slot="start" 
-                    style={{ color: '#000000', marginRight: '8px' }}
-                  />
-                  <IonLabel position="stacked">USERNAME</IonLabel>
-                  <IonInput
+              {/* Username Input */}
+              <div className="input-group">
+                <div className="input-wrapper">
+                  <IonIcon icon={at} className="input-icon" />
+                  <input
                     type="text"
                     value={formData.username}
-                    onIonInput={(e) => handleInputChange('username', e.detail.value!)}
-                    placeholder="johndoe"
+                    onChange={(e) => handleInputChange('username', e.target.value)}
+                    placeholder="USERNAME"
                     required
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700'
-                    }}
+                    className="custom-input"
                   />
-                </IonItem>
+                </div>
+              </div>
 
-                <IonItem>
-                  <IonIcon 
-                    icon={mail} 
-                    slot="start" 
-                    style={{ color: '#000000', marginRight: '8px' }}
-                  />
-                  <IonLabel position="stacked">EMAIL</IonLabel>
-                  <IonInput
+              {/* Email Input */}
+              <div className="input-group">
+                <div className="input-wrapper">
+                  <IonIcon icon={mail} className="input-icon" />
+                  <input
                     type="email"
                     value={formData.email}
-                    onIonInput={(e) => handleInputChange('email', e.detail.value!)}
-                    placeholder="john@example.com"
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="EMAIL"
                     required
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700'
-                    }}
+                    className="custom-input"
                   />
-                </IonItem>
+                </div>
+              </div>
 
-                <IonItem>
-                  <IonIcon 
-                    icon={lockClosed} 
-                    slot="start" 
-                    style={{ color: '#000000', marginRight: '8px' }}
-                  />
-                  <IonLabel position="stacked">PASSWORD</IonLabel>
-                  <IonInput
+              {/* Password Input */}
+              <div className="input-group">
+                <div className="input-wrapper">
+                  <IonIcon icon={lockClosed} className="input-icon" />
+                  <input
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
-                    onIonInput={(e) => handleInputChange('password', e.detail.value!)}
-                    placeholder="Minimum 6 characters"
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    placeholder="PASSWORD"
                     required
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700'
-                    }}
+                    className="custom-input"
                   />
-                  <IonButton
-                    fill="clear"
-                    slot="end"
+                  <button
+                    type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      color: '#000000'
-                    }}
+                    className="password-toggle"
                   >
                     <IonIcon icon={showPassword ? eyeOff : eye} />
-                  </IonButton>
-                </IonItem>
+                  </button>
+                </div>
+              </div>
 
-                <IonItem>
-                  <IonIcon 
-                    icon={lockClosed} 
-                    slot="start" 
-                    style={{ color: '#000000', marginRight: '8px' }}
-                  />
-                  <IonLabel position="stacked">CONFIRM PASSWORD</IonLabel>
-                  <IonInput
+              {/* Confirm Password Input */}
+              <div className="input-group">
+                <div className="input-wrapper">
+                  <IonIcon icon={lockClosed} className="input-icon" />
+                  <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
-                    onIonInput={(e) => handleInputChange('confirmPassword', e.detail.value!)}
-                    placeholder="Confirm your password"
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    placeholder="CONFIRM PASSWORD"
                     required
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700'
-                    }}
+                    className="custom-input"
                   />
-                  <IonButton
-                    fill="clear"
-                    slot="end"
+                  <button
+                    type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      color: '#000000'
-                    }}
+                    className="password-toggle"
                   >
                     <IonIcon icon={showConfirmPassword ? eyeOff : eye} />
-                  </IonButton>
-                </IonItem>
-
-                {error && (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '12px',
-                    margin: '16px 0',
-                    backgroundColor: '#ff0000',
-                    color: '#ffffff',
-                    fontFamily: 'Courier New, Courier, monospace',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    border: '2px solid #000000'
-                  }}>
-                    {error}
-                  </div>
-                )}
-
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '12px',
-                  marginTop: '24px'
-                }}>
-                  <IonButton 
-                    expand="block" 
-                    type="submit"
-                    color="primary"
-                    disabled={!formData.name || !formData.username || !formData.email || !formData.password || !formData.confirmPassword}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px'
-                    }}
-                  >
-                    <IonIcon icon={checkmarkCircle} style={{ marginRight: '8px' }} />
-                    CREATE ACCOUNT
-                  </IonButton>
-
-                  <IonButton 
-                    expand="block" 
-                    fill="outline"
-                    color="primary"
-                    onClick={onNavigateToLogin}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px'
-                    }}
-                  >
-                    <IonIcon icon={arrowBack} style={{ marginRight: '8px' }} />
-                    BACK TO LOGIN
-                  </IonButton>
+                  </button>
                 </div>
-              </form>
+              </div>
 
-              {/* OAuth Divider */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                margin: '24px 0 16px 0' 
-              }}>
-                <div style={{ 
-                  flex: 1, 
-                  height: '2px', 
-                  backgroundColor: '#000000' 
-                }}></div>
-                <div style={{ 
-                  padding: '0 16px',
-                  fontFamily: 'Courier New, Courier, monospace',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  color: '#666666',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px'
-                }}>
-                  OR CONTINUE WITH
+              {/* Error Message */}
+              {error && (
+                <div className="error-message">
+                  {error}
                 </div>
-                <div style={{ 
-                  flex: 1, 
-                  height: '2px', 
-                  backgroundColor: '#000000' 
-                }}></div>
+              )}
+
+              {/* Password Requirements */}
+              <div className="password-requirements">
+                <div className="requirement-title">PASSWORD REQUIREMENTS:</div>
+                <div className="requirement-item">• MINIMUM 8 CHARACTERS</div>
+                <div className="requirement-item">• 1 UPPERCASE, 1 LOWERCASE</div>
+                <div className="requirement-item">• 1 NUMBER, 1 SPECIAL CHAR</div>
               </div>
 
-              {/* OAuth Buttons */}
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '12px'
-              }}>
-                {isGoogleAvailable && (
-                  <IonButton 
-                    expand="block" 
-                    fill="outline"
-                    color="medium"
-                    onClick={handleGoogleSignIn}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      border: '2px solid #000000'
-                    }}
-                  >
-                    <IonIcon icon="logo-google" style={{ marginRight: '8px' }} />
-                    SIGN UP WITH GOOGLE
-                  </IonButton>
-                )}
+              {/* Submit Button */}
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={!formData.name || !formData.username || !formData.email || !formData.password || !formData.confirmPassword}
+              >
+                <IonIcon icon={personAdd} />
+                CREATE ACCOUNT
+              </button>
+            </form>
 
-                {isAppleAvailable && (
-                  <IonButton 
-                    expand="block" 
-                    fill="solid"
-                    color="dark"
-                    onClick={handleAppleSignIn}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      backgroundColor: '#000000',
-                      color: '#ffffff'
-                    }}
-                  >
-                    <IonIcon icon="logo-apple" style={{ marginRight: '8px' }} />
-                    SIGN UP WITH APPLE
-                  </IonButton>
-                )}
-              </div>
-            </IonCardContent>
-          </IonCard>
+            {/* OAuth Divider */}
+            <div className="divider">
+              <span>OR CONTINUE WITH</span>
+            </div>
 
-          {/* Terms and Privacy */}
-          <IonCard className="poll-card-minimal" style={{ marginTop: '16px' }}>
-            <IonCardContent>
-              <div style={{
-                fontFamily: 'Courier New, Courier, monospace',
-                fontSize: '10px',
-                fontWeight: '700',
-                color: '#666666',
-                textAlign: 'center',
-                lineHeight: '1.4'
-              }}>
-                By creating an account, you agree to our Terms of Service and Privacy Policy.
-                We respect your privacy and will never share your data with third parties.
-              </div>
-            </IonCardContent>
-          </IonCard>
+            {/* OAuth Buttons */}
+            <div className="oauth-buttons">
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="btn-oauth btn-google"
+              >
+                <IonIcon icon={logoGoogle} />
+                GOOGLE
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAppleSignIn}
+                className="btn-oauth btn-apple"
+              >
+                <IonIcon icon={logoApple} />
+                APPLE
+              </button>
+            </div>
+
+            {/* Login Link */}
+            <div className="login-link">
+              <span>ALREADY HAVE AN ACCOUNT?</span>
+              <button
+                type="button"
+                onClick={onNavigateToLogin}
+                className="link-button"
+              >
+                SIGN IN
+              </button>
+            </div>
+          </div>
         </div>
       </IonContent>
     </IonPage>

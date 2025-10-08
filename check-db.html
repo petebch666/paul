@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database Check - Pollz</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      color: #ff0000;
+      border-bottom: 2px solid #ff0000;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #333;
+      background: #111;
+    }
+    .user {
+      margin: 10px 0;
+      padding: 10px;
+      background: #000;
+      border-left: 3px solid #0f0;
+    }
+    .admin {
+      border-left-color: #ff0000;
+      color: #ff0000;
+    }
+    button {
+      background: #ff0000;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #fff;
+      color: #000;
+    }
+    pre {
+      background: #000;
+      padding: 10px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 DATABASE DIAGNOSTIC</h1>
+  
+  <div class="section">
+    <h2>📦 Raw LocalStorage Data:</h2>
+    <pre id="raw-data"></pre>
+  </div>
+
+  <div class="section">
+    <h2>👥 Users in Database:</h2>
+    <div id="users"></div>
+  </div>
+
+  <div class="section">
+    <h2>📊 Polls in Database:</h2>
+    <div id="polls"></div>
+  </div>
+
+  <div class="section">
+    <h2>🔧 Actions:</h2>
+    <button onclick="forceInit()">🔄 Force Re-Initialize DB</button>
+    <button onclick="window.location.reload()">♻️ Refresh Page</button>
+    <button onclick="window.location.href='http://localhost:3000'">🚀 Open App</button>
+  </div>
+
+  <script>
+    function checkDatabase() {
+      // Get raw localStorage data
+      const rawData = localStorage.getItem('paul-db')
+      document.getElementById('raw-data').textContent = rawData || 'NO DATA FOUND'
+
+      if (!rawData) {
+        document.getElementById('users').innerHTML = '<p style="color:#ff0000;">❌ NO DATABASE FOUND</p>'
+        document.getElementById('polls').innerHTML = '<p style="color:#ff0000;">❌ NO DATABASE FOUND</p>'
+        return
+      }
+
+      try {
+        const db = JSON.parse(rawData)
+        
+        // Display users
+        const usersDiv = document.getElementById('users')
+        if (db.users && db.users.length > 0) {
+          usersDiv.innerHTML = db.users.map((user, i) => `
+            <div class="user ${user.role === 'admin' ? 'admin' : ''}">
+              <strong>${i + 1}. ${user.name}</strong><br>
+              Email: ${user.email}<br>
+              Username: ${user.username}<br>
+              Role: ${user.role || 'user'}<br>
+              ID: ${user.id}<br>
+              Has Password: ${user.password ? 'YES (' + user.password.substring(0, 20) + '...)' : 'NO'}
+            </div>
+          `).join('')
+        } else {
+          usersDiv.innerHTML = '<p style="color:#ff0000;">❌ NO USERS FOUND</p>'
+        }
+
+        // Display polls
+        const pollsDiv = document.getElementById('polls')
+        if (db.polls && db.polls.length > 0) {
+          pollsDiv.innerHTML = `<p>✅ ${db.polls.length} polls found</p>`
+          pollsDiv.innerHTML += db.polls.slice(0, 5).map((poll, i) => `
+            <div class="user">
+              ${i + 1}. ${poll.title || poll.optionA + ' vs ' + poll.optionB}
+            </div>
+          `).join('')
+          if (db.polls.length > 5) {
+            pollsDiv.innerHTML += `<p>... and ${db.polls.length - 5} more</p>`
+          }
+        } else {
+          pollsDiv.innerHTML = '<p style="color:#ff0000;">❌ NO POLLS FOUND</p>'
+        }
+
+      } catch (error) {
+        document.getElementById('users').innerHTML = '<p style="color:#ff0000;">❌ ERROR PARSING DATABASE: ' + error.message + '</p>'
+      }
+    }
+
+    function forceInit() {
+      console.log('🔄 Forcing database re-initialization...')
+      
+      // Clear only the database, not the user auth
+      localStorage.removeItem('paul-db')
+      
+      alert('✅ Database cleared! The app will reinitialize it on next load.')
+      
+      setTimeout(() => {
+        window.location.href = 'http://localhost:3000'
+      }, 1000)
+    }
+
+    // Run check on load
+    checkDatabase()
+  </script>
+</body>
+</html>
+

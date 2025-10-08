@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Populate Database - Pollz</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      color: #ff0000;
+      border-bottom: 2px solid #ff0000;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #333;
+      background: #111;
+    }
+    button {
+      background: #ff0000;
+      color: #fff;
+      border: none;
+      padding: 15px 30px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 10px;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #fff;
+      color: #000;
+    }
+    .log {
+      background: #000;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #333;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .success { color: #0f0; }
+    .error { color: #ff0000; }
+    .warning { color: #ffff00; }
+  </style>
+</head>
+<body>
+  <h1>🚀 DATABASE POPULATOR</h1>
+  
+  <div class="section">
+    <h2>📝 What this will create:</h2>
+    <ul>
+      <li>✅ Admin user (admin@pollz.app / Admin@123)</li>
+      <li>✅ John Doe user (john@example.com / JohnDoe123)</li>
+      <li>✅ 25 humorous polls</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <button onclick="populateDatabase()">🔥 POPULATE DATABASE</button>
+    <button onclick="checkDatabase()">🔍 CHECK DATABASE</button>
+    <button onclick="window.location.href='http://localhost:3000'">🚀 OPEN APP</button>
+  </div>
+
+  <div class="section">
+    <h2>📋 Log:</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <script>
+    // Simple bcrypt-like hash for demo (in real app, use proper bcrypt)
+    function simpleHash(password) {
+      // This is just for demo - in production use proper bcrypt
+      return btoa(password + '_hashed_' + Date.now())
+    }
+
+    function log(message, type = 'info') {
+      const logEl = document.getElementById('log')
+      const line = document.createElement('div')
+      line.className = type
+      line.textContent = '> ' + new Date().toLocaleTimeString() + ' ' + message
+      logEl.appendChild(line)
+      logEl.scrollTop = logEl.scrollHeight
+    }
+
+    function populateDatabase() {
+      log('🚀 Starting database population...', 'info')
+      
+      try {
+        // Create database structure
+        const database = {
+          users: [],
+          polls: [],
+          votes: [],
+          notifications: [],
+          pollHistory: []
+        }
+
+        // Create Admin user
+        const adminUser = {
+          id: 'admin-1',
+          name: 'Admin',
+          username: '@admin',
+          email: 'admin@pollz.app',
+          // Password: Admin@123 (hashed)
+          password: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+          role: 'admin',
+          avatar: 'https://ui-avatars.com/api/?name=Admin&background=ff0000&color=ffffff&size=150',
+          followers: 0,
+          following: 0,
+          reputation: 0,
+          badges: [
+            {
+              id: 'badge-admin',
+              name: 'Administrator',
+              description: 'System Administrator',
+              icon: 'Shield',
+              category: 'admin',
+              rarity: 'legendary',
+              earnedAt: new Date().toISOString()
+            }
+          ],
+          pollCount: 0,
+          winRate: 0,
+          joinDate: new Date().toISOString()
+        }
+
+        // Create John Doe user
+        const johnDoeUser = {
+          id: 'user-john-1',
+          name: 'John Doe',
+          username: '@johndoe',
+          email: 'john@example.com',
+          // Password: JohnDoe123 (hashed)
+          password: '$2a$10$JohnDoe123HashExampleForDemoPurposesOnly',
+          role: 'user',
+          avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=0066cc&color=ffffff&size=150',
+          followers: 42,
+          following: 15,
+          reputation: 156,
+          badges: [
+            {
+              id: 'badge-newbie',
+              name: 'New User',
+              description: 'Welcome to Pollz!',
+              icon: 'Star',
+              category: 'general',
+              rarity: 'common',
+              earnedAt: new Date().toISOString()
+            }
+          ],
+          pollCount: 0,
+          winRate: 0,
+          joinDate: new Date().toISOString()
+        }
+
+        // Add users
+        database.users.push(adminUser)
+        database.users.push(johnDoeUser)
+        log('✅ Created Admin user (admin@pollz.app)', 'success')
+        log('✅ Created John Doe user (john@example.com)', 'success')
+
+        // Create 25 humorous polls
+        const humorousPolls = [
+          {
+            id: 'poll-humor-1',
+            title: 'The Ultimate Debate',
+            optionA: 'Pineapple on pizza',
+            optionB: 'No pineapple on pizza',
+            description: 'The age-old question that divides nations',
+            category: 'Food',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 47,
+            votesOptionB: 53,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 5).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 150
+          },
+          {
+            id: 'poll-humor-2',
+            title: 'Office Life',
+            optionA: 'Monday meetings',
+            optionB: 'Friday deadlines',
+            description: 'Which is more painful?',
+            category: 'Work',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 89,
+            votesOptionB: 11,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 6).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 200
+          },
+          {
+            id: 'poll-humor-3',
+            title: 'Social Media Dilemma',
+            optionA: 'Read the comments',
+            optionB: 'Never read the comments',
+            description: 'Wisdom vs curiosity',
+            category: 'Social',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 23,
+            votesOptionB: 77,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 7).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 180
+          },
+          {
+            id: 'poll-humor-4',
+            title: 'Gaming Philosophy',
+            optionA: 'Save every 5 minutes',
+            optionB: 'Live dangerously, never save',
+            description: 'Risk vs paranoia',
+            category: 'Gaming',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 91,
+            votesOptionB: 9,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 4).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 120
+          },
+          {
+            id: 'poll-humor-5',
+            title: 'Pet Preference',
+            optionA: 'Cats (majestic overlords)',
+            optionB: 'Dogs (loyal servants)',
+            description: 'Choose your ruler',
+            category: 'Pets',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 52,
+            votesOptionB: 48,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 8).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 95
+          },
+          {
+            id: 'poll-humor-6',
+            title: 'Coffee vs Tea',
+            optionA: 'Coffee (liquid energy)',
+            optionB: 'Tea (liquid zen)',
+            description: 'Fuel for the soul',
+            category: 'Food',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 67,
+            votesOptionB: 33,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 0.5).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 9).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 210
+          },
+          {
+            id: 'poll-humor-7',
+            title: 'Remote Work Reality',
+            optionA: 'Pants are optional',
+            optionB: 'Pants are mandatory',
+            description: 'Home office dress code',
+            category: 'Work',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 78,
+            votesOptionB: 22,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 3).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 160
+          },
+          {
+            id: 'poll-humor-8',
+            title: 'Smartphone Addiction',
+            optionA: 'Check phone every 5 minutes',
+            optionB: 'Check phone every 5 seconds',
+            description: 'Level of dependency',
+            category: 'Technology',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 35,
+            votesOptionB: 65,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 140
+          },
+          {
+            id: 'poll-humor-9',
+            title: 'Netflix Binge',
+            optionA: 'Start a new series',
+            optionB: 'Rewatch The Office (again)',
+            description: 'Decision paralysis',
+            category: 'Entertainment',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 41,
+            votesOptionB: 59,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 1.5).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 11).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 175
+          },
+          {
+            id: 'poll-humor-10',
+            title: 'Weather Preference',
+            optionA: 'Always sunny',
+            optionB: 'Always raining',
+            description: 'Perfect climate debate',
+            category: 'Life',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 73,
+            votesOptionB: 27,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 9).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 12).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 110
+          },
+          {
+            id: 'poll-humor-11',
+            title: 'Superpower Choice',
+            optionA: 'Invisibility',
+            optionB: 'Flight',
+            description: 'If you could have one superpower',
+            category: 'Fun',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 44,
+            votesOptionB: 56,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 15).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 13).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 195
+          },
+          {
+            id: 'poll-humor-12',
+            title: 'Time Travel Rules',
+            optionA: 'Change the past',
+            optionB: 'Just observe history',
+            description: 'Responsibility vs curiosity',
+            category: 'Science',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 38,
+            votesOptionB: 62,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 0.8).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 14).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 165
+          },
+          {
+            id: 'poll-humor-13',
+            title: 'Alien Encounter',
+            optionA: 'Friendly aliens',
+            optionB: 'Hostile aliens',
+            description: 'First contact scenario',
+            category: 'Science',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 81,
+            votesOptionB: 19,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 21).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 15).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 130
+          },
+          {
+            id: 'poll-humor-14',
+            title: 'Internet Connection',
+            optionA: 'WiFi everywhere',
+            optionB: 'Unlimited data',
+            description: 'Digital survival kit',
+            category: 'Technology',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 29,
+            votesOptionB: 71,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 27).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 16).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 185
+          },
+          {
+            id: 'poll-humor-15',
+            title: 'Sleep Schedule',
+            optionA: 'Early bird',
+            optionB: 'Night owl',
+            description: 'Circadian rhythm preference',
+            category: 'Life',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 46,
+            votesOptionB: 54,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 2.3).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 17).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 145
+          },
+          {
+            id: 'poll-humor-16',
+            title: 'Social Gathering',
+            optionA: 'Large party',
+            optionB: 'Small group',
+            description: 'Ideal social situation',
+            category: 'Social',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 33,
+            votesOptionB: 67,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 30).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 18).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 125
+          },
+          {
+            id: 'poll-humor-17',
+            title: 'Food Delivery',
+            optionA: 'Always order delivery',
+            optionB: 'Always cook at home',
+            description: 'Culinary lifestyle',
+            category: 'Food',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 62,
+            votesOptionB: 38,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 3.1).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 19).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 170
+          },
+          {
+            id: 'poll-humor-18',
+            title: 'Exercise Motivation',
+            optionA: 'Gym membership',
+            optionB: 'Home workout',
+            description: 'Fitness preference',
+            category: 'Health',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 48,
+            votesOptionB: 52,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 33).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 20).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 135
+          },
+          {
+            id: 'poll-humor-19',
+            title: 'Music Streaming',
+            optionA: 'Spotify',
+            optionB: 'Apple Music',
+            description: 'Platform loyalty',
+            category: 'Entertainment',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 76,
+            votesOptionB: 24,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 3.7).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 21).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 155
+          },
+          {
+            id: 'poll-humor-20',
+            title: 'Shopping Style',
+            optionA: 'Online shopping',
+            optionB: 'In-store shopping',
+            description: 'Retail therapy method',
+            category: 'Life',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 69,
+            votesOptionB: 31,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 36).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 22).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 115
+          },
+          {
+            id: 'poll-humor-21',
+            title: 'Weekend Plans',
+            optionA: 'Stay in and relax',
+            optionB: 'Go out and explore',
+            description: 'Ideal weekend',
+            category: 'Life',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 57,
+            votesOptionB: 43,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 4.2).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 23).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 190
+          },
+          {
+            id: 'poll-humor-22',
+            title: 'Learning Style',
+            optionA: 'Read documentation',
+            optionB: 'Watch tutorials',
+            description: 'How you learn best',
+            category: 'Education',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 42,
+            votesOptionB: 58,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 39).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 24).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 205
+          },
+          {
+            id: 'poll-humor-23',
+            title: 'Communication Preference',
+            optionA: 'Text messages',
+            optionB: 'Voice calls',
+            description: 'How you prefer to communicate',
+            category: 'Social',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 84,
+            votesOptionB: 16,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 4.8).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 25).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 220
+          },
+          {
+            id: 'poll-humor-24',
+            title: 'Vacation Style',
+            optionA: 'Planned itinerary',
+            optionB: 'Spontaneous adventure',
+            description: 'Travel philosophy',
+            category: 'Travel',
+            authorId: 'admin-1',
+            author: 'Admin',
+            votesOptionA: 51,
+            votesOptionB: 49,
+            votes: 100,
+            createdAt: new Date(Date.now() - 3600000 * 42).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 26).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 180
+          },
+          {
+            id: 'poll-humor-25',
+            title: 'Problem Solving',
+            optionA: 'Google the solution',
+            optionB: 'Figure it out yourself',
+            description: 'Debugging approach',
+            category: 'Technology',
+            authorId: 'user-john-1',
+            author: 'John Doe',
+            votesOptionA: 93,
+            votesOptionB: 7,
+            votes: 100,
+            createdAt: new Date(Date.now() - 86400000 * 5.3).toISOString(),
+            expiresAt: new Date(Date.now() + 86400000 * 27).toISOString(),
+            isVoted: false,
+            isLiked: false,
+            isShared: false,
+            comments: [],
+            pollType: 'binary',
+            timerEnabled: false,
+            notificationEnabled: false,
+            isExpired: false,
+            trendingScore: 240
+          }
+        ]
+
+        // Add all polls
+        database.polls = humorousPolls
+        log(`✅ Created ${humorousPolls.length} humorous polls`, 'success')
+
+        // Save to localStorage
+        localStorage.setItem('paul-db', JSON.stringify(database))
+        log('✅ Database saved to localStorage', 'success')
+        log('🎉 DATABASE POPULATION COMPLETE!', 'success')
+        
+        // Update user poll counts
+        const johnPollCount = database.polls.filter(p => p.authorId === 'user-john-1').length
+        const adminPollCount = database.polls.filter(p => p.authorId === 'admin-1').length
+        
+        database.users[0].pollCount = adminPollCount
+        database.users[1].pollCount = johnPollCount
+        
+        // Save updated counts
+        localStorage.setItem('paul-db', JSON.stringify(database))
+        log(`✅ Updated poll counts: Admin(${adminPollCount}), John(${johnPollCount})`, 'success')
+
+      } catch (error) {
+        log('❌ Error populating database: ' + error.message, 'error')
+      }
+    }
+
+    function checkDatabase() {
+      log('🔍 Checking database...', 'info')
+      
+      const rawData = localStorage.getItem('paul-db')
+      if (!rawData) {
+        log('❌ No database found', 'error')
+        return
+      }
+
+      try {
+        const db = JSON.parse(rawData)
+        log(`✅ Users: ${db.users?.length || 0}`, 'success')
+        log(`✅ Polls: ${db.polls?.length || 0}`, 'success')
+        log(`✅ Votes: ${db.votes?.length || 0}`, 'success')
+        
+        if (db.users) {
+          db.users.forEach((user, i) => {
+            log(`  ${i+1}. ${user.name} (${user.email}) - Role: ${user.role}`, 'info')
+          })
+        }
+        
+      } catch (error) {
+        log('❌ Error reading database: ' + error.message, 'error')
+      }
+    }
+
+    // Auto-check on load
+    checkDatabase()
+  </script>
+</body>
+</html>

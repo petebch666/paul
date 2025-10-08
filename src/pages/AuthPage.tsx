@@ -63,10 +63,10 @@ const AuthPage: React.FC<AuthPageProps> = ({
             justifyContent: 'center', 
             alignItems: 'center', 
             height: '100%',
-            fontFamily: 'Courier New, Courier, monospace',
+            fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
             fontSize: '16px',
             fontWeight: '700',
-            textTransform: 'uppercase',
+            // textTransform: 'uppercase',
             letterSpacing: '2px',
             color: '#000000'
           }}>
@@ -93,10 +93,10 @@ const AuthPage: React.FC<AuthPageProps> = ({
             justifyContent: 'center', 
             alignItems: 'center', 
             height: '100%',
-            fontFamily: 'Courier New, Courier, monospace',
+            fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
             fontSize: '16px',
             fontWeight: '700',
-            textTransform: 'uppercase',
+            // textTransform: 'uppercase',
             letterSpacing: '2px',
             color: '#000000'
           }}>
@@ -113,7 +113,7 @@ const AuthPage: React.FC<AuthPageProps> = ({
               <div>SUCCESSFUL</div>
             </div>
             <div style={{
-              fontFamily: 'Courier New, Courier, monospace',
+              fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
               fontSize: '12px',
               fontWeight: '700',
               color: '#666666',
@@ -159,10 +159,10 @@ const AuthPage: React.FC<AuthPageProps> = ({
                     }} 
                   />
                   <div style={{
-                    fontFamily: 'Courier New, Courier, monospace',
+                    fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
                     fontSize: '18px',
                     fontWeight: '700',
-                    textTransform: 'uppercase',
+                    // textTransform: 'uppercase',
                     letterSpacing: '2px',
                     color: '#ff0000'
                   }}>
@@ -172,7 +172,7 @@ const AuthPage: React.FC<AuthPageProps> = ({
               </IonCardHeader>
               <IonCardContent>
                 <div style={{
-                  fontFamily: 'Courier New, Courier, monospace',
+                  fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
                   fontSize: '14px',
                   fontWeight: '700',
                   color: '#000000',
@@ -193,10 +193,10 @@ const AuthPage: React.FC<AuthPageProps> = ({
                     color="primary"
                     onClick={onRetry}
                     style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
+                      fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
                       fontSize: '14px',
                       fontWeight: '700',
-                      textTransform: 'uppercase',
+                      // textTransform: 'uppercase',
                       letterSpacing: '1px'
                     }}
                   >
@@ -216,7 +216,7 @@ const AuthPage: React.FC<AuthPageProps> = ({
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>AUTHENTICATION</IonTitle>
+          <IonTitle>PAUL</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen className="ion-padding">
@@ -226,24 +226,57 @@ const AuthPage: React.FC<AuthPageProps> = ({
           justifyContent: 'center', 
           alignItems: 'center', 
           height: '100%',
-          fontFamily: 'Courier New, Courier, monospace',
-          fontSize: '16px',
-          fontWeight: '700',
-          textTransform: 'uppercase',
-          letterSpacing: '2px',
-          color: '#000000'
+          padding: '20px'
         }}>
-          <IonIcon 
-            icon={warning} 
+          <div style={{
+            fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+            fontSize: '32px',
+            fontWeight: '700',
+            // textTransform: 'uppercase',
+            letterSpacing: '4px',
+            color: '#000000',
+            marginBottom: '10px',
+            textAlign: 'center'
+          }}>
+            PAUL
+          </div>
+          
+          <div style={{
+            fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+            fontSize: '12px',
+            color: '#666666',
+            marginBottom: '40px',
+            textAlign: 'center'
+          }}>
+            THE ULTIMATE POLLING APP
+          </div>
+
+          <IonButton 
+            expand="block"
+            color="dark"
+            onClick={onContinue}
             style={{ 
-              fontSize: '60px', 
-              color: '#ffaa00', 
-              marginBottom: '20px' 
-            }} 
-          />
-          <div style={{ textAlign: 'center' }}>
-            <div>WAITING FOR</div>
-            <div>AUTHENTICATION</div>
+              fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+              fontSize: '14px',
+              fontWeight: '700',
+              // textTransform: 'uppercase',
+              letterSpacing: '2px',
+              marginBottom: '16px',
+              width: '100%',
+              maxWidth: '300px'
+            }}
+          >
+            GET STARTED
+          </IonButton>
+
+          <div style={{
+            fontFamily: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+            fontSize: '10px',
+            color: '#999999',
+            marginTop: '20px',
+            textAlign: 'center'
+          }}>
+            LOGIN OR SIGN UP TO CONTINUE
           </div>
         </div>
       </IonContent>

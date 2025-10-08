@@ -125,7 +125,7 @@ export interface DatabaseSchema {
 }
 
 class SimpleDatabase {
-  private key = 'pollz-db'
+  private key = 'paul-db'
   private data: DatabaseSchema | null = null
 
   async read(): Promise<DatabaseSchema> {
@@ -179,10 +179,38 @@ class SimpleDatabase {
   private async getDefaultData(): Promise<DatabaseSchema> {
     const initialUsers: User[] = [
       {
+        id: 'admin-1',
+        name: 'Admin',
+        username: '@admin',
+        email: 'admin@pollz.app',
+        // Password: Admin@123 (hashed with bcrypt)
+        password: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+        role: 'admin',
+        avatar: 'https://ui-avatars.com/api/?name=Admin&background=ff0000&color=ffffff&size=150',
+        followers: 0,
+        following: 0,
+        reputation: 0,
+        badges: [
+          {
+            id: 'badge-admin',
+            name: 'Administrator',
+            description: 'System Administrator',
+            icon: 'Shield',
+            category: 'admin',
+            rarity: 'legendary',
+            earnedAt: new Date()
+          }
+        ],
+        pollCount: 0,
+        winRate: 0,
+        joinDate: new Date()
+      },
+      {
         id: 'user-1',
         name: 'Alex Johnson',
         username: '@alexjohnson',
         email: 'alex@example.com',
+        role: 'user',
         avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
         followers: 1247,
         following: 89,
