@@ -1,20 +1,38 @@
-import { DatabaseService, Poll, User, Vote } from './db'
+import { db, Poll, User, Vote } from './simple-db'
 
 // API service for database operations
 export class PollzAPI {
   // Poll operations
   static async getAllPolls(): Promise<Poll[]> {
     try {
-      return await DatabaseService.getAllPolls()
+      return await db.getAllPolls()
     } catch (error) {
       console.error('Error fetching polls:', error)
       throw new Error('Failed to fetch polls')
     }
   }
 
+  static async getPollsBatch(page: number = 0, limit: number = 10): Promise<Poll[]> {
+    try {
+      return await db.getPollsBatch(page, limit)
+    } catch (error) {
+      console.error('Error fetching polls batch:', error)
+      throw new Error('Failed to fetch polls batch')
+    }
+  }
+
+  static async getTotalPollsCount(): Promise<number> {
+    try {
+      return await db.getTotalPollsCount()
+    } catch (error) {
+      console.error('Error getting polls count:', error)
+      throw new Error('Failed to get polls count')
+    }
+  }
+
   static async getPollById(id: string): Promise<Poll | null> {
     try {
-      const poll = await DatabaseService.getPollById(id)
+      const poll = await db.getPollById(id)
       return poll || null
     } catch (error) {
       console.error('Error fetching poll:', error)
@@ -37,7 +55,7 @@ export class PollzAPI {
     expiresAt: Date
   }): Promise<Poll> {
     try {
-      return await DatabaseService.createPoll({
+      return await db.createPoll({
         ...pollData,
         isVoted: false,
         isLiked: false,
@@ -56,7 +74,7 @@ export class PollzAPI {
 
   static async voteOnPoll(pollId: string, userId: string, option: 'A' | 'B'): Promise<{ success: boolean; message: string }> {
     try {
-      await DatabaseService.voteOnPoll(pollId, userId, option)
+      await db.voteOnPoll(pollId, userId, option)
       return { success: true, message: 'Vote recorded successfully' }
     } catch (error) {
       console.error('Error voting on poll:', error)
@@ -67,7 +85,7 @@ export class PollzAPI {
   // User operations
   static async getUserById(id: string): Promise<User | null> {
     try {
-      const user = await DatabaseService.getUserById(id)
+      const user = await db.getUserById(id)
       return user || null
     } catch (error) {
       console.error('Error fetching user:', error)
@@ -77,7 +95,7 @@ export class PollzAPI {
 
   static async getUserByEmail(email: string): Promise<User | null> {
     try {
-      const user = await DatabaseService.getUserByEmail(email)
+      const user = await db.getUserByEmail(email)
       return user || null
     } catch (error) {
       console.error('Error fetching user by email:', error)
@@ -93,7 +111,7 @@ export class PollzAPI {
     password?: string
   }): Promise<User> {
     try {
-      return await DatabaseService.createUser({
+      return await db.createUser({
         ...userData,
         followers: 0,
         following: 0,
@@ -112,7 +130,7 @@ export class PollzAPI {
   // Trending operations
   static async getTrendingPolls(): Promise<Poll[]> {
     try {
-      return await DatabaseService.getTrendingPolls()
+      return await db.getTrendingPolls()
     } catch (error) {
       console.error('Error fetching trending polls:', error)
       throw new Error('Failed to fetch trending polls')
@@ -121,7 +139,7 @@ export class PollzAPI {
 
   static async updateTrendingPolls(): Promise<void> {
     try {
-      await DatabaseService.updateTrendingPolls()
+      await db.updateTrendingPolls()
     } catch (error) {
       console.error('Error updating trending polls:', error)
       throw new Error('Failed to update trending polls')
@@ -139,7 +157,7 @@ export class PollzAPI {
     trendingScore: number
   } | null> {
     try {
-      const poll = await DatabaseService.getPollById(pollId)
+      const poll = await db.getPollById(pollId)
       if (!poll) return null
 
       const optionAPercentage = poll.votes > 0 ? Math.round((poll.votesOptionA / poll.votes) * 100) : 0
@@ -163,7 +181,7 @@ export class PollzAPI {
   // Search operations
   static async searchPolls(query: string): Promise<Poll[]> {
     try {
-      const polls = await DatabaseService.getAllPolls()
+      const polls = await db.getAllPolls()
       const searchTerm = query.toLowerCase()
       
       return polls.filter(poll => 
@@ -180,7 +198,7 @@ export class PollzAPI {
 
   static async getPollsByCategory(category: string): Promise<Poll[]> {
     try {
-      const polls = await DatabaseService.getAllPolls()
+      const polls = await db.getAllPolls()
       return polls.filter(poll => poll.category.toLowerCase() === category.toLowerCase())
     } catch (error) {
       console.error('Error fetching polls by category:', error)
@@ -190,7 +208,7 @@ export class PollzAPI {
 
   static async getUserPolls(userId: string): Promise<Poll[]> {
     try {
-      const polls = await DatabaseService.getAllPolls()
+      const polls = await db.getAllPolls()
       return polls.filter(poll => poll.authorId === userId)
     } catch (error) {
       console.error('Error fetching user polls:', error)
@@ -251,7 +269,7 @@ export class PollzAPI {
     }>
   }> {
     try {
-      const polls = await DatabaseService.getAllPolls()
+      const polls = await db.getAllPolls()
       const similarPolls = []
 
       for (const poll of polls) {

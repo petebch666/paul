@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { PollzAPI } from '../database/api'
-import { Poll, User } from '../database/db'
+import { Poll, User } from '../database/simple-db'
 
 // Custom hook for database operations
 export function useDatabase() {

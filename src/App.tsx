@@ -1,15 +1,26 @@
-import React, { useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import { IonApp, IonRouterOutlet, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/react'
+import { useIonRouter } from '@ionic/react'
+import { IonReactRouter } from '@ionic/react-router'
+import { Route, Redirect } from 'react-router-dom'
+import { home, add, trendingUp, person } from 'ionicons/icons'
 import { useAppState } from './hooks/useAppState'
-import Navigation from './components/Navigation'
 import HomePage from './pages/HomePage'
+import SwipeHomePage from './pages/SwipeHomePage'
+import DesktopHomePage from './pages/DesktopHomePage'
 import CreatePage from './pages/CreatePage'
 import TrendingPage from './pages/TrendingPage'
 import ProfilePage from './pages/ProfilePage'
-import { Poll, User } from './types'
 import './App.css'
 
-// Mock data
-const mockPolls: Poll[] = [
+// Import test utility for development
+if (process.env.NODE_ENV === 'development') {
+  import('./utils/test-api')
+  import('./utils/populate-humorous-polls')
+}
+
+// Mock data (kept for reference, but no longer used)
+const mockPolls = [
   {
     id: '1',
     title: 'Pineapple on Pizza: Crime or Genius?',
@@ -233,79 +244,135 @@ const mockPolls: Poll[] = [
 ]
 
 function App() {
+  const [isDesktop, setIsDesktop] = useState(false)
+  const router = useIonRouter()
+  
   const {
-    currentPage,
     polls,
     user,
-    navigateTo,
+    loading,
+    loadingMore,
+    error,
+    hasMorePolls,
+    totalPolls,
+    currentPage,
     handleVote,
     handleLike,
     createPoll,
-    setPolls
+    loadPolls,
+    loadMorePolls
   } = useAppState()
 
-  // Initialize with mock data
+  // Detect screen size
   useEffect(() => {
-    setPolls(mockPolls)
-  }, [setPolls])
-
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case 'home':
-        return (
-          <HomePage
-            polls={polls}
-            user={user}
-            onVote={handleVote}
-            onLike={handleLike}
-          />
-        )
-      case 'create':
-        return (
-          <CreatePage
-            onCreatePoll={createPoll}
-          />
-        )
-      case 'trending':
-        return (
-          <TrendingPage
-            polls={polls}
-            user={user}
-            onVote={handleVote}
-            onLike={handleLike}
-          />
-        )
-      case 'profile':
-        return (
-          <ProfilePage
-            user={user}
-            polls={polls}
-            onVote={handleVote}
-            onLike={handleLike}
-          />
-        )
-      default:
-        return (
-          <HomePage
-            polls={polls}
-            user={user}
-            onVote={handleVote}
-            onLike={handleLike}
-          />
-        )
+    const checkScreenSize = () => {
+      setIsDesktop(window.innerWidth > 1024)
     }
+    
+    checkScreenSize()
+    window.addEventListener('resize', checkScreenSize)
+    return () => window.removeEventListener('resize', checkScreenSize)
+  }, [])
+
+  // Navigation handler
+  const handleNavigate = (path: string) => {
+    router.push(path)
   }
 
   return (
-    <div className="app">
-      <Navigation
-        currentPage={currentPage}
-        onNavigate={navigateTo}
-      />
-      <main className="main-content">
-        {renderCurrentPage()}
-      </main>
-    </div>
+    <IonReactRouter>
+      <IonApp>
+        <IonTabs>
+          <IonRouterOutlet>
+            <Route exact path="/home">
+              {isDesktop ? (
+                <DesktopHomePage
+                  polls={polls}
+                  user={user}
+                  onVote={handleVote}
+                  onLike={handleLike}
+                  loadPolls={loadPolls}
+                  loadMorePolls={loadMorePolls}
+                  loading={loading}
+                  loadingMore={loadingMore}
+                  hasMorePolls={hasMorePolls}
+                  totalPolls={totalPolls}
+                  currentPage={currentPage}
+                  error={error}
+                  onNavigate={handleNavigate}
+                />
+              ) : (
+                <HomePage
+                  polls={polls}
+                  user={user}
+                  onVote={handleVote}
+                  onLike={handleLike}
+                  loadPolls={loadPolls}
+                  loading={loading}
+                  error={error}
+                />
+              )}
+            </Route>
+            <Route exact path="/create">
+              <CreatePage
+                onCreatePoll={createPoll}
+              />
+            </Route>
+            <Route exact path="/trending">
+              <TrendingPage
+                polls={polls}
+                user={user}
+                onVote={handleVote}
+                onLike={handleLike}
+              />
+            </Route>
+            <Route exact path="/profile">
+              <ProfilePage
+                user={user}
+                polls={polls}
+                onVote={handleVote}
+                onLike={handleLike}
+              />
+            </Route>
+            <Route exact path="/">
+              <Redirect to="/home" />
+            </Route>
+          </IonRouterOutlet>
+          
+          <IonTabBar slot="bottom">
+            <IonTabButton tab="home" href="/home">
+              <IonIcon icon={home} />
+              <IonLabel>Home</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="create" href="/create">
+              <IonIcon icon={add} />
+              <IonLabel>Create</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="trending" href="/trending">
+              <IonIcon icon={trendingUp} />
+              <IonLabel>Trending</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="profile" href="/profile">
+              <IonIcon icon={person} />
+              <IonLabel>Profile</IonLabel>
+            </IonTabButton>
+          </IonTabBar>
+        </IonTabs>
+        
+        {error && (
+          <div className="error-banner">
+            <p>⚠️ {error}</p>
+            <button onClick={() => window.location.reload()}>Retry</button>
+          </div>
+        )}
+        
+        {loading && (
+          <div className="loading-overlay">
+            <div className="loading-spinner">Loading...</div>
+          </div>
+        )}
+      </IonApp>
+    </IonReactRouter>
   )
 }
 

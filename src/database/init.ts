@@ -1,4 +1,4 @@
-import { initializeDatabase } from './db'
+import { initializeDatabase } from './simple-db'
 import { PollzAPI } from './api'
 
 // Initialize database on startup
@@ -28,9 +28,9 @@ export async function initializePollzDatabase() {
   }
 }
 
-// Auto-initialize when this module is imported
-if (typeof window === 'undefined') {
-  // Only run on server-side
+// Auto-initialize when this module is imported (browser only)
+if (typeof window !== 'undefined') {
+  // Only run on client-side
   initializePollzDatabase().catch(console.error)
 }
 

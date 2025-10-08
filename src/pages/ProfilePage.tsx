@@ -1,8 +1,31 @@
 import React, { useState } from 'react'
+import { 
+  IonPage, 
+  IonHeader, 
+  IonToolbar, 
+  IonTitle, 
+  IonContent,
+  IonCard,
+  IonCardHeader,
+  IonCardTitle,
+  IonCardContent,
+  IonButton,
+  IonIcon,
+  IonChip,
+  IonBadge,
+  IonGrid,
+  IonRow,
+  IonCol,
+  IonSegment,
+  IonSegmentButton,
+  IonLabel,
+  IonAvatar,
+  IonItem,
+  IonList
+} from '@ionic/react'
+import { medal, flag, trophy, star, add, people } from 'ionicons/icons'
 import { User, Badge, Poll } from '../types'
-import { Crown, Target, Trophy, Star, Plus, Users } from 'lucide-react'
 import PollCard from '../components/PollCard'
-import '../pages/ProfilePage.css'
 
 interface ProfilePageProps {
   user: User
@@ -16,13 +39,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, polls, onVote, onLike }
   
   const userPolls = polls.filter(poll => poll.authorId === user.id || poll.author === user.name)
   
-  const badgeIcons: { [key: string]: React.ReactNode } = {
-    Crown: <Crown className="badge-icon-component" />,
-    Target: <Target className="badge-icon-component" />,
-    Trophy: <Trophy className="badge-icon-component" />,
-    Star: <Star className="badge-icon-component" />,
-    Plus: <Plus className="badge-icon-component" />,
-    Users: <Users className="badge-icon-component" />
+  const badgeIcons: { [key: string]: string } = {
+    Crown: medal,
+    Target: flag,
+    Trophy: trophy,
+    Star: star,
+    Plus: add,
+    Users: people
   }
 
   const getReputationLevel = (reputation: number) => {
@@ -37,79 +60,95 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, polls, onVote, onLike }
   const reputationLevel = getReputationLevel(user.reputation)
 
   return (
-    <div className="profile-page">
-      <div className="page-header">
-        <h1 className="pixelated">PROFILE</h1>
+    <IonPage>
+      <IonHeader>
+        <IonToolbar>
+          <IonTitle>Profile</IonTitle>
+        </IonToolbar>
+      </IonHeader>
+      
+      <IonContent fullscreen>
+        <div className="page-header-minimal">
+          <h1>PROFILE</h1>
         <p>YOUR DEBATE JOURNEY</p>
       </div>
 
-      <div className="profile-content">
-        <div className="profile-header">
-          <div className="profile-avatar-section">
-            <img 
-              src={user.avatar} 
-              alt={user.name}
-              className="profile-main-avatar"
-            />
-            <div className="reputation-badge">
-              <div className="reputation-icon">🏆</div>
-              <div className="reputation-level" style={{ color: reputationLevel.color }}>
+        <IonCard style={{ margin: '16px' }}>
+          <IonCardContent>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+              <IonAvatar style={{ width: '80px', height: '80px', marginRight: '16px' }}>
+                <img src={user.avatar} alt={user.name} />
+              </IonAvatar>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ 
+                  margin: 0,
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  {user.name}
+                </h2>
+                <p style={{ 
+                  margin: '4px 0',
+                  fontSize: '10px',
+                  color: '#666666',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  Joined {user.joinDate.toLocaleDateString()}
+                </p>
+                <IonChip color="warning" style={{ marginTop: '8px' }}>
+                  <IonIcon icon={trophy} />
+                  <IonLabel style={{ color: reputationLevel.color }}>
                 {reputationLevel.level}
-              </div>
+                  </IonLabel>
+                </IonChip>
             </div>
           </div>
           
-          <div className="profile-info">
-            <h2 className="username">{user.name}</h2>
-            <p className="join-date">Joined {user.joinDate.toLocaleDateString()}</p>
-            
-            <div className="profile-stats">
-              <div className="stat-item">
-                <span className="stat-number">{user.pollCount}</span>
-                <span className="stat-label">Polls Created</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-number">{Math.round(user.winRate * 100)}%</span>
-                <span className="stat-label">Win Rate</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-number">{user.reputation}</span>
-                <span className="stat-label">Reputation</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-number">{user.followers}</span>
-                <span className="stat-label">Followers</span>
-              </div>
-            </div>
-          </div>
-        </div>
+            <IonGrid>
+              <IonRow>
+                <IonCol size="3" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'Courier New, Courier, monospace', color: '#000000' }}>{user.pollCount}</div>
+                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Polls</div>
+                </IonCol>
+                <IonCol size="3" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'Courier New, Courier, monospace', color: '#ff0000' }}>{Math.round(user.winRate * 100)}%</div>
+                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Win Rate</div>
+                </IonCol>
+                <IonCol size="3" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'Courier New, Courier, monospace', color: '#000000' }}>{user.reputation}</div>
+                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Reputation</div>
+                </IonCol>
+                <IonCol size="3" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'Courier New, Courier, monospace', color: '#000000' }}>{user.followers}</div>
+                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Followers</div>
+                </IonCol>
+              </IonRow>
+            </IonGrid>
+          </IonCardContent>
+        </IonCard>
 
-        <div className="profile-tabs">
-          <button 
-            className={`tab-btn ${activeTab === 'polls' ? 'active' : ''}`}
-            onClick={() => setActiveTab('polls')}
-          >
-            My Polls ({userPolls.length})
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'badges' ? 'active' : ''}`}
-            onClick={() => setActiveTab('badges')}
-          >
-            Badges ({user.badges.length})
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'stats' ? 'active' : ''}`}
-            onClick={() => setActiveTab('stats')}
-          >
-            Statistics
-          </button>
-        </div>
+        <IonSegment 
+          value={activeTab} 
+          onIonChange={e => setActiveTab(e.detail.value as any)}
+          style={{ margin: '0 16px 16px' }}
+        >
+          <IonSegmentButton value="polls">
+            <IonLabel>Polls ({userPolls.length})</IonLabel>
+          </IonSegmentButton>
+          <IonSegmentButton value="badges">
+            <IonLabel>Badges ({user.badges.length})</IonLabel>
+          </IonSegmentButton>
+          <IonSegmentButton value="stats">
+            <IonLabel>Stats</IonLabel>
+          </IonSegmentButton>
+        </IonSegment>
 
-        <div className="tab-content">
           {activeTab === 'polls' && (
-            <div className="polls-section">
-              <h3>My Polls</h3>
-              <div className="polls-grid">
+          <div style={{ padding: '0 16px' }}>
                 {userPolls.length > 0 ? (
                   userPolls.map(poll => (
                     <PollCard
@@ -121,105 +160,122 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, polls, onVote, onLike }
                     />
                   ))
                 ) : (
-                  <div className="empty-state">
+              <IonCard>
+                <IonCardContent style={{ textAlign: 'center', padding: '32px' }}>
                     <p>No polls created yet. Start a debate!</p>
-                  </div>
+                </IonCardContent>
+              </IonCard>
                 )}
-              </div>
             </div>
           )}
 
           {activeTab === 'badges' && (
-            <div className="badges-section">
-              <h3>Achievement Badges</h3>
-              <div className="badges-grid">
+          <div style={{ padding: '0 16px' }}>
+            <IonList>
                 {user.badges.map(badge => (
-                  <div key={badge.id} className={`badge-card ${badge.rarity}`}>
-                    <div className="badge-icon">
-                      {badgeIcons[badge.icon] || <Star className="badge-icon-component" />}
-                    </div>
-                    <div className="badge-info">
-                      <h4 className="badge-name">{badge.name}</h4>
-                      <p className="badge-description">{badge.description}</p>
-                      <span className="badge-date">
+                <IonItem key={badge.id}>
+                  <IonIcon 
+                    icon={badgeIcons[badge.icon] || star} 
+                    slot="start"
+                    color={badge.rarity === 'legendary' ? 'warning' : badge.rarity === 'epic' ? 'primary' : 'medium'}
+                  />
+                  <IonLabel>
+                    <h2>{badge.name}</h2>
+                    <p>{badge.description}</p>
+                    <p style={{ fontSize: '12px', color: '#666' }}>
                         Earned {badge.earnedAt.toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    </p>
+                  </IonLabel>
+                  <IonChip color={badge.rarity === 'legendary' ? 'warning' : badge.rarity === 'epic' ? 'primary' : 'medium'} slot="end">
+                    {badge.rarity}
+                  </IonChip>
+                </IonItem>
+              ))}
+            </IonList>
             </div>
           )}
 
           {activeTab === 'stats' && (
-            <div className="stats-section">
-              <h3>Detailed Statistics</h3>
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <h4>Debate Performance</h4>
-                  <div className="stat-details">
-                    <div className="stat-row">
-                      <span>Total Debates</span>
-                      <span>{userPolls.reduce((sum, poll) => sum + (poll.debateHistory?.totalDebates || 0), 0)}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span>Wins</span>
-                      <span>{userPolls.reduce((sum, poll) => sum + (poll.debateHistory?.creatorWins || 0), 0)}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span>Losses</span>
-                      <span>{userPolls.reduce((sum, poll) => sum + (poll.debateHistory?.opponentWins || 0), 0)}</span>
-                    </div>
-                  </div>
-                </div>
+          <div style={{ padding: '0 16px' }}>
+            <IonCard style={{ marginBottom: '16px' }}>
+              <IonCardHeader>
+                <IonCardTitle>Debate Performance</IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <IonList>
+                  <IonItem>
+                    <IonLabel>Total Debates</IonLabel>
+                    <IonBadge slot="end" color="primary">
+                      {userPolls.reduce((sum, poll) => sum + (poll.debateHistory?.totalDebates || 0), 0)}
+                    </IonBadge>
+                  </IonItem>
+                  <IonItem>
+                    <IonLabel>Wins</IonLabel>
+                    <IonBadge slot="end" color="success">
+                      {userPolls.reduce((sum, poll) => sum + (poll.debateHistory?.creatorWins || 0), 0)}
+                    </IonBadge>
+                  </IonItem>
+                  <IonItem>
+                    <IonLabel>Losses</IonLabel>
+                    <IonBadge slot="end" color="danger">
+                      {userPolls.reduce((sum, poll) => sum + (poll.debateHistory?.opponentWins || 0), 0)}
+                    </IonBadge>
+                  </IonItem>
+                </IonList>
+              </IonCardContent>
+            </IonCard>
 
-                <div className="stat-card">
-                  <h4>Engagement</h4>
-                  <div className="stat-details">
-                    <div className="stat-row">
-                      <span>Total Votes Received</span>
-                      <span>{userPolls.reduce((sum, poll) => sum + poll.votes, 0)}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span>Average Votes per Poll</span>
-                      <span>{userPolls.length > 0 ? Math.round(userPolls.reduce((sum, poll) => sum + poll.votes, 0) / userPolls.length) : 0}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span>Most Popular Category</span>
-                      <span>{userPolls.length > 0 ? userPolls.reduce((acc, poll) => {
-                        acc[poll.category] = (acc[poll.category] || 0) + 1
-                        return acc
-                      }, {} as { [key: string]: number }) ? Object.entries(userPolls.reduce((acc, poll) => {
-                        acc[poll.category] = (acc[poll.category] || 0) + 1
-                        return acc
-                      }, {} as { [key: string]: number })).sort(([,a], [,b]) => b - a)[0][0] : 'None' : 'None'}</span>
-                    </div>
-                  </div>
-                </div>
+            <IonCard style={{ marginBottom: '16px' }}>
+              <IonCardHeader>
+                <IonCardTitle>Engagement</IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <IonList>
+                  <IonItem>
+                    <IonLabel>Total Votes Received</IonLabel>
+                    <IonBadge slot="end" color="primary">
+                      {userPolls.reduce((sum, poll) => sum + poll.votes, 0)}
+                    </IonBadge>
+                  </IonItem>
+                  <IonItem>
+                    <IonLabel>Average Votes per Poll</IonLabel>
+                    <IonBadge slot="end" color="medium">
+                      {userPolls.length > 0 ? Math.round(userPolls.reduce((sum, poll) => sum + poll.votes, 0) / userPolls.length) : 0}
+                    </IonBadge>
+                  </IonItem>
+                </IonList>
+              </IonCardContent>
+            </IonCard>
 
-                <div className="stat-card">
-                  <h4>Community</h4>
-                  <div className="stat-details">
-                    <div className="stat-row">
-                      <span>Followers</span>
-                      <span>{user.followers}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span>Following</span>
-                      <span>{user.following}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span>Reputation Level</span>
-                      <span style={{ color: reputationLevel.color }}>{reputationLevel.level}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <IonCard>
+              <IonCardHeader>
+                <IonCardTitle>Community</IonCardTitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <IonList>
+                  <IonItem>
+                    <IonLabel>Followers</IonLabel>
+                    <IonBadge slot="end" color="primary">{user.followers}</IonBadge>
+                  </IonItem>
+                  <IonItem>
+                    <IonLabel>Following</IonLabel>
+                    <IonBadge slot="end" color="medium">{user.following}</IonBadge>
+                  </IonItem>
+                  <IonItem>
+                    <IonLabel>Reputation Level</IonLabel>
+                    <IonChip slot="end" color="warning">
+                      <IonLabel style={{ color: reputationLevel.color }}>
+                        {reputationLevel.level}
+                      </IonLabel>
+                    </IonChip>
+                  </IonItem>
+                </IonList>
+              </IonCardContent>
+            </IonCard>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+      </IonContent>
+    </IonPage>
   )
 }
 

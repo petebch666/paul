@@ -1,4 +1,4 @@
-/* Global Styles */
+/* Pollz - Minimalistic Dark Theme */
 * {
   margin: 0;
   padding: 0;
@@ -6,17 +6,20 @@
 }
 
 body {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Courier New', 'Courier', monospace;
   background: #ffffff;
   color: #000000;
-  line-height: 1.6;
+  line-height: 1.2;
   overflow-x: hidden;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: #ffffff;
 }
 
 .main-content {
@@ -24,35 +27,396 @@ body {
   display: flex;
   flex-direction: column;
   margin-left: 250px;
+  position: relative;
+  background: #ffffff;
+}
+
+/* Loading and Error States */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.loading-spinner {
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 12px;
+  color: #ff0000;
+  animation: pulse 2s infinite;
+}
+
+.error-banner {
+  background: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #333333;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-left: 250px;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.error-banner button {
+  background: #ff0000;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.error-banner button:hover {
+  background: #ffffff;
+  color: #ff0000;
 }
 
 /* Typography */
 .pixelated {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 2px;
 }
 
-/* Red Dot Elements */
-.red-dot {
-  width: 12px;
-  height: 12px;
+/* Accent Elements */
+.accent-dot {
+  width: 8px;
+  height: 8px;
   background: #ff0000;
   border-radius: 50%;
   display: inline-block;
-  margin: 0 0.5rem;
-  animation: pulse 2s infinite;
+  margin: 0 8px;
+  animation: pulse 3s infinite;
 }
 
-.red-dot-large {
-  width: 20px;
-  height: 20px;
+.accent-line {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ff0000, transparent);
+  margin: 16px 0;
+}
+
+/* Custom Ionic Overrides for Light Theme */
+ion-content {
+  --background: #ffffff;
+  --color: #000000;
+}
+
+ion-header {
+  --background: #ffffff;
+  --border-color: #e0e0e0;
+}
+
+ion-toolbar {
+  --background: #ffffff;
+  --color: #000000;
+  --border-color: #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+ion-title {
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 400;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+ion-tab-bar {
+  --background: #ffffff;
+  --border: 1px solid #e0e0e0;
+}
+
+ion-tab-button {
+  --color: #666666;
+  --color-selected: #ff0000;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+ion-card {
+  --background: #ffffff;
+  --color: #000000;
+  border: 3px solid #000000;
+  border-radius: 0;
+  margin: 16px 0;
+}
+
+ion-card-header {
+  border-bottom: 3px solid #000000;
+}
+
+ion-card-title {
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #000000;
+}
+
+ion-button {
+  --background: #ffffff;
+  --background-activated: #000000;
+  --background-hover: #000000;
+  --color: #000000;
+  --border-color: #000000;
+  --border-width: 3px;
+  --border-style: solid;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-radius: 0;
+}
+
+ion-button[color="primary"] {
+  --background: #000000;
+  --color: #ffffff;
+  --background-activated: #333333;
+  --background-hover: #333333;
+}
+
+ion-button[fill="outline"] {
+  --background: transparent;
+  --color: #000000;
+  --border-color: #000000;
+}
+
+ion-chip {
+  --background: #ffffff;
+  --color: #000000;
+  border: 3px solid #000000;
+  border-radius: 0;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+ion-chip[color="primary"] {
+  --background: #000000;
+  --color: #ffffff;
+  border: 3px solid #000000;
+}
+
+ion-chip[color="warning"] {
+  --background: #ffffff;
+  --color: #000000;
+  border: 3px solid #000000;
+}
+
+ion-badge {
+  --background: #e0e0e0;
+  --color: #000000;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+ion-badge[color="primary"] {
+  --background: #ff0000;
+  --color: #ffffff;
+}
+
+ion-badge[color="light"] {
+  --background: #666666;
+  --color: #ffffff;
+}
+
+ion-item {
+  --background: transparent;
+  --color: #000000;
+  --border-color: #000000;
+  --padding-start: 0;
+  --padding-end: 0;
+  border-bottom: 2px solid #000000;
+}
+
+ion-label {
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #000000;
+}
+
+ion-input {
+  --background: #ffffff;
+  --color: #000000;
+  --placeholder-color: #666666;
+  --border-color: #000000;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 12px;
+  border: 2px solid #000000;
+  border-radius: 0;
+}
+
+ion-textarea {
+  --background: #ffffff;
+  --color: #000000;
+  --placeholder-color: #666666;
+  --border-color: #000000;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 12px;
+  border: 2px solid #000000;
+  border-radius: 0;
+}
+
+ion-select {
+  --background: #ffffff;
+  --color: #000000;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 12px;
+}
+
+ion-segment {
+  --background: #f8f8f8;
+  border: 2px solid #000000;
+  border-radius: 0;
+}
+
+ion-segment-button {
+  --background: transparent;
+  --background-checked: #ff0000;
+  --color: #666666;
+  --color-checked: #ffffff;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-right: 2px solid #000000;
+}
+
+ion-segment-button:last-child {
+  border-right: none;
+}
+
+ion-list {
+  --background: #ffffff;
+}
+
+ion-avatar {
+  --background: #e0e0e0;
+}
+
+ion-refresher-content {
+  --color: #ff0000;
+}
+
+ion-refresher-content ion-spinner {
+  --color: #ff0000;
+}
+
+/* Custom Styles for Poll Cards */
+.poll-card-minimal {
+  background: #ffffff;
+  border: 3px solid #000000;
+  border-radius: 0;
+  margin: 16px 0;
+  padding: 24px;
+}
+
+.poll-card-minimal .poll-title {
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #000000;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.poll-card-minimal .poll-options {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.poll-card-minimal .option-button {
+  flex: 1;
+  background: #ffffff;
+  color: #000000;
+  border: 3px solid #000000;
+  padding: 16px;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.poll-card-minimal .option-button:first-child:hover {
+  background: #0066ff;
+  color: #ffffff;
+  border: 3px solid #0066ff;
+}
+
+.poll-card-minimal .option-button:last-child:hover {
   background: #ff0000;
-  border-radius: 50%;
-  display: inline-block;
-  margin: 0 1rem;
-  animation: pulse 2s infinite;
+  color: #ffffff;
+  border: 3px solid #ff0000;
+}
+
+.poll-card-minimal .option-button.selected {
+  background: #000000;
+  color: #ffffff;
+  border: 3px solid #000000;
+}
+
+.poll-card-minimal .vs-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  color: #000000;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+.poll-card-minimal .poll-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 3px solid #000000;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #000000;
 }
 
 /* Animations */
@@ -62,15 +426,15 @@ body {
     transform: scale(1); 
   }
   50% { 
-    opacity: 0.3; 
-    transform: scale(1.1); 
+    opacity: 0.6; 
+    transform: scale(1.05); 
   }
 }
 
 @keyframes fadeInUp {
   from { 
     opacity: 0; 
-    transform: translateY(30px); 
+    transform: translateY(20px); 
   }
   to { 
     opacity: 1; 
@@ -78,32 +442,305 @@ body {
   }
 }
 
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% { 
-    transform: translateY(0); 
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateX(-20px); 
   }
-  40% { 
-    transform: translateY(-10px); 
-  }
-  60% { 
-    transform: translateY(-5px); 
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
   }
 }
 
 .success-animation {
-  animation: bounce 0.6s ease;
+  animation: fadeInUp 0.4s ease;
 }
 
-/* Responsive Design */
+/* Minimalistic Page Headers */
+.page-header-minimal {
+  text-align: center;
+  padding: 40px 20px;
+  background: #ffffff;
+  border-bottom: 3px solid #000000;
+}
+
+.page-header-minimal h1 {
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 24px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  color: #000000;
+  margin-bottom: 16px;
+  line-height: 1.1;
+}
+
+.page-header-minimal p {
+  font-family: 'Courier New', 'Courier', monospace;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: #000000;
+  margin: 0;
+}
+
+/* Swipe Interface Styles */
+.swipe-poll-card {
+  position: relative;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  display: block;
+}
+
+/* Desktop container styling */
+@media (min-width: 1025px) {
+  ion-content {
+    --padding-start: 0;
+    --padding-end: 0;
+    --padding-top: 0;
+    --padding-bottom: 0;
+  }
+  
+  .poll-stack-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* Hide tabs on desktop when using sidebar */
+  ion-tab-bar {
+    display: none;
+  }
+}
+
+/* Sidebar styles */
+.sidebar {
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-open {
+  left: 0 !important;
+}
+
+/* Desktop grid layout */
+@media (min-width: 1025px) {
+  .desktop-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    padding: 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  .desktop-poll-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* High resolution desktop */
+@media (min-width: 1440px) {
+  .desktop-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 50px;
+    padding: 50px;
+  }
+}
+
+/* Ultra-wide displays */
+@media (min-width: 1920px) {
+  .desktop-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 60px;
+    padding: 60px;
+  }
+}
+
+.swipe-poll-card:active {
+  cursor: grabbing;
+}
+
+.vote-indicator {
+  pointer-events: none;
+  user-select: none;
+}
+
+.option-container {
+  transition: all 0.2s ease;
+}
+
+.option-container.highlight {
+  transform: scale(1.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.option-container.winning {
+  animation: winPulse 0.6s ease;
+}
+
+@keyframes winPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .swipe-poll-card {
+    margin: 4px 8px;
+    padding: 16px;
+  }
+  
+  .poll-title {
+    font-size: 16px !important;
+    letter-spacing: 1px !important;
+  }
+  
+  .option-container {
+    padding: 16px !important;
+  }
+  
+  .option-container div {
+    font-size: 12px !important;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .swipe-poll-card {
+    margin: 16px 24px;
+    padding: 20px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1025px) {
+  .swipe-poll-card {
+    margin: 0;
+    padding: 32px;
+    max-width: 100%;
+    width: 100%;
+  }
+  
+  .swipe-poll-card:hover {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+  
+  .poll-title {
+    font-size: 22px !important;
+    letter-spacing: 3px !important;
+  }
+  
+  .option-container {
+    padding: 24px !important;
+  }
+  
+  .option-container div {
+    font-size: 14px !important;
+  }
+  
+  .vs-divider {
+    font-size: 16px !important;
+    letter-spacing: 4px !important;
+  }
+}
+
+/* High resolution displays */
+@media (min-width: 1440px) {
+  .swipe-poll-card {
+    max-width: 900px;
+    padding: 40px;
+  }
+  
+  .poll-title {
+    font-size: 26px !important;
+    letter-spacing: 4px !important;
+  }
+  
+  .option-container {
+    padding: 28px !important;
+  }
+  
+  .option-container div {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch feedback */
+@media (hover: none) and (pointer: coarse) {
+  .swipe-poll-card:active {
+    transform: scale(0.98);
+  }
+  
+  .option-container:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Smooth scrolling */
+ion-content {
+  --overflow: auto;
+  --background: #ffffff;
+}
+
+/* Progress dots */
+.progress-dot {
+  transition: all 0.3s ease;
+}
+
+/* Loading states */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0;
     margin-bottom: 80px;
+  }
+  
+  .error-banner {
+    margin-left: 0;
+  }
+  
+  body {
+    font-size: 13px;
+  }
+  
+  .page-header-minimal h1 {
+    font-size: 16px;
   }
 }
 
 @media (max-width: 480px) {
   .main-content {
     margin-bottom: 70px;
+  }
+  
+  body {
+    font-size: 12px;
+  }
+  
+  .page-header-minimal {
+    padding: 16px 12px;
+  }
+  
+  .page-header-minimal h1 {
+    font-size: 14px;
   }
 }

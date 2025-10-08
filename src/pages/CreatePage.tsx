@@ -1,9 +1,30 @@
 import React, { useState } from 'react'
+import { 
+  IonPage, 
+  IonHeader, 
+  IonToolbar, 
+  IonTitle, 
+  IonContent,
+  IonCard,
+  IonCardHeader,
+  IonCardTitle,
+  IonCardContent,
+  IonItem,
+  IonLabel,
+  IonInput,
+  IonTextarea,
+  IonSelect,
+  IonSelectOption,
+  IonButton,
+  IonChip,
+  IonBadge,
+  IonAlert
+} from '@ionic/react'
 import { CreatePollFormData } from '../types'
-import '../pages/CreatePage.css'
+import { PollzAPI } from '../database/api'
 
 interface CreatePageProps {
-  onCreatePoll: (pollData: CreatePollFormData) => void
+  onCreatePoll: (pollData: CreatePollFormData) => Promise<any>
 }
 
 const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
@@ -44,213 +65,245 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
     }
   }
 
-  const handleQuestionChange = (question: string) => {
-    // Mock auto-categorization
-    const suggestions = categories
-      .map(category => ({
-        category,
-        confidence: Math.random() * 100,
-        keywords: [category.toLowerCase()]
-      }))
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 3)
-    
-    setCategorySuggestions(suggestions)
-    console.log('🤖 Auto-categorization triggered:', suggestions)
-  }
-
-  const handlePollCheck = () => {
-    if (formData.title && formData.optionA && formData.optionB) {
-      // Mock duplicate check
-      const duplicateResult = {
-        hasDuplicates: Math.random() > 0.7,
-        similarPolls: Math.random() > 0.7 ? [
-          {
-            id: '1',
-            title: 'Similar poll example',
-            similarity: 85,
-            author: 'SomeUser'
-          }
-        ] : []
-      }
-      setDuplicateCheck(duplicateResult)
-      console.log('🔍 Duplicate check triggered:', duplicateResult)
+  const handleQuestionChange = async (question: string) => {
+    try {
+      const suggestions = await PollzAPI.getCategorySuggestions(question)
+      setCategorySuggestions(suggestions)
+      console.log('🤖 Auto-categorization triggered:', suggestions)
+    } catch (error) {
+      console.error('Error getting category suggestions:', error)
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePollCheck = async () => {
+    if (formData.title && formData.optionA && formData.optionB) {
+      try {
+        const duplicateResult = await PollzAPI.checkForDuplicates(
+          formData.title, 
+          formData.optionA, 
+          formData.optionB
+        )
+        setDuplicateCheck(duplicateResult)
+        console.log('🔍 Duplicate check triggered:', duplicateResult)
+      } catch (error) {
+        console.error('Error checking duplicates:', error)
+      }
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.title && formData.optionA && formData.optionB && formData.category) {
-      onCreatePoll(formData)
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        optionA: '',
-        optionB: '',
-        timeLimit: 24,
-        context: ''
-      })
-      setCategorySuggestions([])
-      setDuplicateCheck({ hasDuplicates: false, similarPolls: [] })
+      try {
+        await onCreatePoll(formData)
+        // Reset form only after successful creation
+        setFormData({
+          title: '',
+          description: '',
+          category: '',
+          optionA: '',
+          optionB: '',
+          timeLimit: 24,
+          context: ''
+        })
+        setCategorySuggestions([])
+        setDuplicateCheck({ hasDuplicates: false, similarPolls: [] })
+      } catch (error) {
+        console.error('Failed to create poll:', error)
+        // Error handling is done in useAppState
+      }
     }
   }
 
   return (
-    <div className="create-page">
-      <div className="page-header">
-        <h1 className="pixelated">CREATE POLL</h1>
-        <p>SETTLE THE ARGUMENT ONCE AND FOR ALL</p>
-      </div>
+    <IonPage>
+      <IonHeader>
+        <IonToolbar>
+          <IonTitle>Create Poll</IonTitle>
+        </IonToolbar>
+      </IonHeader>
+      
+      <IonContent fullscreen>
+        <div className="page-header-minimal">
+          <h1>CREATE POLL</h1>
+          <p>SETTLE THE ARGUMENT ONCE AND FOR ALL</p>
+        </div>
 
-      <div className="create-content">
-        <div className="create-form-section">
-          <form onSubmit={handleSubmit} className="create-form">
-            <div className="form-group">
-              <label htmlFor="title">POLL QUESTION</label>
-              <input
-                type="text"
-                id="title"
-                value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
-                placeholder="What's the burning question?"
-                required
-                className="form-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="description">DESCRIPTION (OPTIONAL)</label>
-              <textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Add some context..."
-                className="form-textarea"
-                rows={3}
-              />
-            </div>
-
-            <div className="options-group">
-              <div className="form-group">
-                <label htmlFor="optionA">OPTION A</label>
-                <input
-                  type="text"
-                  id="optionA"
-                  value={formData.optionA}
-                  onChange={(e) => handleInputChange('optionA', e.target.value)}
-                  placeholder="First choice"
+        <IonCard style={{ margin: '16px' }}>
+          <IonCardContent>
+            <form onSubmit={handleSubmit}>
+              <IonItem>
+                <IonLabel position="stacked">POLL QUESTION</IonLabel>
+                <IonInput
+                  value={formData.title}
+                  onIonInput={(e) => handleInputChange('title', e.detail.value!)}
+                  placeholder="What's the burning question?"
                   required
-                  className="form-input"
                 />
+              </IonItem>
+
+              <IonItem>
+                <IonLabel position="stacked">DESCRIPTION (OPTIONAL)</IonLabel>
+                <IonTextarea
+                  value={formData.description}
+                  onIonInput={(e) => handleInputChange('description', e.detail.value!)}
+                  placeholder="Add some context..."
+                  rows={3}
+                />
+              </IonItem>
+
+              <div style={{ margin: '16px 0', padding: '12px 0', borderTop: '1px solid #e0e0e0', borderBottom: '1px solid #e0e0e0' }}>
+                <h3 style={{ 
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  marginBottom: '16px',
+                  fontSize: '12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px',
+                  color: '#000000'
+                }}>
+                  OPTIONS
+                </h3>
+                
+                <IonItem>
+                  <IonLabel position="stacked">OPTION A</IonLabel>
+                  <IonInput
+                    value={formData.optionA}
+                    onIonInput={(e) => handleInputChange('optionA', e.detail.value!)}
+                    placeholder="First choice"
+                    required
+                  />
+                </IonItem>
+
+                <div style={{ 
+                  textAlign: 'center',
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontWeight: '700',
+                  color: '#000000',
+                  margin: '16px 0',
+                  fontSize: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '4px'
+                }}>
+                  VS
+                </div>
+
+                <IonItem>
+                  <IonLabel position="stacked">OPTION B</IonLabel>
+                  <IonInput
+                    value={formData.optionB}
+                    onIonInput={(e) => handleInputChange('optionB', e.detail.value!)}
+                    placeholder="Second choice"
+                    required
+                  />
+                </IonItem>
               </div>
 
-              <div className="vs-divider">VS</div>
-
-              <div className="form-group">
-                <label htmlFor="optionB">OPTION B</label>
-                <input
-                  type="text"
-                  id="optionB"
-                  value={formData.optionB}
-                  onChange={(e) => handleInputChange('optionB', e.target.value)}
-                  placeholder="Second choice"
-                  required
-                  className="form-input"
+              <IonItem>
+                <IonLabel position="stacked">CONTEXT (OPTIONAL)</IonLabel>
+                <IonTextarea
+                  value={formData.context}
+                  onIonInput={(e) => handleInputChange('context', e.detail.value!)}
+                  placeholder="Why is this important to you?"
+                  rows={2}
                 />
-              </div>
-            </div>
+              </IonItem>
 
-            <div className="form-group">
-              <label htmlFor="context">CONTEXT (OPTIONAL)</label>
-              <textarea
-                id="context"
-                value={formData.context}
-                onChange={(e) => handleInputChange('context', e.target.value)}
-                placeholder="Why is this important to you?"
-                className="form-textarea"
-                rows={2}
-              />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="category">CATEGORY</label>
-                <select
-                  id="category"
+              <IonItem>
+                <IonLabel position="stacked">CATEGORY</IonLabel>
+                <IonSelect
                   value={formData.category}
-                  onChange={(e) => handleInputChange('category', e.target.value)}
-                  required
-                  className="form-select"
+                  onIonChange={(e) => handleInputChange('category', e.detail.value)}
+                  placeholder="Select Category"
                 >
-                  <option value="">Select Category</option>
                   {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
+                    <IonSelectOption key={category} value={category}>
+                      {category}
+                    </IonSelectOption>
                   ))}
-                </select>
-              </div>
+                </IonSelect>
+              </IonItem>
 
-              <div className="form-group">
-                <label htmlFor="timeLimit">TIME LIMIT (HOURS)</label>
-                <select
-                  id="timeLimit"
+              <IonItem>
+                <IonLabel position="stacked">TIME LIMIT</IonLabel>
+                <IonSelect
                   value={formData.timeLimit}
-                  onChange={(e) => handleInputChange('timeLimit', parseInt(e.target.value))}
-                  className="form-select"
+                  onIonChange={(e) => handleInputChange('timeLimit', parseInt(e.detail.value))}
                 >
-                  <option value={1}>1 Hour</option>
-                  <option value={6}>6 Hours</option>
-                  <option value={24}>24 Hours</option>
-                  <option value={72}>3 Days</option>
-                  <option value={168}>1 Week</option>
-                </select>
+                  <IonSelectOption value={1}>1 Hour</IonSelectOption>
+                  <IonSelectOption value={6}>6 Hours</IonSelectOption>
+                  <IonSelectOption value={24}>24 Hours</IonSelectOption>
+                  <IonSelectOption value={72}>3 Days</IonSelectOption>
+                  <IonSelectOption value={168}>1 Week</IonSelectOption>
+                </IonSelect>
+              </IonItem>
+
+              <div style={{ marginTop: '24px' }}>
+                <IonButton 
+                  expand="block" 
+                  fill="outline" 
+                  onClick={handlePollCheck}
+                  style={{ marginBottom: '8px' }}
+                >
+                  CHECK DUPLICATES
+                </IonButton>
+                <IonButton 
+                  expand="block" 
+                  type="submit"
+                  color="primary"
+                  disabled={!formData.title || !formData.optionA || !formData.optionB || !formData.category}
+                >
+                  CREATE POLL
+                </IonButton>
               </div>
-            </div>
+            </form>
+          </IonCardContent>
+        </IonCard>
 
-            <div className="form-actions">
-              <button type="button" onClick={handlePollCheck} className="check-duplicate-btn">
-                Check for Duplicates
-              </button>
-              <button type="submit" className="submit-btn">
-                CREATE POLL
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <div className="smart-features-section">
-          {categorySuggestions.length > 0 && (
-            <div className="category-suggestions">
-              <h3>Category Suggestions</h3>
-              <div className="suggestions-list">
+        {categorySuggestions.length > 0 && (
+          <IonCard style={{ margin: '16px' }}>
+            <IonCardHeader>
+              <IonCardTitle>Category Suggestions</IonCardTitle>
+            </IonCardHeader>
+            <IonCardContent>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {categorySuggestions.map((suggestion, index) => (
-                  <div key={index} className="suggestion-item">
-                    <span className="suggestion-category">{suggestion.category}</span>
-                    <span className="confidence">{Math.round(suggestion.confidence)}%</span>
-                  </div>
+                  <IonChip key={index} color="primary">
+                    <IonLabel>
+                      {suggestion.category} ({Math.round(suggestion.confidence)}%)
+                    </IonLabel>
+                  </IonChip>
                 ))}
               </div>
-            </div>
-          )}
+            </IonCardContent>
+          </IonCard>
+        )}
 
-          {duplicateCheck.hasDuplicates && (
-            <div className="duplicate-warning">
-              <h3>⚠️ Similar Polls Found</h3>
-              <div className="similar-polls">
-                {duplicateCheck.similarPolls.map((poll, index) => (
-                  <div key={index} className="similar-poll-item">
-                    <span className="similar-title">{poll.title}</span>
-                    <span className="similar-author">by {poll.author}</span>
-                    <span className="similarity">{poll.similarity}% similar</span>
+        {duplicateCheck.hasDuplicates && (
+          <IonCard style={{ margin: '16px' }}>
+            <IonCardHeader>
+              <IonCardTitle color="warning">⚠️ Similar Polls Found</IonCardTitle>
+            </IonCardHeader>
+            <IonCardContent>
+              {duplicateCheck.similarPolls.map((poll, index) => (
+                <div key={index} style={{ 
+                  padding: '8px',
+                  border: '1px solid #eee',
+                  borderRadius: '4px',
+                  marginBottom: '8px'
+                }}>
+                  <div style={{ fontWeight: 'bold' }}>{poll.title}</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    by {poll.author} • {poll.similarity}% similar
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+                </div>
+              ))}
+            </IonCardContent>
+          </IonCard>
+        )}
+      </IonContent>
+    </IonPage>
   )
 }
 

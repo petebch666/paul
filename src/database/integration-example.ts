@@ -2,7 +2,7 @@
 // This shows how to replace mock data with real database calls
 
 import { PollzAPI } from './api'
-import { Poll, User } from './db'
+import { Poll, User } from './simple-db'
 
 // Example: Replace mock polls with database polls
 export async function loadPollsFromDatabase(): Promise<Poll[]> {
