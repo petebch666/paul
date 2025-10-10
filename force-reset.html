@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Force Reset Database</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background: #000;
+      color: #0f0;
+      padding: 40px;
+      text-align: center;
+    }
+    h1 { color: #ff0000; font-size: 32px; }
+    button {
+      background: #ff0000;
+      color: #fff;
+      border: none;
+      padding: 20px 40px;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 10px;
+      font-size: 18px;
+    }
+    button:hover { background: #fff; color: #000; }
+    .log {
+      background: #111;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 600px;
+      border: 2px solid #333;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔥 FORCE DATABASE RESET</h1>
+  <button onclick="forceReset()">💥 RESET NOW</button>
+  <div class="log" id="log"></div>
+
+  <script>
+    function log(msg) {
+      document.getElementById('log').innerHTML += msg + '<br>'
+    }
+
+    function forceReset() {
+      log('🔥 Clearing all localStorage...')
+      localStorage.clear()
+      log('✅ Cleared!')
+      
+      log('🔥 Clearing sessionStorage...')
+      sessionStorage.clear()
+      log('✅ Cleared!')
+      
+      log('✅ All data cleared!')
+      log('🔄 Opening app in 2 seconds...')
+      log('📊 App will auto-generate 50 polls on load!')
+      
+      setTimeout(() => {
+        window.open('http://localhost:5173', '_blank')
+        log('✅ App opened! Check the new tab.')
+      }, 2000)
+    }
+
+    log('💡 Click "RESET NOW" to clear database and open app')
+    log('📊 The app will automatically create 50 polls')
+  </script>
+</body>
+</html>
+
+

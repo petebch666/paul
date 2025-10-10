@@ -83,18 +83,41 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
     return () => window.removeEventListener('resize', checkScreenSize)
   }, [])
 
-  // Filter polls that haven't been voted on and match search
+  // Filter polls by search query (show all polls, including voted ones)
   const availablePolls = polls.filter(poll => 
-    !votedPolls.has(poll.id) && 
     (searchQuery === '' || 
      poll.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
      poll.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
      poll.context?.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
-  // Handle vote completion
+  // Calculate polls per row based on screen size
+  const pollsPerRow = isMobile ? 1 : 3
+
+  // Handle vote completion and auto-scroll when row is complete
   const handleVoteComplete = (pollId: string) => {
-    setVotedPolls(prev => new Set([...prev, pollId]))
+    setVotedPolls(prev => {
+      const newVotedPolls = new Set([...prev, pollId])
+      
+      // Check if we've completed a row
+      const votedInCurrentView = availablePolls.filter(p => newVotedPolls.has(p.id)).length
+      
+      // Auto-scroll to next row if current row is complete
+      if (votedInCurrentView > 0 && votedInCurrentView % pollsPerRow === 0 && !isMobile) {
+        setTimeout(() => {
+          const nextPollIndex = votedInCurrentView
+          const nextPollElement = document.querySelector(`[data-poll-index="${nextPollIndex}"]`)
+          if (nextPollElement) {
+            nextPollElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            })
+          }
+        }, 2100) // Wait for results to show (2 seconds) + small buffer
+      }
+      
+      return newVotedPolls
+    })
   }
 
   // Handle direct voting
@@ -164,12 +187,13 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
     )
   }
 
-  if (error) {
+  // Only show error if not searching and there's an actual error
+  if (error && !searchQuery && polls.length === 0) {
     return (
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>Pollz</IonTitle>
+            <IonTitle>PAUL</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent>

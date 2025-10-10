@@ -188,6 +188,9 @@ export function useAppState() {
 
 
   const handleVote = useCallback(async (pollId: string, option: 'A' | 'B') => {
+    // Clear any previous errors
+    setError(null)
+    
     // Add visual feedback
     const pollCard = document.querySelector(`[data-poll-id="${pollId}"]`)
     if (pollCard) {
@@ -198,10 +201,7 @@ export function useAppState() {
     }
 
     try {
-      // Call API to vote
-      await PollzAPI.voteOnPoll(pollId, user.id, option)
-      
-      // Update local state optimistically
+      // Update local state optimistically first
       setPolls(prev => prev.map(poll => 
         poll.id === pollId 
           ? { 
@@ -213,9 +213,15 @@ export function useAppState() {
             }
           : poll
       ))
+      
+      // Then call API to persist
+      await PollzAPI.voteOnPoll(pollId, user.id, option)
+      
+      console.log('✅ Vote recorded successfully')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to vote')
-      console.error('Error voting:', err)
+      console.error('⚠️ Error voting (but local state updated):', err)
+      // Don't set error state - the vote was applied locally
+      // setError(err instanceof Error ? err.message : 'Failed to vote')
     }
   }, [user.id])
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { 
   IonPage, 
   IonHeader, 
@@ -18,8 +18,11 @@ import {
   IonButton,
   IonChip,
   IonBadge,
-  IonAlert
+  IonAlert,
+  IonRefresher,
+  IonRefresherContent
 } from '@ionic/react'
+import { chevronDownCircleOutline } from 'ionicons/icons'
 import { CreatePollFormData } from '../types'
 import { PollzAPI } from '../database/api'
 
@@ -28,6 +31,8 @@ interface CreatePageProps {
 }
 
 const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
+  const contentRef = useRef<HTMLIonContentElement>(null)
+  
   const [formData, setFormData] = useState<CreatePollFormData>({
     title: '',
     description: '',
@@ -42,6 +47,28 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
     timerDuration: 24, // hours
     notificationEnabled: true
   })
+
+  // Handle pull-to-refresh
+  const handleRefresh = async (event: CustomEvent) => {
+    console.log('🔄 Refreshing form...')
+    // Reset form
+    setFormData({
+      title: '',
+      description: '',
+      category: '',
+      optionA: '',
+      optionB: '',
+      timeLimit: 24,
+      context: '',
+      pollType: 'question',
+      timerEnabled: true,
+      timerDuration: 24,
+      notificationEnabled: true
+    })
+    setCategorySuggestions([])
+    setDuplicateCheck({ hasDuplicates: false, similarPolls: [] })
+    event.detail.complete()
+  }
 
   const [categorySuggestions, setCategorySuggestions] = useState<Array<{
     category: string
@@ -132,7 +159,17 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
         </IonToolbar>
       </IonHeader>
       
-      <IonContent fullscreen>
+      <IonContent ref={contentRef} fullscreen>
+        {/* Pull to Refresh */}
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent
+            pullingIcon={chevronDownCircleOutline}
+            pullingText="Pull to refresh"
+            refreshingSpinner="circles"
+            refreshingText="Resetting form..."
+          />
+        </IonRefresher>
+
         <div className="page-header-minimal">
           <h1>CREATE POLL</h1>
           <p>SETTLE THE ARGUMENT ONCE AND FOR ALL</p>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { 
   IonPage, 
   IonHeader, 
@@ -21,11 +21,13 @@ import {
   IonLabel,
   IonAvatar,
   IonItem,
-  IonList
+  IonList,
+  IonRefresher,
+  IonRefresherContent
 } from '@ionic/react'
-import { medal, flag, trophy, star, add, people } from 'ionicons/icons'
+import { medal, flag, trophy, star, add, people, chevronDownCircleOutline } from 'ionicons/icons'
 import { User, Badge, Poll } from '../types'
-import PollCard from '../components/PollCard'
+import SwipePollCard from '../components/SwipePollCard'
 
 interface ProfilePageProps {
   user: User
@@ -46,7 +48,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   onNavigateToHistory,
   onLogout
 }) => {
+  const contentRef = useRef<HTMLIonContentElement>(null)
   const [activeTab, setActiveTab] = useState<'polls' | 'badges' | 'stats'>('polls')
+
+  // Handle pull-to-refresh
+  const handleRefresh = async (event: CustomEvent) => {
+    console.log('🔄 Refreshing profile...')
+    // In a real app, this would reload user data
+    setTimeout(() => {
+      event.detail.complete()
+    }, 1000)
+  }
   
   const userPolls = polls.filter(poll => poll.authorId === user.id || poll.author === user.name)
   
@@ -78,11 +90,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         </IonToolbar>
       </IonHeader>
       
-      <IonContent fullscreen>
+      <IonContent ref={contentRef} fullscreen>
+        {/* Pull to Refresh */}
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent
+            pullingIcon={chevronDownCircleOutline}
+            pullingText="Pull to refresh"
+            refreshingSpinner="circles"
+            refreshingText="Refreshing profile..."
+          />
+        </IonRefresher>
+
         <div className="page-header-minimal">
           <h1>PROFILE</h1>
-        <p>YOUR DEBATE JOURNEY</p>
-      </div>
+          <p>YOUR DEBATE JOURNEY</p>
+        </div>
 
         <IonCard style={{ margin: '16px' }}>
           <IonCardContent>
@@ -159,15 +181,24 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         </IonSegment>
 
           {activeTab === 'polls' && (
-          <div style={{ padding: '0 16px' }}>
+          <div style={{ 
+            padding: '20px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+          }}>
                 {userPolls.length > 0 ? (
-                  userPolls.map(poll => (
-                    <PollCard
+                  userPolls.map((poll, index) => (
+                    <SwipePollCard
                       key={poll.id}
                       poll={poll}
-                      onVote={onVote}
+                      user={user}
+                      onVote={async (pollId, option) => {
+                        onVote(pollId, option)
+                      }}
                       onLike={onLike}
-                      currentUser={user}
+                      isActive={true}
+                      data-poll-index={index}
                     />
                   ))
                 ) : (

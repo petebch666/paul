@@ -7,9 +7,11 @@ import {
   IonContent, 
   IonButton,
   IonIcon,
-  IonSpinner
+  IonSpinner,
+  IonRefresher,
+  IonRefresherContent
 } from '@ionic/react'
-import { chevronForward } from 'ionicons/icons'
+import { chevronForward, chevronDownCircleOutline } from 'ionicons/icons'
 import SwipePollCard from '../components/SwipePollCard'
 import { Poll, User } from '../types'
 
@@ -32,40 +34,50 @@ const HomePage: React.FC<HomePageProps> = ({
   loading, 
   error 
 }) => {
-  const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set())
   const [currentPollIndex, setCurrentPollIndex] = useState(0)
   const contentRef = useRef<HTMLIonContentElement>(null)
 
-  // Filter polls that haven't been voted on
-  const availablePolls = polls.filter(poll => !votedPolls.has(poll.id))
+  // Show all polls - user can scroll and vote on any poll
+  const availablePolls = polls
 
-  // Handle vote completion and scroll to next poll
-  const handleVoteComplete = async (pollId: string) => {
-    setVotedPolls(prev => new Set([...prev, pollId]))
-    
-    // Scroll to next poll after a short delay
-    setTimeout(() => {
-      setCurrentPollIndex(prev => prev + 1)
-      scrollToNextPoll()
-    }, 500)
+  // Handle pull-to-refresh
+  const handleRefresh = async (event: CustomEvent) => {
+    console.log('🔄 Refreshing polls...')
+    await loadPolls(true)
+    event.detail.complete()
   }
 
-  // Scroll to next poll
-  const scrollToNextPoll = async () => {
-    if (contentRef.current) {
-      const nextPollElement = document.querySelector(`[data-poll-index="${currentPollIndex + 1}"]`)
-      if (nextPollElement) {
-        nextPollElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        })
-      }
+  // Scroll to top
+  const scrollToTop = () => {
+    contentRef.current?.scrollToTop(500)
+  }
+
+  // Handle vote completion and scroll to next poll
+  const handleVoteComplete = (pollId: string) => {
+    console.log(`📜 Vote completed for poll: ${pollId}`)
+    
+    // Find the index of the voted poll
+    const votedIndex = availablePolls.findIndex(p => p.id === pollId)
+    if (votedIndex !== -1 && votedIndex < availablePolls.length - 1) {
+      // Scroll to next poll after showing results for 2 seconds
+      const nextIndex = votedIndex + 1
+      console.log(`⬇️ Will scroll to next poll at index: ${nextIndex} in 2 seconds`)
+      
+      setTimeout(() => {
+        const nextPollElement = document.querySelector(`[data-poll-index="${nextIndex}"]`)
+        if (nextPollElement) {
+          console.log(`📍 Scrolling to poll at index: ${nextIndex}`)
+          nextPollElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          })
+        }
+      }, 2100) // Wait for results to show (2 seconds) + small buffer
     }
   }
 
-  // Reset voted polls when polls change
+  // Reset current index when polls change
   useEffect(() => {
-    setVotedPolls(new Set())
     setCurrentPollIndex(0)
   }, [polls])
 
@@ -154,6 +166,16 @@ const HomePage: React.FC<HomePageProps> = ({
       </IonHeader>
       
       <IonContent ref={contentRef} scrollEvents={true}>
+        {/* Pull to Refresh */}
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent
+            pullingIcon={chevronDownCircleOutline}
+            pullingText="Pull to refresh"
+            refreshingSpinner="circles"
+            refreshingText="Refreshing..."
+          />
+        </IonRefresher>
+
         {/* Header */}
         <div className="page-header-minimal">
           <h1>SWIPE TO VOTE</h1>
@@ -186,12 +208,10 @@ const HomePage: React.FC<HomePageProps> = ({
                 key={poll.id}
                 poll={poll}
                 user={user}
-                onVote={(pollId, option) => {
-                  onVote(pollId, option)
-                  handleVoteComplete(pollId)
-                }}
+                onVote={onVote}
                 onLike={onLike}
                 isActive={true} // Make all polls swipable
+                onVoteComplete={() => handleVoteComplete(poll.id)}
                 data-poll-index={index}
               />
             ))}

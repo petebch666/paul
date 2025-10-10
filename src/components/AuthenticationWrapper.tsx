@@ -13,6 +13,7 @@ type AuthPageType = 'login' | 'signup' | 'auth'
 const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children }) => {
   const { user, isAuthenticated, isLoading, error } = useAuth()
   const [currentPage, setCurrentPage] = useState<AuthPageType>('auth')
+  const [forceRender, setForceRender] = useState(0)
 
   // Debug logging
   useEffect(() => {
@@ -21,9 +22,18 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
       hasUser: !!user, 
       isLoading, 
       error,
-      currentPage 
+      currentPage,
+      forceRender
     })
-  }, [isAuthenticated, user, isLoading, error, currentPage])
+  }, [isAuthenticated, user, isLoading, error, currentPage, forceRender])
+
+  // Force re-render when authentication changes
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('🎉 Authentication successful, forcing re-render...')
+      setForceRender(prev => prev + 1)
+    }
+  }, [isAuthenticated, user])
 
   // Show loading state while checking authentication
   if (isLoading) {

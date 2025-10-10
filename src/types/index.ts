@@ -9,11 +9,11 @@ export interface Poll {
   category: string
   timeLeft: string
   author: string
-  authorId?: string
+  authorId: string
   isVoted: boolean
   isLiked: boolean
-  createdAt?: Date
-  expiresAt?: Date
+  createdAt: Date
+  expiresAt: Date
   // Enhanced Poll Creation Features
   pollType: 'question' | 'options-only' // New: question with options or just two options
   timerDuration?: number // Duration in minutes
@@ -142,13 +142,6 @@ export interface Vote {
 export type Page = 'home' | 'create' | 'profile' | 'trending'
 
 // Component props types
-export interface PollCardProps {
-  poll: Poll
-  onVote: (pollId: string, option: 'A' | 'B') => void
-  onLike: (pollId: string) => void
-  currentUser: User
-}
-
 export interface NavigationProps {
   currentPage: Page
   onNavigate: (page: Page) => void

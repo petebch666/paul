@@ -33,7 +33,12 @@ export function useAuth() {
 
   // Initialize authentication on mount (only once)
   useEffect(() => {
-    if (initialized) return
+    if (initialized) {
+      console.log('⏭️ Skipping init - already initialized')
+      return
+    }
+    
+    console.log('🔄 Running auth initialization...')
     
     const init = async () => {
       try {
@@ -41,22 +46,25 @@ export function useAuth() {
         
         // Check if user is stored in localStorage
         const storedUser = localStorage.getItem('paul-user')
+        console.log('📦 Stored user:', storedUser ? 'Found' : 'Not found')
         
         if (storedUser) {
           try {
             const user = JSON.parse(storedUser)
+            console.log('👤 Parsed user:', user.name, user.email)
             
             // Verify user still exists in database
             const dbUser = await PollzAPI.getUserById(user.id)
             
             if (dbUser) {
+              console.log('✅ User verified in database')
               setAuthState({
                 user: dbUser,
                 isAuthenticated: true,
                 isLoading: false,
                 error: null
               })
-              console.log('✅ User authenticated from storage:', dbUser)
+              console.log('✅ User authenticated from storage:', dbUser.name)
               setInitialized(true)
               return
             } else {
@@ -71,13 +79,13 @@ export function useAuth() {
         }
 
         // No valid user found
+        console.log('ℹ️ No authenticated user found, showing login')
         setAuthState({
           user: null,
           isAuthenticated: false,
           isLoading: false,
           error: null
         })
-        console.log('ℹ️ No authenticated user found')
         setInitialized(true)
         
       } catch (error) {
@@ -157,9 +165,15 @@ export function useAuth() {
       // Remove password from user object before storing
       const { password: _, ...userWithoutPassword } = user
       
+      console.log('💾 Storing user in localStorage...')
       // Store user in localStorage
       localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
+      // Verify storage
+      const stored = localStorage.getItem('paul-user')
+      console.log('✅ User stored:', stored ? 'Success' : 'Failed')
+      
+      console.log('🔐 Setting auth state...')
       setAuthState({
         user: userWithoutPassword,
         isAuthenticated: true,
@@ -167,9 +181,11 @@ export function useAuth() {
         error: null
       })
       
+      console.log('✅ Setting initialized flag...')
       setInitialized(true)
 
-      console.log('✅ Login successful:', userWithoutPassword)
+      console.log('✅ Login successful:', userWithoutPassword.name, userWithoutPassword.email)
+      console.log('🎉 Login complete - user should be authenticated')
       return true
       
     } catch (error) {

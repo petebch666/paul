@@ -1,4 +1,6 @@
 // Simple browser storage implementation for Pollz
+import { generate50Polls } from '../utils/generate-polls'
+
 export interface User {
   id: string
   name: string
@@ -6,6 +8,7 @@ export interface User {
   email: string
   avatar: string
   password?: string
+  role?: 'user' | 'admin'
   followers: number
   following: number
   reputation: number
@@ -266,114 +269,8 @@ class SimpleDatabase {
       }
     ]
 
-    const initialPolls: Poll[] = [
-      {
-        id: 'poll-1',
-        title: 'Pineapple on Pizza: Crime or Genius?',
-        description: 'The eternal debate that divides families and destroys friendships',
-        votes: 1247,
-        votesOptionA: 534,
-        votesOptionB: 713,
-        category: 'Food',
-        timeLeft: '2 days left',
-        authorId: 'user-2',
-        author: 'PizzaMaster',
-        isVoted: false,
-        isLiked: true,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-        context: 'My Italian grandmother is rolling in her grave, but I need to know the truth!',
-        arguments: {
-          optionA: 'Pineapple adds the perfect sweet contrast to salty toppings',
-          optionB: 'Fruit has no place on pizza - it\'s basically a crime against Italy'
-        },
-        evidence: {
-          optionA: [
-            {
-              id: '1',
-              type: 'text',
-              title: 'Hawaiian Pizza Facts',
-              content: 'Hawaiian pizza was invented in Canada by a Greek immigrant in 1962',
-              submittedBy: 'PizzaMaster',
-              submittedAt: new Date()
-            }
-          ],
-          optionB: [
-            {
-              id: '2',
-              type: 'text',
-              title: 'Italian Pizza Purists',
-              content: 'Real Italians would rather eat their nonna\'s cooking than pineapple pizza',
-              submittedBy: 'PizzaPurist',
-              submittedAt: new Date()
-            }
-          ]
-        },
-        comments: [
-          {
-            id: '1',
-            pollId: 'poll-1',
-            userId: 'user-1',
-            username: 'ChefMario',
-            avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face',
-            content: 'As an Italian, I\'m offended this is even a question! 🇮🇹',
-            timestamp: new Date(),
-            likes: 12,
-            isLiked: true
-          }
-        ],
-        debateHistory: {
-          creatorWins: 8,
-          opponentWins: 3,
-          totalDebates: 11
-        },
-        trendingScore: 95.2,
-        // Enhanced poll features
-        pollType: 'question',
-        timerDuration: 48,
-        timerEnabled: true,
-        notificationEnabled: true,
-        isExpired: false
-      },
-      {
-        id: 'poll-2',
-        title: 'Cats vs Dogs: Who Rules the Internet?',
-        description: 'Which furry overlord deserves the crown of viral supremacy?',
-        votes: 892,
-        votesOptionA: 445,
-        votesOptionB: 447,
-        category: 'Animals',
-        timeLeft: '5 hours left',
-        authorId: 'user-1',
-        author: 'PetInfluencer',
-        isVoted: true,
-        isLiked: false,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 5 * 60 * 60 * 1000),
-        context: 'My cat just knocked over my coffee again while my dog watched with judgmental eyes',
-        arguments: {
-          optionA: 'Cats are mysterious, elegant, and perfect meme material',
-          optionB: 'Dogs are loyal, goofy, and always ready for adventure'
-        },
-        evidence: {
-          optionA: [],
-          optionB: []
-        },
-        comments: [],
-        debateHistory: {
-          creatorWins: 5,
-          opponentWins: 2,
-          totalDebates: 7
-        },
-        trendingScore: 87.4,
-        // Enhanced poll features
-        pollType: 'question',
-        timerDuration: 5,
-        timerEnabled: true,
-        notificationEnabled: true,
-        isExpired: false
-      }
-    ]
+    // Generate 50 diverse polls
+    const initialPolls: Poll[] = generate50Polls()
 
     return {
       users: initialUsers,

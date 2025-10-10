@@ -20,17 +20,11 @@ import Navigation from './components/Navigation'
 import { useAuth } from './hooks/useAuth'
 import './App.css'
 
-// Import test utility for development - TEMPORARILY DISABLED TO FIX INFINITE LOOP
-// if (process.env.NODE_ENV === 'development') {
-//   import('./utils/test-api')
-//   import('./utils/reset-database')
-//   import('./utils/test-security')
-//   import('./utils/test-signup')
-//   import('./utils/admin-access')
-//   import('./utils/force-reset-with-admin')
-//   // Commented out to prevent auto-population
-//   // import('./utils/populate-humorous-polls')
-// }
+// Import utilities for development
+if (process.env.NODE_ENV === 'development') {
+  import('./utils/reset-and-populate')
+  import('./utils/ensure-50-polls')
+}
 
 // Mock data (kept for reference, but no longer used)
 const mockPolls = [
@@ -259,7 +253,9 @@ const mockPolls = [
 function App() {
   const [isDesktop, setIsDesktop] = useState(false)
   const [currentPage, setCurrentPage] = useState<'home' | 'notifications' | 'history'>('home')
+  const [currentTab, setCurrentTab] = useState<string>('home')
   const { logout } = useAuth()
+  const router = useIonRouter()
 
   const {
     polls,
@@ -310,6 +306,24 @@ function App() {
   const handleNavigate = (path: string) => {
     // Navigation will be handled by child components with access to router
     console.log('Navigate to:', path)
+  }
+
+  // Handle tab click - scroll to top if already on that tab
+  const handleTabClick = (tab: string) => {
+    const currentPath = router.routeInfo.pathname
+    const tabPath = `/${tab}`
+    
+    if (currentPath === tabPath) {
+      // Already on this tab, scroll to top
+      const content = document.querySelector('ion-content')
+      if (content) {
+        content.scrollToTop(500)
+        console.log(`📍 Scrolled to top of ${tab}`)
+      }
+    } else {
+      // Navigate to new tab
+      setCurrentTab(tab)
+    }
   }
 
   return (
@@ -394,19 +408,35 @@ function App() {
           </IonRouterOutlet>
           
           <IonTabBar slot="bottom">
-            <IonTabButton tab="home" href="/home">
+            <IonTabButton 
+              tab="home" 
+              href="/home"
+              onClick={() => handleTabClick('home')}
+            >
               <IonIcon icon={home} />
               <IonLabel>Home</IonLabel>
             </IonTabButton>
-            <IonTabButton tab="create" href="/create">
+            <IonTabButton 
+              tab="create" 
+              href="/create"
+              onClick={() => handleTabClick('create')}
+            >
               <IonIcon icon={add} />
               <IonLabel>Create</IonLabel>
             </IonTabButton>
-            <IonTabButton tab="trending" href="/trending">
+            <IonTabButton 
+              tab="trending" 
+              href="/trending"
+              onClick={() => handleTabClick('trending')}
+            >
               <IonIcon icon={trendingUp} />
               <IonLabel>Trending</IonLabel>
             </IonTabButton>
-            <IonTabButton tab="profile" href="/profile">
+            <IonTabButton 
+              tab="profile" 
+              href="/profile"
+              onClick={() => handleTabClick('profile')}
+            >
               <IonIcon icon={person} />
               <IonLabel>Profile</IonLabel>
             </IonTabButton>
