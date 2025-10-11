@@ -30,7 +30,7 @@ import {
   menu,
   close
 } from 'ionicons/icons'
-import SwipePollCard from '../components/SwipePollCard'
+import PollCarousel from '../components/PollCarousel'
 import { Poll, User } from '../types'
 import { PollzAPI } from '../database/api'
 
@@ -156,6 +156,24 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
 
     setupScrollListener()
   }, [hasMorePolls, loadingMore, loadMorePolls])
+
+  // Show loading state if user is not loaded (AFTER all hooks)
+  if (!user) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>Loading...</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <p>Loading user data...</p>
+          </div>
+        </IonContent>
+      </IonPage>
+    )
+  }
 
   if (loading && polls.length === 0) {
     return (
@@ -389,7 +407,7 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
             <div>Total Polls: {polls.length}</div>
             <div>Available: {availablePolls.length}</div>
             <div>Voted: {votedPolls.size}</div>
-            <div>User: {user.name}</div>
+            <div>User: {user?.name || 'Loading...'}</div>
           </div>
         </div>
       </div>

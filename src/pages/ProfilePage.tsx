@@ -27,7 +27,7 @@ import {
 } from '@ionic/react'
 import { medal, flag, trophy, star, add, people, chevronDownCircleOutline } from 'ionicons/icons'
 import { User, Badge, Poll } from '../types'
-import SwipePollCard from '../components/SwipePollCard'
+import PollCarousel from '../components/PollCarousel'
 import SecurityBadge from '../components/SecurityBadge'
 
 interface ProfilePageProps {
@@ -200,34 +200,25 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         </IonSegment>
 
           {activeTab === 'polls' && (
-          <div style={{ 
-            padding: '20px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px'
-          }}>
-                {userPolls.length > 0 ? (
-                  userPolls.map((poll, index) => (
-                    <SwipePollCard
-                      key={poll.id}
-                      poll={poll}
-                      user={user}
-                      onVote={async (pollId, option) => {
-                        onVote(pollId, option)
-                      }}
-                      onLike={onLike}
-                      isActive={true}
-                      data-poll-index={index}
-                    />
-                  ))
-                ) : (
-              <IonCard>
-                <IonCardContent style={{ textAlign: 'center', padding: '32px' }}>
-                    <p>No polls created yet. Start a debate!</p>
-                </IonCardContent>
-              </IonCard>
-                )}
-            </div>
+            <>
+              {userPolls.length > 0 ? (
+                <PollCarousel
+                  polls={userPolls}
+                  user={user}
+                  onVote={onVote}
+                  onLike={onLike}
+                  contentRef={contentRef}
+                />
+              ) : (
+                <div style={{ padding: '20px 16px' }}>
+                  <IonCard>
+                    <IonCardContent style={{ textAlign: 'center', padding: '32px' }}>
+                      <p>No polls created yet. Start a debate!</p>
+                    </IonCardContent>
+                  </IonCard>
+                </div>
+              )}
+            </>
           )}
 
           {activeTab === 'badges' && (
