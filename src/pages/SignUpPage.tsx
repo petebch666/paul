@@ -37,6 +37,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -49,8 +50,14 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccess(false)
 
     try {
+      console.log('📝 Starting sign up process...')
+      console.log('👤 Name:', formData.name)
+      console.log('🆔 Username:', formData.username)
+      console.log('📧 Email:', formData.email)
+      
       // Validate all fields
       if (!formData.name || !formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
         throw new Error('Please fill in all fields')
@@ -61,20 +68,36 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
         throw new Error('Passwords do not match')
       }
 
-      const success = await signUp({
+      console.log('⏳ Calling signUp function...')
+      const signUpSuccess = await signUp({
         name: formData.name,
         username: formData.username,
         email: formData.email,
         password: formData.password
       })
       
-      if (!success) {
+      console.log('📬 Sign up result:', signUpSuccess)
+      
+      if (!signUpSuccess) {
         throw new Error('Sign up failed. Please try again.')
       }
+      
+      console.log('✅ Sign up successful! Setting success state...')
+      setSuccess(true)
+      
+      // Give user feedback before navigation
+      console.log('🎉 Waiting for authentication to complete...')
+      
+      // Fallback: If UI doesn't update within 1 second, force reload
+      setTimeout(() => {
+        console.log('⚠️ Forcing page reload to show app...')
+        window.location.reload()
+      }, 1000)
       
     } catch (err) {
       console.error('❌ Sign up failed:', err)
       setError(err instanceof Error ? err.message : 'Sign up failed. Please try again.')
+      setSuccess(false)
     }
   }
 
@@ -209,6 +232,25 @@ const SignUpPage: React.FC<SignUpPageProps> = ({
                 </div>
               </div>
 
+              {/* Success Message */}
+              {success && (
+                <div style={{
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  background: '#00ff00',
+                  color: '#000000',
+                  border: '2px solid #000000',
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  fontSize: '12px'
+                }}>
+                  ✅ ACCOUNT CREATED SUCCESSFULLY!
+                </div>
+              )}
+              
               {/* Error Message */}
               {error && (
                 <div className="error-message">

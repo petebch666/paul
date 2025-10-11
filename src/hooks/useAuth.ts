@@ -174,6 +174,7 @@ export function useAuth() {
       console.log('✅ User stored:', stored ? 'Success' : 'Failed')
       
       console.log('🔐 Setting auth state...')
+      // Use React state update with callback to ensure state is set properly
       setAuthState({
         user: userWithoutPassword,
         isAuthenticated: true,
@@ -181,11 +182,15 @@ export function useAuth() {
         error: null
       })
       
-      console.log('✅ Setting initialized flag...')
+      // Mark as initialized
       setInitialized(true)
 
       console.log('✅ Login successful:', userWithoutPassword.name, userWithoutPassword.email)
-      console.log('🎉 Login complete - user should be authenticated')
+      console.log('🎉 Auth state updated - isAuthenticated: true, user:', userWithoutPassword.name)
+      
+      // Small delay to ensure state propagates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       return true
       
     } catch (error) {
@@ -265,17 +270,31 @@ export function useAuth() {
       // Remove password from user object before storing
       const { password, ...userWithoutPassword } = newUser
       
+      console.log('💾 Storing new user in localStorage...')
       // Store user in localStorage
       localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
+      // Verify storage
+      const stored = localStorage.getItem('paul-user')
+      console.log('✅ User stored:', stored ? 'Success' : 'Failed')
+      
+      console.log('🔐 Setting auth state for new user...')
       setAuthState({
         user: userWithoutPassword,
         isAuthenticated: true,
         isLoading: false,
         error: null
       })
+      
+      // Mark as initialized
+      setInitialized(true)
 
-      console.log('✅ Sign up successful:', userWithoutPassword)
+      console.log('✅ Sign up successful:', userWithoutPassword.name, userWithoutPassword.email)
+      console.log('🎉 Auth state updated - isAuthenticated: true, user:', userWithoutPassword.name)
+      
+      // Small delay to ensure state propagates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       return true
       
     } catch (error) {

@@ -28,9 +28,10 @@ import {
 import { medal, flag, trophy, star, add, people, chevronDownCircleOutline } from 'ionicons/icons'
 import { User, Badge, Poll } from '../types'
 import SwipePollCard from '../components/SwipePollCard'
+import SecurityBadge from '../components/SecurityBadge'
 
 interface ProfilePageProps {
-  user: User
+  user: User | null
   polls: Poll[]
   onVote: (pollId: string, option: 'A' | 'B') => void
   onLike: (pollId: string) => void
@@ -58,6 +59,24 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     setTimeout(() => {
       event.detail.complete()
     }, 1000)
+  }
+  
+  // Show loading if user is not loaded yet
+  if (!user) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>Profile</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <p>Loading profile...</p>
+          </div>
+        </IonContent>
+      </IonPage>
+    )
   }
   
   const userPolls = polls.filter(poll => poll.authorId === user.id || poll.author === user.name)
@@ -239,6 +258,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
           {activeTab === 'stats' && (
           <div style={{ padding: '0 16px' }}>
+            {/* Security Badge - Development only */}
+            {process.env.NODE_ENV === 'development' && (
+              <div style={{ marginBottom: '20px' }}>
+                <SecurityBadge variant="detailed" />
+              </div>
+            )}
+
             {/* Navigation Buttons */}
             <div style={{ 
               display: 'flex', 

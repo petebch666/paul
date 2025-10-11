@@ -139,7 +139,7 @@ export interface Vote {
 }
 
 // Navigation types
-export type Page = 'home' | 'create' | 'profile' | 'trending'
+export type Page = 'home' | 'create' | 'profile'
 
 // Component props types
 export interface NavigationProps {

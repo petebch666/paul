@@ -11,32 +11,38 @@ interface AuthenticationWrapperProps {
 type AuthPageType = 'login' | 'signup' | 'auth'
 
 const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children }) => {
-  const { user, isAuthenticated, isLoading, error } = useAuth()
+  const authState = useAuth()
+  const { user, isAuthenticated, isLoading, error } = authState
   const [currentPage, setCurrentPage] = useState<AuthPageType>('auth')
-  const [forceRender, setForceRender] = useState(0)
 
-  // Debug logging
+  // Debug logging - track ALL auth state changes
   useEffect(() => {
-    console.log('🔐 Auth State:', { 
+    console.log('🔐 Auth State Changed:', { 
       isAuthenticated, 
       hasUser: !!user, 
+      userName: user?.name,
       isLoading, 
       error,
-      currentPage,
-      forceRender
+      currentPage
     })
-  }, [isAuthenticated, user, isLoading, error, currentPage, forceRender])
-
-  // Force re-render when authentication changes
-  useEffect(() => {
+    
+    // If authenticated, this should trigger app display
     if (isAuthenticated && user) {
-      console.log('🎉 Authentication successful, forcing re-render...')
-      setForceRender(prev => prev + 1)
+      console.log('🎉 AUTHENTICATED! Should show app now')
+      console.log('   - User:', user.name, user.email)
+      console.log('   - Component will re-render with children')
     }
-  }, [isAuthenticated, user])
+  }, [isAuthenticated, user, isLoading, error, currentPage])
 
-  // Show loading state while checking authentication
+  // Priority 1: User is authenticated - SHOW THE APP!
+  if (isAuthenticated && user) {
+    console.log('🚀 RENDERING APP - User is authenticated:', user.name)
+    return <React.Fragment key={user.id}>{children}</React.Fragment>
+  }
+
+  // Priority 2: Show loading state while checking authentication
   if (isLoading) {
+    console.log('⏳ Loading authentication...')
     return (
       <AuthPage 
         isAuthenticated={false} 
@@ -51,8 +57,9 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
     )
   }
 
-  // Show error state if authentication failed
+  // Priority 3: Show error state if authentication failed
   if (error && !isAuthenticated) {
+    console.log('❌ Authentication error:', error)
     return (
       <AuthPage 
         isAuthenticated={false} 
@@ -67,13 +74,8 @@ const AuthenticationWrapper: React.FC<AuthenticationWrapperProps> = ({ children 
     )
   }
 
-  // User is authenticated, show the app
-  if (isAuthenticated && user) {
-    console.log('✅ User authenticated, showing app')
-    return <>{children}</>
-  }
-
-  console.log('ℹ️ User not authenticated, showing auth pages')
+  // Priority 4: User not authenticated, show login/signup
+  console.log('ℹ️ User not authenticated, showing auth pages, currentPage:', currentPage)
 
   // User is not authenticated, show login/signup flow
   const handleNavigateToSignUp = () => {

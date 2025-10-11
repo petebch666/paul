@@ -36,7 +36,7 @@ import { PollzAPI } from '../database/api'
 
 interface DesktopHomePageProps {
   polls: Poll[]
-  user: User
+  user: User | null
   onVote: (pollId: string, option: 'A' | 'B') => void
   onLike: (pollId: string) => void
   loadPolls: (reset?: boolean) => void
@@ -102,18 +102,16 @@ const DesktopHomePage: React.FC<DesktopHomePageProps> = ({
       // Check if we've completed a row
       const votedInCurrentView = availablePolls.filter(p => newVotedPolls.has(p.id)).length
       
-      // Auto-scroll to next row if current row is complete
+      // Auto-scroll to next row if current row is complete (SwipePollCard already handles the delay)
       if (votedInCurrentView > 0 && votedInCurrentView % pollsPerRow === 0 && !isMobile) {
-        setTimeout(() => {
-          const nextPollIndex = votedInCurrentView
-          const nextPollElement = document.querySelector(`[data-poll-index="${nextPollIndex}"]`)
-          if (nextPollElement) {
-            nextPollElement.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'start' 
-            })
-          }
-        }, 2100) // Wait for results to show (2 seconds) + small buffer
+        const nextPollIndex = votedInCurrentView
+        const nextPollElement = document.querySelector(`[data-poll-index="${nextPollIndex}"]`)
+        if (nextPollElement) {
+          nextPollElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          })
+        }
       }
       
       return newVotedPolls

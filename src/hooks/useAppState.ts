@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Poll, User, CreatePollFormData, PollNotification, PollHistory } from '../types'
 import { PollzAPI } from '../database/api'
 import { initializeDatabase } from '../database/simple-db'
+import { useAuth } from './useAuth'
 
 // Custom hook for managing app state
 export function useAppState() {
@@ -14,42 +15,18 @@ export function useAppState() {
   const [totalPolls, setTotalPolls] = useState<number>(0)
   const [notifications, setNotifications] = useState<PollNotification[]>([])
   const [pollHistory, setPollHistory] = useState<PollHistory[]>([])
-  const [user, setUser] = useState<User>({
-    id: 'user-1',
-    name: 'Alex Johnson',
-    username: '@alexjohnson',
-    email: 'alex@example.com',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-    followers: 1247,
-    following: 89,
-    reputation: 2847,
-    badges: [
-      {
-        id: 'badge-1',
-        name: 'Master Debater',
-        description: 'Won 25+ debates',
-        icon: 'Crown',
-        category: 'debate',
-        rarity: 'legendary',
-        earnedAt: new Date('2024-01-15')
-      },
-      {
-        id: 'badge-2',
-        name: 'Poll Creator',
-        description: 'Created 50+ polls',
-        icon: 'Plus',
-        category: 'creation',
-        rarity: 'epic',
-        earnedAt: new Date('2024-02-01')
-      }
-    ],
-    pollCount: 52,
-    winRate: 0.73,
-    joinDate: new Date('2023-12-01')
-  })
+  
+  // Get authenticated user from useAuth hook
+  const { user: authUser } = useAuth()
+  const [user, setUser] = useState<User | null>(null)
 
   // Load initial batch of polls
   const loadPolls = useCallback(async (reset: boolean = false) => {
+    if (!authUser) {
+      console.log('⏳ Waiting for user to load before fetching polls')
+      return
+    }
+
     if (reset) {
       setCurrentPage(0)
       setPolls([])
@@ -60,82 +37,104 @@ export function useAppState() {
     setError(null)
     try {
       const page = reset ? 0 : currentPage
-      const batchPolls = await PollzAPI.getPollsBatch(page, 10)
-      const totalCount = await PollzAPI.getTotalPollsCount()
       
-      console.log(`Loading page ${page}, got ${batchPolls.length} polls, total: ${totalCount}`)
+      // Get all polls with vote status for current user
+      const allPolls = await PollzAPI.getPollsWithVoteStatus(authUser.id)
       
-      setTotalPolls(totalCount)
-      setPolls(batchPolls) // Always replace for sliding window
+      // Paginate on client side
+      const startIndex = page * 10
+      const endIndex = startIndex + 10
+      const batchPolls = allPolls.slice(startIndex, endIndex)
+      
+      console.log(`Loading page ${page}, got ${batchPolls.length} polls, total: ${allPolls.length}`)
+      console.log(`Voted polls: ${batchPolls.filter(p => p.isVoted).length}`)
+      
+      setTotalPolls(allPolls.length)
+      setPolls(batchPolls)
       setCurrentPage(page + 1)
-      setHasMorePolls(page + 1 < Math.ceil(totalCount / 10))
+      setHasMorePolls(endIndex < allPolls.length)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load polls')
       console.error('Error loading polls:', err)
     } finally {
       setLoading(false)
     }
-  }, [currentPage])
+  }, [currentPage, authUser])
 
   // Load next batch of polls
   const loadMorePolls = useCallback(async () => {
-    if (loadingMore || !hasMorePolls) return
+    if (loadingMore || !hasMorePolls || !authUser) return
     
     setLoadingMore(true)
     setError(null)
     try {
-      const batchPolls = await PollzAPI.getPollsBatch(currentPage, 10)
+      // Get all polls with vote status
+      const allPolls = await PollzAPI.getPollsWithVoteStatus(authUser.id)
+      
+      // Paginate on client side
+      const startIndex = currentPage * 10
+      const endIndex = startIndex + 10
+      const batchPolls = allPolls.slice(startIndex, endIndex)
       
       console.log(`Loading more polls, page ${currentPage}, got ${batchPolls.length} polls`)
       
       if (batchPolls.length > 0) {
-        setPolls(batchPolls) // Replace current polls
+        setPolls(batchPolls)
         setCurrentPage(prev => prev + 1)
       }
       
-      // Check if there are more polls available
-      const totalCount = await PollzAPI.getTotalPollsCount()
-      setHasMorePolls(currentPage + 1 < Math.ceil(totalCount / 10))
+      setHasMorePolls(endIndex < allPolls.length)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load more polls')
       console.error('Error loading more polls:', err)
     } finally {
       setLoadingMore(false)
     }
-  }, [currentPage, loadingMore, hasMorePolls])
+  }, [currentPage, loadingMore, hasMorePolls, authUser])
 
-  // Load user from API
+  // Load user from API (sync with auth user)
   const loadUser = useCallback(async () => {
     try {
-      const apiUser = await PollzAPI.getUserById('user-1')
-      if (apiUser) {
-        setUser(apiUser)
+      if (authUser) {
+        // Fetch latest user data from database
+        const apiUser = await PollzAPI.getUserById(authUser.id)
+        if (apiUser) {
+          setUser(apiUser)
+        } else {
+          // If not found in DB, use auth user
+          setUser(authUser)
+        }
       }
     } catch (err) {
       console.error('Error loading user:', err)
-      // Keep the default user if API fails
+      // Use auth user if API fails
+      if (authUser) {
+        setUser(authUser)
+      }
     }
-  }, [])
+  }, [authUser])
 
   // Load user notifications
   const loadNotifications = useCallback(async () => {
+    if (!user) return
     try {
       const userNotifications = await PollzAPI.getUserNotifications(user.id)
       setNotifications(userNotifications)
     } catch (error) {
       console.error('Error loading notifications:', error)
     }
-  }, [user.id])
+  }, [user])
 
   // Load user poll history
   const loadPollHistory = useCallback(async () => {
+    if (!user) return
     try {
       const userHistory = await PollzAPI.getUserPollHistory(user.id)
       setPollHistory(userHistory)
     } catch (error) {
       console.error('Error loading poll history:', error)
     }
-  }, [user.id])
+  }, [user])
 
   // Update poll timers
   const updatePollTimers = useCallback(async () => {
@@ -188,6 +187,24 @@ export function useAppState() {
 
 
   const handleVote = useCallback(async (pollId: string, option: 'A' | 'B') => {
+    if (!user) {
+      console.error('Cannot vote: No user logged in')
+      return
+    }
+    
+    // Check if user already voted (double-check before voting)
+    const hasVoted = await PollzAPI.hasUserVoted(pollId, user.id)
+    if (hasVoted) {
+      console.error('User already voted on this poll')
+      setError('You have already voted on this poll')
+      
+      // Update local state to reflect voted status
+      setPolls(prev => prev.map(poll => 
+        poll.id === pollId ? { ...poll, isVoted: true } : poll
+      ))
+      return
+    }
+    
     // Clear any previous errors
     setError(null)
     
@@ -201,7 +218,10 @@ export function useAppState() {
     }
 
     try {
-      // Update local state optimistically first
+      // First call API to persist the vote
+      await PollzAPI.voteOnPoll(pollId, user.id, option)
+      
+      // Then update local state
       setPolls(prev => prev.map(poll => 
         poll.id === pollId 
           ? { 
@@ -214,16 +234,15 @@ export function useAppState() {
           : poll
       ))
       
-      // Then call API to persist
-      await PollzAPI.voteOnPoll(pollId, user.id, option)
-      
-      console.log('✅ Vote recorded successfully')
+      console.log('✅ Vote recorded successfully for poll:', pollId)
     } catch (err) {
-      console.error('⚠️ Error voting (but local state updated):', err)
-      // Don't set error state - the vote was applied locally
-      // setError(err instanceof Error ? err.message : 'Failed to vote')
+      console.error('❌ Error voting on poll:', err)
+      setError(err instanceof Error ? err.message : 'Failed to vote')
+      
+      // Reload polls to get correct state
+      await loadPolls(true)
     }
-  }, [user.id])
+  }, [user, loadPolls])
 
   const handleLike = useCallback((pollId: string) => {
     // Add visual feedback
@@ -243,6 +262,10 @@ export function useAppState() {
   }, [])
 
   const createPoll = useCallback(async (pollData: CreatePollFormData) => {
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+    
     try {
       setLoading(true)
       setError(null)
@@ -299,10 +322,10 @@ export function useAppState() {
       setPolls(prev => [newPoll, ...prev])
       
       // Update user poll count
-      setUser(prev => ({
+      setUser(prev => prev ? ({
         ...prev,
         pollCount: prev.pollCount + 1
-      }))
+      }) : prev)
 
       return newPoll
     } catch (err) {
@@ -312,7 +335,7 @@ export function useAppState() {
     } finally {
       setLoading(false)
     }
-  }, [user.id, user.name])
+  }, [user])
 
   // Mark notification as read
   const markNotificationAsRead = useCallback(async (notificationId: string) => {

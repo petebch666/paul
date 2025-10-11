@@ -35,6 +35,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
   })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -47,21 +48,41 @@ const LoginPage: React.FC<LoginPageProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccess(false)
 
     try {
+      console.log('🔑 Starting login process...')
+      console.log('📧 Email:', formData.email)
+      
       if (!formData.email || !formData.password) {
         throw new Error('Please fill in all fields')
       }
 
-      const success = await login(formData.email, formData.password)
+      console.log('⏳ Calling login function...')
+      const loginSuccess = await login(formData.email, formData.password)
       
-      if (!success) {
+      console.log('📬 Login result:', loginSuccess)
+      
+      if (!loginSuccess) {
         throw new Error('Login failed. Please check your credentials.')
       }
+      
+      console.log('✅ Login successful! Setting success state...')
+      setSuccess(true)
+      
+      // Give user feedback before navigation
+      console.log('🎉 Waiting for authentication to complete...')
+      
+      // Fallback: If UI doesn't update within 1 second, force reload
+      setTimeout(() => {
+        console.log('⚠️ Forcing page reload to show app...')
+        window.location.reload()
+      }, 1000)
       
     } catch (err) {
       console.error('❌ Login failed:', err)
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.')
+      setSuccess(false)
     }
   }
 
@@ -144,6 +165,25 @@ const LoginPage: React.FC<LoginPageProps> = ({
                 </div>
               </div>
 
+              {/* Success Message */}
+              {success && (
+                <div style={{
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  background: '#00ff00',
+                  color: '#000000',
+                  border: '2px solid #000000',
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  fontSize: '12px'
+                }}>
+                  ✅ LOGIN SUCCESSFUL!
+                </div>
+              )}
+              
               {/* Error Message */}
               {error && (
                 <div className="error-message">

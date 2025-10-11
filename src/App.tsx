@@ -3,20 +3,19 @@ import { IonApp, IonRouterOutlet, IonTabs, IonTabBar, IonTabButton, IonIcon, Ion
 import { useIonRouter } from '@ionic/react'
 import { IonReactRouter } from '@ionic/react-router'
 import { Route, Redirect } from 'react-router-dom'
-import { home, add, trendingUp, person } from 'ionicons/icons'
+import { home, add, person } from 'ionicons/icons'
 import { useAppState } from './hooks/useAppState'
 import HomePage from './pages/HomePage'
 import SwipeHomePage from './pages/SwipeHomePage'
 import DesktopHomePage from './pages/DesktopHomePage'
 import CreatePage from './pages/CreatePage'
-import TrendingPage from './pages/TrendingPage'
 import ProfilePage from './pages/ProfilePage'
 import NotificationsPage from './pages/NotificationsPage'
 import PollHistoryPage from './pages/PollHistoryPage'
 import AdminDashboard from './pages/AdminDashboard'
 import AuthenticationWrapper from './components/AuthenticationWrapper'
 import SecurityBadge from './components/SecurityBadge'
-import Navigation from './components/Navigation'
+import Navigation, { DevResetButton, DevGeneratePollsButton } from './components/Navigation'
 import { useAuth } from './hooks/useAuth'
 import './App.css'
 
@@ -24,6 +23,14 @@ import './App.css'
 if (process.env.NODE_ENV === 'development') {
   import('./utils/reset-and-populate')
   import('./utils/ensure-50-polls')
+  // Make generate function available in console
+  import('./database/api').then(module => {
+    (window as any).generatePolls = async () => {
+      await module.PollzAPI.generate50AdditionalPolls()
+      window.location.reload()
+    }
+    console.log('💡 Run generatePolls() in console to add 50 more polls!')
+  })
 }
 
 // Mock data (kept for reference, but no longer used)
@@ -253,9 +260,18 @@ const mockPolls = [
 function App() {
   const [isDesktop, setIsDesktop] = useState(false)
   const [currentPage, setCurrentPage] = useState<'home' | 'notifications' | 'history'>('home')
-  const [currentTab, setCurrentTab] = useState<string>('home')
+  const [currentTab, setCurrentTab] = useState<'home' | 'create' | 'profile'>('home')
   const { logout } = useAuth()
   const router = useIonRouter()
+  
+  // Track current route for desktop sidebar highlighting
+  useEffect(() => {
+    if (!router.routeInfo) return
+    const path = router.routeInfo.pathname
+    if (path.includes('/home')) setCurrentTab('home')
+    else if (path.includes('/create')) setCurrentTab('create')
+    else if (path.includes('/profile')) setCurrentTab('profile')
+  }, [router.routeInfo])
 
   const {
     polls,
@@ -309,7 +325,9 @@ function App() {
   }
 
   // Handle tab click - scroll to top if already on that tab
-  const handleTabClick = (tab: string) => {
+  const handleTabClick = (tab: 'home' | 'create' | 'profile') => {
+    if (!router.routeInfo) return
+    
     const currentPath = router.routeInfo.pathname
     const tabPath = `/${tab}`
     
@@ -326,25 +344,62 @@ function App() {
     }
   }
 
+  // Handle desktop navigation
+  const handleDesktopNavigate = (page: 'home' | 'create' | 'profile') => {
+    console.log('Desktop navigate to:', page)
+    if (page === 'home') {
+      router.push('/home')
+      setCurrentPage('home')
+    } else if (page === 'create') {
+      router.push('/create')
+      setCurrentPage('home')
+    } else if (page === 'profile') {
+      router.push('/profile')
+      setCurrentPage('home')
+    }
+    setCurrentTab(page)
+  }
+
   return (
     <IonReactRouter>
       <IonApp>
         <AuthenticationWrapper>
-          {currentPage === 'notifications' ? (
-            <NotificationsPage
-              notifications={notifications}
-              loading={loading}
-              onRefresh={loadNotifications}
-              onMarkAsRead={markNotificationAsRead}
-            />
-          ) : currentPage === 'history' ? (
-            <PollHistoryPage
-              pollHistory={pollHistory}
-              loading={loading}
-              onRefresh={loadPollHistory}
-            />
-          ) : (
-            <IonTabs>
+          <>
+            {/* Desktop: Always show sidebar navigation */}
+            {isDesktop && (
+              <Navigation 
+                currentPage={currentTab as 'home' | 'create' | 'profile'}
+                onNavigate={handleDesktopNavigate}
+              />
+            )}
+
+            {/* Development Buttons - visible on all screens */}
+            {process.env.NODE_ENV === 'development' && (
+              <>
+                <DevResetButton />
+                <DevGeneratePollsButton />
+              </>
+            )}
+            
+            {currentPage === 'notifications' ? (
+              <div className="main-content">
+                <NotificationsPage
+                  notifications={notifications}
+                  loading={loading}
+                  onRefresh={loadNotifications}
+                  onMarkAsRead={markNotificationAsRead}
+                />
+              </div>
+            ) : currentPage === 'history' ? (
+              <div className="main-content">
+                <PollHistoryPage
+                  pollHistory={pollHistory}
+                  loading={loading}
+                  onRefresh={loadPollHistory}
+                />
+              </div>
+            ) : (
+              <IonTabs>
               <IonRouterOutlet>
             <Route exact path="/home">
               {isDesktop ? (
@@ -378,14 +433,6 @@ function App() {
             <Route exact path="/create">
               <CreatePage
                 onCreatePoll={createPoll}
-              />
-            </Route>
-            <Route exact path="/trending">
-              <TrendingPage
-                polls={polls}
-                user={user}
-                onVote={handleVote}
-                onLike={handleLike}
               />
             </Route>
             <Route exact path="/profile">
@@ -425,14 +472,6 @@ function App() {
               <IonLabel>Create</IonLabel>
             </IonTabButton>
             <IonTabButton 
-              tab="trending" 
-              href="/trending"
-              onClick={() => handleTabClick('trending')}
-            >
-              <IonIcon icon={trendingUp} />
-              <IonLabel>Trending</IonLabel>
-            </IonTabButton>
-            <IonTabButton 
               tab="profile" 
               href="/profile"
               onClick={() => handleTabClick('profile')}
@@ -442,23 +481,21 @@ function App() {
             </IonTabButton>
               </IonTabBar>
             </IonTabs>
-          )}
-          
-          {error && (
-            <div className="error-banner">
-              <p>⚠️ {error}</p>
-              <button onClick={() => window.location.reload()}>Retry</button>
-            </div>
-          )}
-          
-          {loading && (
-            <div className="loading-overlay">
-              <div className="loading-spinner">Loading...</div>
-            </div>
-          )}
-
-          {/* Security Badge - visible in development */}
-          {process.env.NODE_ENV === 'development' && <SecurityBadge variant="compact" />}
+            )}
+            
+            {error && (
+              <div className="error-banner">
+                <p>⚠️ {error}</p>
+                <button onClick={() => window.location.reload()}>Retry</button>
+              </div>
+            )}
+            
+            {loading && (
+              <div className="loading-overlay">
+                <div className="loading-spinner">Loading...</div>
+              </div>
+            )}
+          </>
         </AuthenticationWrapper>
       </IonApp>
     </IonReactRouter>

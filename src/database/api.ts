@@ -12,6 +12,26 @@ export class PollzAPI {
     }
   }
 
+  // Get polls with user vote status
+  static async getPollsWithVoteStatus(userId: string): Promise<Poll[]> {
+    try {
+      return await db.getPollsWithVoteStatus(userId)
+    } catch (error) {
+      console.error('Error fetching polls with vote status:', error)
+      throw new Error('Failed to fetch polls with vote status')
+    }
+  }
+
+  // Check if user has voted
+  static async hasUserVoted(pollId: string, userId: string): Promise<boolean> {
+    try {
+      return await db.hasUserVoted(pollId, userId)
+    } catch (error) {
+      console.error('Error checking user vote:', error)
+      return false
+    }
+  }
+
   static async getPollsBatch(page: number = 0, limit: number = 10): Promise<Poll[]> {
     try {
       return await db.getPollsBatch(page, limit)
@@ -355,6 +375,26 @@ export class PollzAPI {
     } catch (error) {
       console.error('Error updating poll timer:', error)
       throw new Error('Failed to update poll timer')
+    }
+  }
+
+  // Development: Reset polls and statistics
+  static async resetPollsForDevelopment(): Promise<void> {
+    try {
+      await db.resetPollsForDevelopment()
+    } catch (error) {
+      console.error('Error resetting polls:', error)
+      throw new Error('Failed to reset polls')
+    }
+  }
+
+  // Development: Generate 50 additional polls
+  static async generate50AdditionalPolls(): Promise<void> {
+    try {
+      await db.generate50AdditionalPolls()
+    } catch (error) {
+      console.error('Error generating additional polls:', error)
+      throw new Error('Failed to generate additional polls')
     }
   }
 }

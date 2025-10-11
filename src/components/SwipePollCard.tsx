@@ -36,7 +36,7 @@ const getCategoryIcon = (category: string): string => {
 interface SwipePollCardProps {
   poll: Poll
   onVote: (pollId: string, option: 'A' | 'B') => void
-  user: User
+  user: User | null
   onLike: (pollId: string) => void
   isActive?: boolean
   onVoteComplete?: () => void
@@ -76,7 +76,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     }
   }, [poll.isVoted, poll.isExpired])
 
-  const isCreator = poll.author === user.name
+  const isCreator = user ? poll.author === user.name : false
   const canVote = !hasVoted && isActive && !poll.isExpired // Removed isCreator check - users can vote on their own polls
 
   // Calculate if poll is "HOT" (time remaining < 1 hour AND vote difference < 10%)
@@ -116,10 +116,10 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
       canVote,
       isExpired: poll.isExpired,
       pollAuthor: poll.author,
-      userName: user.name,
-      authorMatch: poll.author === user.name
+      userName: user?.name || 'Unknown',
+      authorMatch: user ? poll.author === user.name : false
     })
-  }, [poll.title, poll.id, hasVoted, isCreator, isActive, canVote, poll.author, user.name, poll.isExpired])
+  }, [poll.title, poll.id, hasVoted, isCreator, isActive, canVote, poll.author, user?.name, poll.isExpired])
 
   // Touch event handlers with improved scroll detection
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -242,14 +242,14 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     
     console.log(`✅ Voting on "${poll.title}": Option ${option}`)
     
-    // Step 1: Card disappears (200ms)
+    // Step 1: Card disappears (50ms) - 4x faster
     setIsDisappearing(true)
     setDragOffset({ x: 0, y: 0 })
     setVoteDirection(null)
     setIsDragging(false)
     
     setTimeout(() => {
-      // Step 2: Card reappears with results (100ms delay)
+      // Step 2: Card reappears with results (25ms delay) - 4x faster
       setIsDisappearing(false)
       setJustVoted(true)
       setHasVoted(true)
@@ -258,7 +258,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
       // Call the vote function
       onVote(poll.id, option)
       
-      // Step 3: Animate gauges filling (1200ms)
+      // Step 3: Animate gauges filling (300ms) - 4x faster
       let progress = 0
       const gaugeInterval = setInterval(() => {
         progress += 5
@@ -266,20 +266,20 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         if (progress >= 100) {
           clearInterval(gaugeInterval)
         }
-      }, 12) // 12ms * 100 steps = 1200ms total
+      }, 3) // 3ms * 100 steps = 300ms total
       
       // Step 4: Remove animation class after gauges fill
       setTimeout(() => {
         setJustVoted(false)
-      }, 1200)
+      }, 300)
       
-      // Step 5: Auto-scroll to next poll after showing results (2200ms total)
+      // Step 5: Auto-scroll to next poll after showing results (800ms total) - 4x faster
       setTimeout(() => {
         console.log(`🔄 Auto-scrolling after vote on "${poll.title}"`)
         onVoteComplete?.()
-        setGaugeProgress(0) // Reset for next time
-      }, 2200)
-    }, 200)
+        // Keep gauge at 100% to show results
+      }, 800)
+    }, 50)
   }
 
   // Click handlers for direct voting
@@ -334,8 +334,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         position: 'relative',
         zIndex: isDragging ? 100 : 1, // Bring to front when dragging
-        margin: '8px auto',
-        padding: '24px',
+        margin: '4px auto',
+        padding: '12px',
         background: hasVoted ? '#f5f5f5' : (isHovered ? '#000000' : '#ffffff'), // Light grey background for voted
         border: `3px solid ${hasVoted ? '#cccccc' : '#000000'}`, // Grey border for voted
         borderRadius: '0',
@@ -418,7 +418,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        marginBottom: '16px',
+        marginBottom: '8px',
         gap: '8px'
       }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -504,7 +504,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           textTransform: 'uppercase',
           letterSpacing: '2px',
           color: isHovered ? '#ffffff' : '#000000',
-          marginBottom: '24px',
+          marginBottom: '12px',
           lineHeight: '1.2',
           textAlign: 'center'
         }}
@@ -519,7 +519,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
             fontFamily: 'Courier New, Courier, monospace',
             fontSize: '12px',
             color: isHovered ? '#cccccc' : '#666666',
-            marginBottom: '24px',
+            marginBottom: '12px',
             textAlign: 'center',
             fontStyle: 'italic'
           }}
@@ -533,8 +533,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         className="poll-options"
         style={{
           display: 'flex',
-          gap: '12px',
-          marginBottom: '20px'
+          gap: '8px',
+          marginBottom: '12px'
         }}
       >
         {/* Option A */}
@@ -542,7 +542,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           className={`option-container ${voteDirection === 'A' ? 'highlight' : ''} ${hasVoted && poll.votesOptionA > poll.votesOptionB ? 'winning' : ''}`}
           style={{
             flex: 1,
-            padding: '20px',
+            padding: '12px',
             background: voteDirection === 'A' ? '#0066ff' : (isHovered ? '#333333' : '#ffffff'),
             border: isHovered ? '3px solid #ffffff' : '3px solid #000000',
             cursor: canVote ? 'pointer' : 'default',
@@ -583,7 +583,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               {/* Animated Gauge */}
               <div style={{
                 width: '100%',
-                height: '40px',
+                height: '24px',
                 background: '#e0e0e0',
                 borderRadius: '4px',
                 overflow: 'hidden',
@@ -645,7 +645,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           className={`option-container ${voteDirection === 'B' ? 'highlight' : ''} ${hasVoted && poll.votesOptionB > poll.votesOptionA ? 'winning' : ''}`}
           style={{
             flex: 1,
-            padding: '20px',
+            padding: '12px',
             background: voteDirection === 'B' ? '#ff0000' : (isHovered ? '#333333' : '#ffffff'),
             border: isHovered ? '3px solid #ffffff' : '3px solid #000000',
             cursor: canVote ? 'pointer' : 'default',
@@ -686,7 +686,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               {/* Animated Gauge */}
               <div style={{
                 width: '100%',
-                height: '40px',
+                height: '24px',
                 background: '#e0e0e0',
                 borderRadius: '4px',
                 overflow: 'hidden',
@@ -746,30 +746,6 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         <span>{poll.votes} VOTES</span>
         <span>by {poll.author}</span>
       </div>
-
-      {/* Instruction overlay */}
-      {canVote && !isDragging && (
-        <div 
-          style={{
-            position: 'absolute',
-            bottom: '-50px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: '10px',
-            color: '#666666',
-            textAlign: 'center',
-            fontFamily: 'Courier New, Courier, monospace',
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}
-        >
-          <div>SWIPE LEFT OR RIGHT TO VOTE</div>
-          <div style={{ fontSize: '8px', marginTop: '4px', opacity: 0.7 }}>
-            DESKTOP: CLICK, DRAG, OR USE ARROW KEYS
-          </div>
-        </div>
-      )}
     </div>
   )
 }
