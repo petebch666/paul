@@ -24,7 +24,9 @@ import {
 } from '@ionic/react'
 import { chevronDownCircleOutline } from 'ionicons/icons'
 import { CreatePollFormData } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 
 interface CreatePageProps {
   onCreatePoll: (pollData: CreatePollFormData) => Promise<any>
@@ -88,7 +90,7 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
 
   const categories = ['Food', 'Animals', 'Lifestyle', 'Technology', 'Social', 'Work', 'Entertainment', 'Sports']
 
-  const handleInputChange = (field: keyof CreatePollFormData, value: string | number) => {
+  const handleInputChange = (field: keyof CreatePollFormData, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     
     // Auto-categorization when question changes

@@ -1,24 +1,31 @@
 import { initializeDatabase } from './simple-db'
-import { PollzAPI } from './api'
+import UnifiedPollzAPI from './unified-api'
+import { getAPIType, isUsingSupabase } from './unified-api'
 
 // Initialize database on startup
 export async function initializePollzDatabase() {
   try {
     console.log('🚀 Initializing Pollz Database...')
+    console.log(`📍 Using ${getAPIType()} for data storage`)
     
-    // Initialize the database
-    await initializeDatabase()
+    // Only initialize localStorage if not using Supabase
+    if (!isUsingSupabase()) {
+      console.log('📦 Initializing localStorage...')
+      await initializeDatabase()
+    } else {
+      console.log('☁️ Using Supabase - skipping localStorage initialization')
+    }
     
     // Update trending polls
-    await PollzAPI.updateTrendingPolls()
+    await UnifiedPollzAPI.updateTrendingPolls()
     
     console.log('✅ Pollz Database initialized successfully!')
     console.log('📊 Database contains:')
     
-    const polls = await PollzAPI.getAllPolls()
+    const polls = await UnifiedPollzAPI.getAllPolls()
     console.log(`   - ${polls.length} polls`)
     
-    const trendingPolls = await PollzAPI.getTrendingPolls()
+    const trendingPolls = await UnifiedPollzAPI.getTrendingPolls()
     console.log(`   - ${trendingPolls.length} trending polls`)
     
     return true

@@ -53,7 +53,7 @@ export async function testApiIntegration() {
 }
 
 // Auto-run test in development
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   // Run test after a short delay to ensure everything is loaded
   setTimeout(() => {
     testApiIntegration()

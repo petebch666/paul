@@ -1,22 +1,30 @@
 import React, { useState } from 'react'
-import { Home, Plus, User, RotateCcw } from 'lucide-react'
+import { Home, Plus, User, RotateCcw, Shield } from 'lucide-react'
 import '../components/Navigation.css'
-import PollzAPI from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
 
-type NavigationPage = 'home' | 'create' | 'profile'
+const PollzAPI = UnifiedPollzAPI
+
+type NavigationPage = 'home' | 'create' | 'profile' | 'admin'
 
 interface NavigationProps {
   currentPage: NavigationPage
   onNavigate: (page: NavigationPage) => void
   onReset?: () => void
+  userRole?: 'user' | 'admin'
 }
 
-const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate, onReset }) => {
-  const navItems = [
+const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate, onReset, userRole }) => {
+  const baseNavItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'create', label: 'Create', icon: Plus },
     { id: 'profile', label: 'Profile', icon: User }
   ] as const
+
+  // Add admin item if user is admin
+  const navItems = userRole === 'admin' 
+    ? [...baseNavItems, { id: 'admin' as const, label: 'Admin', icon: Shield }]
+    : baseNavItems
 
   return (
     <nav className="navigation">
@@ -43,29 +51,70 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate, onRese
 }
 
 // Separate component for the dev reset button so it can be rendered independently
-export const DevResetButton: React.FC<{ onReset?: () => void }> = ({ onReset }) => {
+export const DevResetButton: React.FC<{ onReset?: () => void; userRole?: 'user' | 'admin' }> = ({ onReset, userRole }) => {
   const [isResetting, setIsResetting] = useState(false)
 
   const handleDevReset = async () => {
     if (isResetting) return
+
+    // Safety check 1: Admin only
+    if (userRole !== 'admin') {
+      alert('🔒 ACCESS DENIED\n\nThis feature is only available to administrators.')
+      return
+    }
+
+    // Safety check 2: Production environment
+    if (import.meta.env.PROD) {
+      alert('⚠️ DISABLED IN PRODUCTION\n\nDevelopment reset is not available in production environments.')
+      return
+    }
     
-    const confirmed = window.confirm(
-      '⚠️ DEVELOPMENT RESET\n\n' +
-      'This will reset:\n' +
-      '• All poll votes and statistics\n' +
-      '• All polls to "Last" category (7 days left)\n' +
-      '• User win rate and reputation\n' +
-      '• Poll history and notifications\n\n' +
-      'Poll count will be preserved.\n\n' +
-      'Are you sure you want to continue?'
+    // Two-step confirmation for extra safety
+    const firstConfirmation = window.confirm(
+      '⚠️ DEVELOPMENT RESET - STEP 1/2\n\n' +
+      '🔴 DESTRUCTIVE OPERATION - CANNOT BE UNDONE!\n\n' +
+      'This will PERMANENTLY:\n' +
+      '• DELETE all votes from database\n' +
+      '• RESET all poll statistics to 0\n' +
+      '• RESET all polls to expire in 7 days\n' +
+      '• RESET user win rates and reputation\n' +
+      '• CLEAR all notifications and history\n\n' +
+      'Are you ABSOLUTELY sure you want to continue?'
     )
     
-    if (!confirmed) return
+    if (!firstConfirmation) return
+
+    // Second confirmation with typing requirement
+    const secondConfirmation = window.prompt(
+      '⚠️ DEVELOPMENT RESET - STEP 2/2\n\n' +
+      'Type "RESET" (all caps) to confirm this destructive operation:'
+    )
+    
+    if (secondConfirmation !== 'RESET') {
+      if (secondConfirmation !== null) {
+        alert('❌ Confirmation failed. Reset cancelled.')
+      }
+      return
+    }
 
     setIsResetting(true)
+    const startTime = Date.now()
+    
     try {
+      console.log('🚨 DEV RESET INITIATED by admin')
+      console.log('📅 Timestamp:', new Date().toISOString())
+      
       await PollzAPI.resetPollsForDevelopment()
-      alert('✅ Development reset successful!\n\nAll polls have been reset to their initial state.')
+      
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+      console.log(`✅ Reset completed in ${duration}s`)
+      
+      alert(
+        '✅ DEVELOPMENT RESET SUCCESSFUL!\n\n' +
+        `Completed in ${duration} seconds.\n\n` +
+        'All polls and votes have been reset.\n' +
+        'The page will now reload to reflect changes.'
+      )
       
       // Notify parent component to refresh data
       if (onReset) {
@@ -73,13 +122,24 @@ export const DevResetButton: React.FC<{ onReset?: () => void }> = ({ onReset }) 
       }
       
       // Reload the page to refresh all data
-      window.location.reload()
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
     } catch (error) {
-      console.error('Reset failed:', error)
-      alert('❌ Reset failed. Please check the console for details.')
+      console.error('❌ Reset failed:', error)
+      alert(
+        '❌ RESET FAILED!\n\n' +
+        'Error: ' + (error instanceof Error ? error.message : 'Unknown error') + '\n\n' +
+        'Please check the console for details.'
+      )
     } finally {
       setIsResetting(false)
     }
+  }
+
+  // Hide button if not admin
+  if (userRole !== 'admin') {
+    return null
   }
 
   return (
@@ -87,10 +147,10 @@ export const DevResetButton: React.FC<{ onReset?: () => void }> = ({ onReset }) 
       className="dev-reset-button"
       onClick={handleDevReset}
       disabled={isResetting}
-      title="Development: Reset all polls and statistics"
+      title="Development: Reset all polls and statistics (ADMIN ONLY)"
     >
       <RotateCcw className={isResetting ? 'spinning' : ''} size={18} />
-      <span>DEV RESET</span>
+      <span>{isResetting ? 'RESETTING...' : 'DEV RESET'}</span>
     </button>
   )
 }

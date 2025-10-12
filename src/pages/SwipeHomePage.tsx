@@ -12,9 +12,11 @@ import {
   IonChip
 } from '@ionic/react'
 import { chevronForward, refresh, list } from 'ionicons/icons'
-import SwipePollCard from '../components/SwipePollCard'
+import PollCarousel from '../components/PollCarousel'
 import { Poll, User } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 
 interface SwipeHomePageProps {
   polls: Poll[]
@@ -58,7 +60,7 @@ const SwipeHomePage: React.FC<SwipeHomePageProps> = ({
       const nextIndex = currentPollIndex + 1
       
       if (nextIndex < availablePolls.length && pollCards[nextIndex]) {
-        // For desktop, scroll to the next poll
+        // Scroll to the next poll
         await pollCards[nextIndex].scrollIntoView({ 
           behavior: 'smooth',
           block: 'start'
@@ -296,29 +298,13 @@ const SwipeHomePage: React.FC<SwipeHomePageProps> = ({
         </div>
 
         {/* Poll Stack */}
-        <div 
-          ref={pollStackRef}
-          className="poll-stack-container"
-          style={{
-            padding: '0',
-            minHeight: 'calc(100vh - 200px)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px'
-          }}
-        >
-          {availablePolls.map((poll, index) => (
-            <SwipePollCard
-              key={poll.id}
-              poll={poll}
-              onVote={handleVoteWithFeedback}
-              user={user}
-              onLike={onLike}
-              isActive={index === currentPollIndex}
-              onVoteComplete={handleVoteComplete}
-            />
-          ))}
-        </div>
+        <PollCarousel
+          polls={availablePolls}
+          user={user}
+          onVote={handleVoteWithFeedback}
+          onLike={onLike}
+          onVoteComplete={handleVoteComplete}
+        />
 
         {/* Floating Action Buttons */}
         <IonFab vertical="bottom" horizontal="end" slot="fixed">

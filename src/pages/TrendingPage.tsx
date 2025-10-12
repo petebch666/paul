@@ -21,9 +21,11 @@ import {
   IonLabel
 } from '@ionic/react'
 import { trendingUp, refresh, flash } from 'ionicons/icons'
-import SwipePollCard from '../components/SwipePollCard'
+import PollCarousel from '../components/PollCarousel'
 import { Poll, User } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 
 interface TrendingPageProps {
   polls: Poll[]
@@ -116,24 +118,12 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ polls, user, onVote, onLike
           </IonCardContent>
         </IonCard>
 
-        <div style={{ 
-          padding: '20px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px'
-        }}>
-          {trendingPolls.map((poll, index) => (
-            <SwipePollCard
-              key={poll.id}
-              poll={poll}
-              user={user}
-              onVote={onVote}
-              onLike={onLike}
-              isActive={true}
-              data-poll-index={index}
-            />
-          ))}
-        </div>
+        <PollCarousel
+          polls={trendingPolls}
+          user={user}
+          onVote={onVote}
+          onLike={onLike}
+        />
       </IonContent>
     </IonPage>
   )

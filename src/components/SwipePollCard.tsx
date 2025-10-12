@@ -6,32 +6,10 @@ import {
   checkmark, 
   close, 
   timeOutline, 
-  hourglassOutline,
-  fastFoodOutline,
-  laptopOutline,
-  heartOutline,
-  briefcaseOutline,
-  gameControllerOutline,
-  musicalNotesOutline,
-  schoolOutline,
-  fitnessOutline,
-  globeOutline
+  hourglassOutline
 } from 'ionicons/icons'
 import { Poll, User } from '../types'
-
-// Category icon mapping
-const getCategoryIcon = (category: string): string => {
-  const categoryLower = category.toLowerCase()
-  if (categoryLower.includes('food')) return fastFoodOutline
-  if (categoryLower.includes('tech') || categoryLower.includes('programming')) return laptopOutline
-  if (categoryLower.includes('lifestyle') || categoryLower.includes('life')) return heartOutline
-  if (categoryLower.includes('work') || categoryLower.includes('business')) return briefcaseOutline
-  if (categoryLower.includes('entertainment') || categoryLower.includes('game')) return gameControllerOutline
-  if (categoryLower.includes('music')) return musicalNotesOutline
-  if (categoryLower.includes('education') || categoryLower.includes('learning')) return schoolOutline
-  if (categoryLower.includes('health') || categoryLower.includes('fitness')) return fitnessOutline
-  return globeOutline // Default icon
-}
+import CategoryIcon from './CategoryIcon'
 
 interface SwipePollCardProps {
   poll: Poll
@@ -39,6 +17,7 @@ interface SwipePollCardProps {
   user: User | null
   onLike: (pollId: string) => void
   isActive?: boolean
+  isFocused?: boolean
   onVoteComplete?: () => void
   'data-poll-index'?: number
   style?: React.CSSProperties
@@ -50,6 +29,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
   user, 
   onLike,
   isActive = true,
+  isFocused = false,
   onVoteComplete,
   'data-poll-index': dataPollIndex,
   style
@@ -173,7 +153,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     setIsDragging(false)
   }
 
-  // Mouse event handlers for desktop
+  // Mouse event handlers (for tablets with mouse support)
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!canVote) {
       console.log(`Mouse down blocked on "${poll.title}": canVote=${canVote}`)
@@ -289,7 +269,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     }
   }
 
-  // Keyboard navigation for desktop
+  // Keyboard navigation (for tablets with keyboard support)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!canVote) return
@@ -324,10 +304,48 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
   }
 
   return (
-    <div 
-      ref={cardRef}
-      className="swipe-poll-card"
-      data-poll-index={dataPollIndex}
+    <>
+      <style>{`
+        @keyframes voteSuccess {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.02); }
+          100% { transform: scale(1); }
+        }
+        
+        @keyframes gaugeFill {
+          0% { width: 0%; }
+          100% { width: var(--gauge-width, 100%); }
+        }
+        
+        .gauge-fill-animation {
+          animation: gaugeFill 0.3s ease-out forwards;
+        }
+        
+        /* Animation for poll cards when voted - slide out to the right */
+        .poll-voted-animation {
+          animation: voteSlideOut 0.8s ease-out forwards;
+        }
+
+        @keyframes voteSlideOut {
+          0% {
+            transform: translateX(0) scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: translateX(20px) scale(0.95);
+            opacity: 0.7;
+          }
+          100% {
+            transform: translateX(100vw) scale(0.8);
+            opacity: 0;
+          }
+        }
+      `}</style>
+      <div 
+        ref={cardRef}
+        className="swipe-poll-card"
+        data-poll-index={dataPollIndex}
+        data-poll-id={poll.id}
       style={{
         transform: getCardTransform(),
         opacity: hasVoted ? 0.85 : getCardOpacity(), // Slightly transparent for voted polls
@@ -336,8 +354,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         zIndex: isDragging ? 100 : 1, // Bring to front when dragging
         margin: '4px auto',
         padding: '12px',
-        background: hasVoted ? '#f5f5f5' : (isHovered ? '#000000' : '#ffffff'), // Light grey background for voted
-        border: `3px solid ${hasVoted ? '#cccccc' : '#000000'}`, // Grey border for voted
+        background: hasVoted ? '#f5f5f5' : ((isHovered || isFocused) ? '#000000' : '#ffffff'), // Black background for focused/hovered
+        border: `3px solid ${hasVoted ? '#cccccc' : ((isHovered || isFocused) ? '#ffffff' : '#000000')}`, // White border for focused
         borderRadius: '0',
         cursor: canVote ? (isDragging ? 'grabbing' : 'grab') : 'default',
         userSelect: 'none',
@@ -346,8 +364,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         width: '100%',
         boxSizing: 'border-box',
         isolation: 'isolate', // Create new stacking context for each card
-        color: hasVoted ? '#999999' : (isHovered ? '#ffffff' : '#000000'), // Grey text for voted
-        boxShadow: isHovered ? '0 8px 16px rgba(0, 0, 0, 0.3)' : 'none',
+        color: hasVoted ? '#999999' : ((isHovered || isFocused) ? '#ffffff' : '#000000'), // Grey text for voted/focused
+        boxShadow: (isHovered || isFocused) ? '0 8px 16px rgba(0, 0, 0, 0.3)' : 'none',
         // Removed grayscale filter to keep gauges colored
         animation: justVoted ? 'voteSuccess 0.6s ease-out' : 'none', // Pulse animation on vote
         ...style
@@ -423,7 +441,6 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
       }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <IonChip 
-            color="primary" 
             style={{ 
               fontSize: '10px',
               fontWeight: '700',
@@ -431,11 +448,15 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               letterSpacing: '1px',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              padding: '6px 10px'
+              gap: '6px',
+              padding: '6px 12px',
+              background: (isHovered || isFocused) ? '#ffffff' : '#f0f0f0',
+              border: (isHovered || isFocused) ? '2px solid #ffffff' : '2px solid #e0e0e0',
+              color: (isHovered || isFocused) ? '#000000' : '#333333'
             }}
           >
-            <IonIcon icon={getCategoryIcon(poll.category)} style={{ fontSize: '16px' }} />
+            <CategoryIcon category={poll.category} size={20} />
+            <span>{poll.category.toUpperCase()}</span>
           </IonChip>
           
           {/* HOT badge for close polls with low time */}
@@ -475,7 +496,9 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         {/* Time remaining with icon */}
         <IonBadge 
           color="light" 
-          style={{ 
+          style={{
+            background: (isHovered || isFocused) ? '#ffffff' : undefined,
+            color: (isHovered || isFocused) ? '#000000' : undefined, 
             fontSize: '10px',
             fontWeight: '700',
             textTransform: 'uppercase',
@@ -488,7 +511,10 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         >
           <IonIcon 
             icon={poll.isExpired ? timeOutline : hourglassOutline} 
-            style={{ fontSize: '14px' }}
+            style={{ 
+              fontSize: '14px',
+              color: (isHovered || isFocused) ? '#000000' : undefined
+            }}
           />
           {poll.timeLeft}
         </IonBadge>
@@ -503,7 +529,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           fontSize: '18px',
           textTransform: 'uppercase',
           letterSpacing: '2px',
-          color: isHovered ? '#ffffff' : '#000000',
+          color: (isHovered || isFocused) ? '#ffffff' : '#000000',
           marginBottom: '12px',
           lineHeight: '1.2',
           textAlign: 'center'
@@ -518,7 +544,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           style={{
             fontFamily: 'Courier New, Courier, monospace',
             fontSize: '12px',
-            color: isHovered ? '#cccccc' : '#666666',
+            color: (isHovered || isFocused) ? '#cccccc' : '#666666',
             marginBottom: '12px',
             textAlign: 'center',
             fontStyle: 'italic'
@@ -543,8 +569,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           style={{
             flex: 1,
             padding: '12px',
-            background: voteDirection === 'A' ? '#0066ff' : (isHovered ? '#333333' : '#ffffff'),
-            border: isHovered ? '3px solid #ffffff' : '3px solid #000000',
+            background: voteDirection === 'A' ? '#0066ff' : ((isHovered || isFocused) ? '#333333' : '#ffffff'),
+            border: (isHovered || isFocused) ? '3px solid #ffffff' : '3px solid #000000',
             cursor: canVote ? 'pointer' : 'default',
             transition: 'all 0.2s ease',
             position: 'relative',
@@ -571,7 +597,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               fontWeight: '700',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: voteDirection === 'A' ? '#ffffff' : (isHovered ? '#ffffff' : '#000000'),
+              color: voteDirection === 'A' ? '#ffffff' : ((isHovered || isFocused) ? '#ffffff' : '#000000'),
               marginBottom: '8px'
             }}
           >
@@ -646,8 +672,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           style={{
             flex: 1,
             padding: '12px',
-            background: voteDirection === 'B' ? '#ff0000' : (isHovered ? '#333333' : '#ffffff'),
-            border: isHovered ? '3px solid #ffffff' : '3px solid #000000',
+            background: voteDirection === 'B' ? '#ff0000' : ((isHovered || isFocused) ? '#333333' : '#ffffff'),
+            border: (isHovered || isFocused) ? '3px solid #ffffff' : '3px solid #000000',
             cursor: canVote ? 'pointer' : 'default',
             transition: 'all 0.2s ease',
             position: 'relative',
@@ -674,7 +700,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               fontWeight: '700',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: voteDirection === 'B' ? '#ffffff' : (isHovered ? '#ffffff' : '#000000'),
+              color: voteDirection === 'B' ? '#ffffff' : ((isHovered || isFocused) ? '#ffffff' : '#000000'),
               marginBottom: '8px'
             }}
           >
@@ -747,6 +773,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         <span>by {poll.author}</span>
       </div>
     </div>
+    </>
   )
 }
 

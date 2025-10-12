@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { 
   IonPage, 
   IonHeader, 
@@ -18,7 +18,8 @@ import {
   IonSelectOption
 } from '@ionic/react'
 import { chevronDownCircleOutline, flame, star, checkmark, time, checkmarkCircle } from 'ionicons/icons'
-import SwipePollCard from '../components/SwipePollCard'
+import PollCarousel from '../components/PollCarousel'
+import CategoryIcon from '../components/CategoryIcon'
 import { Poll, User } from '../types'
 
 interface HomePageProps {
@@ -41,7 +42,7 @@ const HomePage: React.FC<HomePageProps> = ({
   error 
 }) => {
   const [activeSection, setActiveSection] = useState<'last' | 'trending' | 'expired' | 'voted'>('last')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('')
   const [expiringSoonFilter, setExpiringSoonFilter] = useState<boolean>(false)
   const [expiredSortBy, setExpiredSortBy] = useState<'category' | 'votes' | 'closest' | 'furthest'>('votes')
   const contentRef = useRef<HTMLIonContentElement>(null)
@@ -112,8 +113,8 @@ const HomePage: React.FC<HomePageProps> = ({
         break
     }
 
-    // Apply category filter
-    if (categoryFilter !== 'all') {
+    // Apply category filter (empty string means show all)
+    if (categoryFilter && categoryFilter !== '') {
       filteredPolls = filteredPolls.filter(poll => poll.category === categoryFilter)
     }
 
@@ -136,41 +137,6 @@ const HomePage: React.FC<HomePageProps> = ({
     console.log('🔄 Refreshing polls...')
     await loadPolls(true)
     event.detail.complete()
-  }
-
-  // Handle vote completion and scroll to next poll
-  const handleVoteComplete = (pollId: string) => {
-    console.log(`📜 Vote completed for poll: ${pollId}`)
-    
-    // Add fade-out animation to voted poll card
-    const votedPollCard = document.querySelector(`[data-poll-id="${pollId}"]`)
-    if (votedPollCard) {
-      votedPollCard.classList.add('poll-voted-animation')
-      
-      // After animation, remove the class
-      setTimeout(() => {
-        votedPollCard.classList.remove('poll-voted-animation')
-      }, 1000)
-    }
-    
-    // Find the index of the voted poll
-    const votedIndex = filteredPolls.findIndex(p => p.id === pollId)
-    if (votedIndex !== -1 && votedIndex < filteredPolls.length - 1) {
-      // Scroll to next poll after animation delay
-      setTimeout(() => {
-        const nextIndex = votedIndex + 1
-        console.log(`⬇️ Scrolling to next poll at index: ${nextIndex}`)
-        
-        const nextPollElement = document.querySelector(`[data-poll-index="${nextIndex}"]`)
-        if (nextPollElement) {
-          console.log(`📍 Scrolling to poll at index: ${nextIndex}`)
-          nextPollElement.scrollIntoView({ 
-            behavior: 'smooth',
-            block: 'start'
-          })
-        }
-      }, 800) // Delay scroll to let gauge animation finish
-    }
   }
 
   if (loading && polls.length === 0) {
@@ -251,9 +217,20 @@ const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>PAUL</IonTitle>
+      <IonHeader className="ion-no-border">
+        <IonToolbar style={{ 
+          '--border-width': '0',
+          '--border-style': 'none'
+        }}>
+          <IonTitle style={{
+            fontFamily: 'Courier New, monospace',
+            fontSize: '32px',
+            fontWeight: '900',
+            letterSpacing: '4px',
+            textAlign: 'center'
+          }}>
+            PAUL
+          </IonTitle>
           <div slot="end" style={{ 
             padding: '0 16px', 
             fontSize: '10px', 
@@ -261,12 +238,16 @@ const HomePage: React.FC<HomePageProps> = ({
             fontFamily: 'Courier New, monospace',
             fontWeight: 'bold'
           }}>
-            📊 {pollCounts.total} polls
+            📊 {pollCounts.total}
           </div>
         </IonToolbar>
       </IonHeader>
       
-      <IonContent ref={contentRef} scrollEvents={true}>
+      <IonContent 
+        ref={contentRef} 
+        scrollEvents={true}
+        className="carousel-scroll"
+      >
         {/* Pull to Refresh */}
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
           <IonRefresherContent
@@ -277,12 +258,14 @@ const HomePage: React.FC<HomePageProps> = ({
           />
         </IonRefresher>
 
-        {/* Section Selector */}
+        {/* Section Selector - Poll Status */}
         <div style={{
           display: 'flex',
           justifyContent: 'center',
-          padding: '20px 16px',
-          gap: '24px'
+          padding: '16px 16px 12px',
+          gap: '24px',
+          background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
+          borderBottom: '1px solid #e9ecef'
         }}>
           <button
             onClick={() => setActiveSection('last')}
@@ -290,13 +273,15 @@ const HomePage: React.FC<HomePageProps> = ({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              padding: '8px 12px',
+              padding: '12px 16px',
               border: 'none',
-              background: 'transparent',
+              background: activeSection === 'last' ? '#ffffff' : 'transparent',
+              borderRadius: '12px',
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              transform: activeSection === 'last' ? 'scale(1.1)' : 'scale(1)',
-              minWidth: '60px'
+              transform: activeSection === 'last' ? 'scale(1.05)' : 'scale(1)',
+              minWidth: '70px',
+              boxShadow: activeSection === 'last' ? '0 2px 8px rgba(102, 126, 234, 0.15)' : 'none'
             }}
           >
             <IonIcon 
@@ -325,13 +310,15 @@ const HomePage: React.FC<HomePageProps> = ({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              padding: '8px 12px',
+              padding: '12px 16px',
               border: 'none',
-              background: 'transparent',
+              background: activeSection === 'trending' ? '#ffffff' : 'transparent',
+              borderRadius: '12px',
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              transform: activeSection === 'trending' ? 'scale(1.1)' : 'scale(1)',
-              minWidth: '60px'
+              transform: activeSection === 'trending' ? 'scale(1.05)' : 'scale(1)',
+              minWidth: '70px',
+              boxShadow: activeSection === 'trending' ? '0 2px 8px rgba(255, 107, 107, 0.15)' : 'none'
             }}
           >
             <IonIcon 
@@ -360,13 +347,15 @@ const HomePage: React.FC<HomePageProps> = ({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              padding: '8px 12px',
+              padding: '12px 16px',
               border: 'none',
-              background: 'transparent',
+              background: activeSection === 'voted' ? '#ffffff' : 'transparent',
+              borderRadius: '12px',
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              transform: activeSection === 'voted' ? 'scale(1.1)' : 'scale(1)',
-              minWidth: '60px'
+              transform: activeSection === 'voted' ? 'scale(1.05)' : 'scale(1)',
+              minWidth: '70px',
+              boxShadow: activeSection === 'voted' ? '0 2px 8px rgba(95, 39, 205, 0.15)' : 'none'
             }}
           >
             <IonIcon 
@@ -395,13 +384,15 @@ const HomePage: React.FC<HomePageProps> = ({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              padding: '8px 12px',
+              padding: '12px 16px',
               border: 'none',
-              background: 'transparent',
+              background: activeSection === 'expired' ? '#ffffff' : 'transparent',
+              borderRadius: '12px',
               cursor: 'pointer',
               transition: 'all 0.3s ease',
-              transform: activeSection === 'expired' ? 'scale(1.1)' : 'scale(1)',
-              minWidth: '60px'
+              transform: activeSection === 'expired' ? 'scale(1.05)' : 'scale(1)',
+              minWidth: '70px',
+              boxShadow: activeSection === 'expired' ? '0 2px 8px rgba(46, 213, 115, 0.15)' : 'none'
             }}
           >
             <IonIcon 
@@ -425,6 +416,30 @@ const HomePage: React.FC<HomePageProps> = ({
           </button>
         </div>
 
+        {/* Visual Separator */}
+        <div style={{
+          height: '1px',
+          background: 'linear-gradient(90deg, transparent 0%, #dee2e6 50%, transparent 100%)',
+          margin: '0 20px'
+        }}></div>
+
+        {/* Category Section Label */}
+        <div style={{
+          padding: '16px 16px 8px',
+          textAlign: 'center'
+        }}>
+          <span style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            color: '#6c757d',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            fontFamily: 'Courier New, monospace'
+          }}>
+            Filter by Category
+          </span>
+        </div>
+
         <style>{`
           @keyframes pulse {
             0% { transform: scale(1); }
@@ -444,101 +459,131 @@ const HomePage: React.FC<HomePageProps> = ({
             50% { transform: translateY(-3px); }
           }
 
-          /* Animation for poll cards when voted - slide out to the right */
-          .poll-voted-animation {
-            animation: voteSlideOut 0.8s ease-out forwards;
+          /* Carousel scroll behavior - smooth scrolling only */
+          .carousel-scroll {
+            scroll-behavior: smooth;
           }
 
-          @keyframes voteSlideOut {
-            0% {
-              transform: translateX(0) scale(1);
-              opacity: 1;
-            }
-            50% {
-              transform: translateX(20px) scale(0.95);
-              opacity: 0.7;
-            }
-            100% {
-              transform: translateX(100vw) scale(0.8);
-              opacity: 0;
-            }
+          /* Hide scrollbar for category filters */
+          .category-filter-container {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+
+          .category-filter-container::-webkit-scrollbar {
+            display: none;
           }
         `}</style>
 
-        {/* Filters */}
+        {/* Category Filters - Single Row */}
         <div style={{ 
-          padding: '0 16px 16px',
+          padding: '8px 16px 12px',
           display: 'flex',
+          justifyContent: 'center',
           gap: '8px',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'center'
+          maxWidth: '600px',
+          margin: '0 auto',
+          background: '#ffffff',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
         }}>
-          {/* Category Filter - Always visible */}
-          <IonSelect
-            value={categoryFilter}
-            placeholder="Category"
-            onIonChange={e => setCategoryFilter(e.detail.value)}
-            style={{ 
-              minWidth: '100px', 
-              maxWidth: '140px',
-              flex: '1 1 auto'
+          {/* Individual category filters */}
+          {categories.filter(c => c !== 'all').map(category => (
+            <button
+              key={category}
+              onClick={() => setCategoryFilter(categoryFilter === category ? '' : category)}
+            style={{
+              background: categoryFilter === category ? '#000000' : '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '12px 8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: categoryFilter === category ? '4px 4px 0 #000000' : 'none',
+              transform: categoryFilter === category ? 'translate(-2px, -2px)' : 'none',
+              minWidth: '60px',
+              flexShrink: 0
             }}
-          >
-            {categories.map(category => (
-              <IonSelectOption key={category} value={category}>
-                {category === 'all' ? 'All Categories' : category}
-              </IonSelectOption>
-            ))}
-          </IonSelect>
-
-          {/* Trending-specific filter - Same row as category */}
-          {activeSection === 'trending' && (
-            <IonButton
-              fill={expiringSoonFilter ? 'solid' : 'outline'}
-              color={expiringSoonFilter ? 'warning' : 'medium'}
-              onClick={() => setExpiringSoonFilter(!expiringSoonFilter)}
-              style={{ 
-                fontFamily: 'Courier New, Courier, monospace',
-                fontSize: '10px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
+            >
+              <div style={{
+                filter: categoryFilter === category ? 'brightness(3) saturate(0) invert(1)' : 'none',
+                transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '2px',
-                padding: '6px 8px',
-                flex: '1 1 auto',
-                minWidth: '80px',
-                maxWidth: '120px',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <IonIcon icon={flame} style={{ fontSize: '12px' }} />
-              <IonIcon icon={time} style={{ fontSize: '12px' }} />
-              <span>Expiring</span>
-            </IonButton>
-          )}
-
-          {/* Expired-specific sort - Same row as category */}
-          {activeSection === 'expired' && (
-            <IonSelect
-              value={expiredSortBy}
-              placeholder="Sort by"
-              onIonChange={e => setExpiredSortBy(e.detail.value)}
-              style={{ 
-                minWidth: '100px', 
-                maxWidth: '140px',
-                flex: '1 1 auto'
-              }}
-            >
-              <IonSelectOption value="votes">Most Votes</IonSelectOption>
-              <IonSelectOption value="category">Category</IonSelectOption>
-              <IonSelectOption value="closest">Closest Fight</IonSelectOption>
-              <IonSelectOption value="furthest">Furthest Fight</IonSelectOption>
-            </IonSelect>
-          )}
+                justifyContent: 'center'
+              }}>
+                <CategoryIcon category={category} size={36} />
+              </div>
+              <span style={{
+                fontFamily: 'Courier New, monospace',
+                fontSize: '8px',
+                fontWeight: '700',
+                color: categoryFilter === category ? '#ffffff' : '#666666',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '100%'
+              }}>
+                {category.substring(0, 7)}
+              </span>
+            </button>
+          ))}
         </div>
+
+        {/* Additional Filters (below category grid) */}
+        {(activeSection === 'trending' || activeSection === 'expired') && (
+          <div style={{
+            padding: '0 16px 16px',
+            display: 'flex',
+            gap: '8px',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            {/* Trending-specific filter */}
+            {activeSection === 'trending' && (
+              <IonButton
+                fill={expiringSoonFilter ? 'solid' : 'outline'}
+                color={expiringSoonFilter ? 'warning' : 'medium'}
+                onClick={() => setExpiringSoonFilter(!expiringSoonFilter)}
+                style={{ 
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}
+              >
+                <IonIcon icon={time} style={{ marginRight: '8px' }} />
+                {expiringSoonFilter ? 'EXPIRING SOON' : 'ALL TIME'}
+              </IonButton>
+            )}
+
+            {/* Expired-specific sort */}
+            {activeSection === 'expired' && (
+              <IonSelect
+                value={expiredSortBy}
+                placeholder="Sort by"
+                onIonChange={e => setExpiredSortBy(e.detail.value)}
+                style={{ 
+                  minWidth: '140px',
+                  maxWidth: '200px'
+                }}
+              >
+                <IonSelectOption value="votes">Most Votes</IonSelectOption>
+                <IonSelectOption value="category">Category</IonSelectOption>
+                <IonSelectOption value="closest">Closest Fight</IonSelectOption>
+                <IonSelectOption value="furthest">Furthest Fight</IonSelectOption>
+              </IonSelect>
+            )}
+          </div>
+        )}
 
         {/* Polls List */}
         {filteredPolls.length === 0 ? (
@@ -557,25 +602,13 @@ const HomePage: React.FC<HomePageProps> = ({
             {activeSection === 'expired' && 'NO EXPIRED POLLS'}
           </div>
         ) : (
-          <div style={{ 
-            padding: '20px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            {filteredPolls.map((poll, index) => (
-              <SwipePollCard
-                key={poll.id}
-                poll={poll}
-                user={user}
-                onVote={onVote}
-                onLike={onLike}
-                isActive={!poll.isExpired}
-                onVoteComplete={() => handleVoteComplete(poll.id)}
-                data-poll-index={index}
-              />
-            ))}
-          </div>
+          <PollCarousel
+            polls={filteredPolls}
+            user={user}
+            onVote={onVote}
+            onLike={onLike}
+            contentRef={contentRef}
+          />
         )}
       </IonContent>
     </IonPage>

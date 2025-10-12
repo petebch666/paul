@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { User } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 import { oauthService, OAuthUser } from '../services/oauth'
 import { 
   hashPassword, 
@@ -107,8 +109,8 @@ export function useAuth() {
   const initializeOAuth = useCallback(async () => {
     try {
       // Set client IDs from environment variables (if available)
-      const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID
-      const appleClientId = (import.meta as any).env?.VITE_APPLE_CLIENT_ID
+      const googleClientId = (import.meta as any).supaenv?.VITE_GOOGLE_CLIENT_ID
+      const appleClientId = (import.meta as any).supaenv?.VITE_APPLE_CLIENT_ID
 
       if (googleClientId) {
         oauthService.setGoogleClientId(googleClientId)
