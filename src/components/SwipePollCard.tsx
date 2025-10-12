@@ -153,7 +153,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     setIsDragging(false)
   }
 
-  // Mouse event handlers for desktop
+  // Mouse event handlers (for tablets with mouse support)
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!canVote) {
       console.log(`Mouse down blocked on "${poll.title}": canVote=${canVote}`)
@@ -269,7 +269,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     }
   }
 
-  // Keyboard navigation for desktop
+  // Keyboard navigation (for tablets with keyboard support)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!canVote) return

@@ -30,7 +30,7 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
   try {
     // Check if Supabase is configured
     if (!isSupabaseConfigured()) {
-      result.message = '⚠️ Supabase is not configured. Please add credentials to .env file.'
+      result.message = '⚠️ Supabase is not configured. Please add credentials to .supaenv file.'
       result.details.errors.push('Missing Supabase configuration')
       return result
     }
@@ -61,7 +61,7 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
       `Make sure you have:\n` +
       `1. Created a Supabase project\n` +
       `2. Run the SQL schema in Supabase SQL Editor\n` +
-      `3. Added credentials to .env file\n\n` +
+      `3. Added credentials to .supaenv file\n\n` +
       `Continue with migration?`
     )
 

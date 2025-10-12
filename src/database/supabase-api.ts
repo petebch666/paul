@@ -19,7 +19,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(this.transformPollFromDB)
+      return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
     } catch (error) {
       console.error('Error fetching polls:', error)
       throw new Error('Failed to fetch polls')
@@ -47,7 +47,7 @@ export class SupabasePollzAPI {
       const votedPollIds = new Set(votes?.map(v => v.poll_id) || [])
 
       return (polls || []).map(poll => ({
-        ...this.transformPollFromDB(poll),
+        ...SupabasePollzAPI.transformPollFromDB(poll),
         isVoted: votedPollIds.has(poll.id)
       }))
     } catch (error) {
@@ -63,9 +63,13 @@ export class SupabasePollzAPI {
         .select('id')
         .eq('poll_id', pollId)
         .eq('user_id', userId)
-        .single()
+        .maybeSingle() // Use maybeSingle() instead of single() to avoid 406 errors
 
-      if (error && error.code !== 'PGRST116') throw error // PGRST116 = no rows found
+      if (error) {
+        console.error('Error checking user vote:', error)
+        return false
+      }
+      
       return !!data
     } catch (error) {
       console.error('Error checking user vote:', error)
@@ -85,7 +89,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(this.transformPollFromDB)
+      return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
     } catch (error) {
       console.error('Error fetching polls batch:', error)
       throw new Error('Failed to fetch polls batch')
@@ -112,14 +116,14 @@ export class SupabasePollzAPI {
         .from('polls')
         .select('*')
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
       if (error) {
-        if (error.code === 'PGRST116') return undefined
-        throw error
+        console.error('Error fetching poll:', error)
+        throw new Error('Failed to fetch poll')
       }
 
-      return this.transformPollFromDB(data)
+      return data ? SupabasePollzAPI.transformPollFromDB(data) : undefined
     } catch (error) {
       console.error('Error fetching poll:', error)
       throw new Error('Failed to fetch poll')
@@ -167,7 +171,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return this.transformPollFromDB(data)
+      return SupabasePollzAPI.transformPollFromDB(data)
     } catch (error) {
       console.error('Error creating poll:', error)
       throw new Error('Failed to create poll')
@@ -177,7 +181,7 @@ export class SupabasePollzAPI {
   static async voteOnPoll(pollId: string, userId: string, option: 'A' | 'B'): Promise<void> {
     try {
       // Check if already voted
-      const hasVoted = await this.hasUserVoted(pollId, userId)
+      const hasVoted = await SupabasePollzAPI.hasUserVoted(pollId, userId)
       if (hasVoted) {
         throw new Error('User already voted on this poll')
       }
@@ -210,14 +214,14 @@ export class SupabasePollzAPI {
         .from('users')
         .select('*')
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
       if (error) {
-        if (error.code === 'PGRST116') return undefined
-        throw error
+        console.error('Error fetching user:', error)
+        throw new Error('Failed to fetch user')
       }
 
-      return this.transformUserFromDB(data)
+      return data ? SupabasePollzAPI.transformUserFromDB(data) : undefined
     } catch (error) {
       console.error('Error fetching user:', error)
       throw new Error('Failed to fetch user')
@@ -226,18 +230,18 @@ export class SupabasePollzAPI {
 
   static async getUserByEmail(email: string): Promise<User | undefined> {
     try {
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('users')
         .select('*')
         .eq('email', email)
-        .single()
+        .maybeSingle()
 
       if (error) {
-        if (error.code === 'PGRST116') return undefined
-        throw error
+        console.error('Error fetching user by email:', error)
+        throw new Error('Failed to fetch user by email')
       }
 
-      return this.transformUserFromDB(data)
+      return data ? SupabasePollzAPI.transformUserFromDB(data) : undefined
     } catch (error) {
       console.error('Error fetching user by email:', error)
       throw new Error('Failed to fetch user')
@@ -271,7 +275,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return this.transformUserFromDB(data)
+      return SupabasePollzAPI.transformUserFromDB(data)
     } catch (error) {
       console.error('Error creating user:', error)
       throw new Error('Failed to create user')
@@ -292,7 +296,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(this.transformPollFromDB)
+      return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
     } catch (error) {
       console.error('Error fetching trending polls:', error)
       throw new Error('Failed to fetch trending polls')
@@ -325,7 +329,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return this.transformNotificationFromDB(data)
+      return SupabasePollzAPI.transformNotificationFromDB(data)
     } catch (error) {
       console.error('Error creating notification:', error)
       throw new Error('Failed to create notification')
@@ -342,7 +346,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(this.transformNotificationFromDB)
+      return (data || []).map(notif => SupabasePollzAPI.transformNotificationFromDB(notif))
     } catch (error) {
       console.error('Error fetching notifications:', error)
       throw new Error('Failed to fetch notifications')
@@ -383,7 +387,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return this.transformPollHistoryFromDB(data)
+      return SupabasePollzAPI.transformPollHistoryFromDB(data)
     } catch (error) {
       console.error('Error adding poll history:', error)
       throw new Error('Failed to add poll history')
@@ -400,7 +404,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(this.transformPollHistoryFromDB)
+      return (data || []).map(history => SupabasePollzAPI.transformPollHistoryFromDB(history))
     } catch (error) {
       console.error('Error fetching poll history:', error)
       throw new Error('Failed to fetch poll history')
@@ -420,7 +424,7 @@ export class SupabasePollzAPI {
       votesOptionA: dbPoll.votes_option_a || 0,
       votesOptionB: dbPoll.votes_option_b || 0,
       category: dbPoll.category,
-      timeLeft: this.calculateTimeLeft(dbPoll.expires_at),
+      timeLeft: SupabasePollzAPI.calculateTimeLeft(dbPoll.expires_at),
       authorId: dbPoll.author_id,
       author: dbPoll.author_name,
       isVoted: false, // Will be set by getPollsWithVoteStatus
@@ -520,7 +524,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(this.transformPollFromDB)
+      return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
     } catch (error) {
       console.error('Error searching polls:', error)
       throw new Error('Failed to search polls')
@@ -537,7 +541,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(this.transformPollFromDB)
+      return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
     } catch (error) {
       console.error('Error fetching polls by category:', error)
       throw new Error('Failed to fetch polls by category')
@@ -554,7 +558,7 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(this.transformPollFromDB)
+      return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
     } catch (error) {
       console.error('Error fetching user polls:', error)
       throw new Error('Failed to fetch user polls')
@@ -575,7 +579,7 @@ export class SupabasePollzAPI {
     trendingScore: number
   } | null> {
     try {
-      const poll = await this.getPollById(pollId)
+      const poll = await SupabasePollzAPI.getPollById(pollId)
       if (!poll) return null
 
       const optionAPercentage = poll.votes > 0 ? Math.round((poll.votesOptionA / poll.votes) * 100) : 0
@@ -593,6 +597,124 @@ export class SupabasePollzAPI {
     } catch (error) {
       console.error('Error fetching poll analytics:', error)
       throw new Error('Failed to fetch poll analytics')
+    }
+  }
+
+  // ============================================
+  // DEVELOPMENT UTILITIES
+  // ============================================
+
+  /**
+   * DEVELOPMENT ONLY: Reset all polls and votes to initial state
+   * ⚠️ DESTRUCTIVE OPERATION - Cannot be undone
+   * This will:
+   * - Delete ALL votes from database
+   * - Reset all poll statistics to 0
+   * - Reset all poll expiration dates to 7 days from now
+   * - Reset user statistics (win rate, reputation)
+   * - Clear all notifications and poll history
+   */
+  static async resetPollsForDevelopment(): Promise<void> {
+    try {
+      console.log('🔄 Starting development reset...')
+
+      // Safety check: Only allow in development mode
+      if (import.meta.env.PROD) {
+        throw new Error('❌ Development reset is disabled in production!')
+      }
+
+      // Step 1: Delete ALL votes
+      console.log('📦 Step 1/5: Deleting all votes...')
+      const { error: deleteVotesError } = await supabase
+        .from('votes')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all rows
+
+      if (deleteVotesError) {
+        console.error('Error deleting votes:', deleteVotesError)
+        throw new Error('Failed to delete votes')
+      }
+      console.log('✅ All votes deleted')
+
+      // Step 2: Reset all polls
+      console.log('📦 Step 2/5: Resetting all polls...')
+      const newExpiresAt = new Date()
+      newExpiresAt.setDate(newExpiresAt.getDate() + 7) // 7 days from now
+
+      const { error: resetPollsError } = await supabase
+        .from('polls')
+        .update({
+          votes: 0,
+          votes_option_a: 0,
+          votes_option_b: 0,
+          created_at: new Date().toISOString(),
+          expires_at: newExpiresAt.toISOString()
+        })
+        .neq('id', '00000000-0000-0000-0000-000000000000') // Update all rows
+
+      if (resetPollsError) {
+        console.error('Error resetting polls:', resetPollsError)
+        throw new Error('Failed to reset polls')
+      }
+      console.log('✅ All polls reset')
+
+      // Step 3: Reset user statistics
+      console.log('📦 Step 3/5: Resetting user statistics...')
+      const { error: resetUsersError } = await supabase
+        .from('users')
+        .update({
+          win_rate: 0,
+          reputation: 0
+        })
+        .neq('id', '00000000-0000-0000-0000-000000000000') // Update all rows
+
+      if (resetUsersError) {
+        console.error('Error resetting user stats:', resetUsersError)
+        throw new Error('Failed to reset user statistics')
+      }
+      console.log('✅ User statistics reset')
+
+      // Step 4: Clear notifications
+      console.log('📦 Step 4/5: Clearing notifications...')
+      const { error: deleteNotificationsError } = await supabase
+        .from('notifications')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all rows
+
+      if (deleteNotificationsError) {
+        console.error('Error deleting notifications:', deleteNotificationsError)
+        // Don't throw - notifications are not critical
+        console.warn('⚠️ Failed to delete notifications, continuing...')
+      } else {
+        console.log('✅ Notifications cleared')
+      }
+
+      // Step 5: Clear poll history
+      console.log('📦 Step 5/5: Clearing poll history...')
+      const { error: deleteHistoryError } = await supabase
+        .from('poll_history')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all rows
+
+      if (deleteHistoryError) {
+        console.error('Error deleting poll history:', deleteHistoryError)
+        // Don't throw - history is not critical
+        console.warn('⚠️ Failed to delete poll history, continuing...')
+      } else {
+        console.log('✅ Poll history cleared')
+      }
+
+      console.log('✅ Development reset completed successfully!')
+      console.log('📊 Summary:')
+      console.log('  - All votes deleted')
+      console.log('  - All polls reset to 0 votes')
+      console.log('  - All polls expire in 7 days')
+      console.log('  - User statistics reset')
+      console.log('  - Notifications and history cleared')
+
+    } catch (error) {
+      console.error('❌ Development reset failed:', error)
+      throw error
     }
   }
 }

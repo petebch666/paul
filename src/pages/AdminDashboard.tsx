@@ -14,7 +14,8 @@ import {
   IonBadge,
   IonSegment,
   IonSegmentButton,
-  IonLabel
+  IonLabel,
+  IonSpinner
 } from '@ionic/react'
 import { 
   people,
@@ -25,52 +26,96 @@ import {
   mail,
   warning,
   shield,
-  clipboard
+  clipboard,
+  construct,
+  barChart,
+  server,
+  flame,
+  checkmarkCircle,
+  hourglassOutline,
+  trendingUp,
+  personAdd
 } from 'ionicons/icons'
-import UnifiedPollzAPI from '../database/unified-api'
+import { SupabasePollzAPI } from '../database/supabase-api'
 import { useAuth } from '../hooks/useAuth'
 import './AdminDashboard.css'
-
-const PollzAPI = UnifiedPollzAPI
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth()
   const [activeTab, setActiveTab] = useState<'users' | 'polls' | 'api' | 'stats' | 'tools'>('stats')
-  const [users, setUsers] = useState<any[]>([])
-  const [polls, setPolls] = useState<any[]>([])
-  const [votes, setVotes] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const [toolsLoading, setToolsLoading] = useState(false)
+  
+  // Real Supabase Stats
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalPolls: 0,
+    totalVotes: 0,
+    activePolls: 0,
+    expiredPolls: 0,
+    avgVotesPerPoll: 0,
+    topCategory: { name: '', count: 0 },
+    mostActiveUser: { name: '', count: 0 },
+    categoriesCount: 0,
+    recentUsers: 0 // Users joined in last 7 days
+  })
 
   // Check if user is admin
   const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (isAdmin) {
+      loadData()
+    }
+  }, [isAdmin])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      console.log('🔍 Loading admin data...')
-      // Load all users from localStorage
-      const dbData = localStorage.getItem('paul-db')
-      console.log('📦 Database data:', dbData ? 'Found' : 'Not found')
+      console.log('🔍 Loading admin data from Supabase...')
       
-      if (dbData) {
-        const data = JSON.parse(dbData)
-        console.log('👥 Users:', data.users?.length || 0)
-        console.log('📊 Polls:', data.polls?.length || 0)
-        console.log('🗳️ Votes:', data.votes?.length || 0)
-        setUsers(data.users || [])
-        setPolls(data.polls || [])
-        setVotes(data.votes || [])
-      } else {
-        console.log('⚠️ No database found in localStorage')
-        setUsers([])
-        setPolls([])
-        setVotes([])
-      }
+      // Fetch all polls
+      const polls = await SupabasePollzAPI.getAllPolls()
+      console.log('📊 Polls:', polls.length)
+      
+      // Calculate stats
+      const now = new Date()
+      const activePolls = polls.filter(p => !p.isExpired && new Date(p.expiresAt) > now).length
+      const expiredPolls = polls.filter(p => p.isExpired || new Date(p.expiresAt) <= now).length
+      const totalVotes = polls.reduce((sum, poll) => sum + (poll.votes || 0), 0)
+      const avgVotesPerPoll = polls.length > 0 ? totalVotes / polls.length : 0
+      
+      // Category stats
+      const categoryMap = new Map<string, number>()
+      polls.forEach(poll => {
+        categoryMap.set(poll.category, (categoryMap.get(poll.category) || 0) + 1)
+      })
+      
+      const topCategory = Array.from(categoryMap.entries())
+        .sort((a, b) => b[1] - a[1])[0] || ['N/A', 0]
+      
+      // Author stats
+      const authorMap = new Map<string, number>()
+      polls.forEach(poll => {
+        authorMap.set(poll.author, (authorMap.get(poll.author) || 0) + 1)
+      })
+      
+      const mostActiveUser = Array.from(authorMap.entries())
+        .sort((a, b) => b[1] - a[1])[0] || ['N/A', 0]
+      
+      setStats({
+        totalUsers: 0, // We'll fetch this separately if needed
+        totalPolls: polls.length,
+        totalVotes: totalVotes,
+        activePolls: activePolls,
+        expiredPolls: expiredPolls,
+        avgVotesPerPoll: Math.round(avgVotesPerPoll * 10) / 10,
+        topCategory: { name: topCategory[0], count: topCategory[1] },
+        mostActiveUser: { name: mostActiveUser[0], count: mostActiveUser[1] },
+        categoriesCount: categoryMap.size,
+        recentUsers: 0
+      })
+      
+      console.log('✅ Admin data loaded successfully')
     } catch (error) {
       console.error('❌ Error loading data:', error)
     } finally {
@@ -78,907 +123,514 @@ const AdminDashboard: React.FC = () => {
     }
   }
 
-  const resetUserPassword = (userId: string) => {
-    const newPassword = prompt('Enter new password for this user:')
-    if (newPassword) {
-      // In a real app, this would hash the password
-      alert(`Password would be reset to: ${newPassword}\n(In production, this would be hashed)`)
-    }
-  }
-
-  const handleDatabaseReset = async () => {
-    const confirmed = confirm(
-      '⚠️ WARNING: DATABASE RESET\n\n' +
-      'This will:\n' +
-      '• Clear ALL localStorage data\n' +
-      '• Remove all users except admin\n' +
-      '• Delete all polls and votes\n' +
-      '• Reset the app to initial state\n\n' +
-      'The app will reload after reset.\n\n' +
-      'Are you sure you want to continue?'
-    )
-    
-    if (!confirmed) return
-
-    setToolsLoading(true)
-    try {
-      console.log('🔥 Clearing all localStorage...')
-      localStorage.clear()
-      sessionStorage.clear()
-      
-      alert('✅ Database reset complete!\n\nThe app will reload now.')
-      
-      // Reload the app
-      setTimeout(() => {
-        window.location.href = '/'
-      }, 500)
-    } catch (error) {
-      console.error('❌ Reset failed:', error)
-      alert('❌ Reset failed. Check console for details.')
-      setToolsLoading(false)
-    }
-  }
-
-  const handleQuickSetup = async () => {
-    const confirmed = confirm(
-      '🚀 QUICK SETUP\n\n' +
-      'This will:\n' +
-      '• Create admin user (admin@pollz.app / Admin@123)\n' +
-      '• Create demo user (john@example.com)\n' +
-      '• Generate 50 sample polls\n' +
-      '• Reset all existing data\n\n' +
-      'Continue?'
-    )
-    
-    if (!confirmed) return
-
-    setToolsLoading(true)
-    try {
-      console.log('🚀 Starting quick setup...')
-      
-      // Clear existing data
-      localStorage.clear()
-      
-      // Create database structure
-      const database = {
-        users: [
-          {
-            id: 'admin-1',
-            name: 'Admin',
-            username: '@admin',
-            email: 'admin@pollz.app',
-            password: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-            role: 'admin',
-            avatar: 'https://ui-avatars.com/api/?name=Admin&background=ff0000&color=ffffff&size=150',
-            followers: 0,
-            following: 0,
-            reputation: 0,
-            badges: [{
-              id: 'badge-admin',
-              name: 'Administrator',
-              description: 'System Administrator',
-              icon: 'Shield',
-              category: 'admin',
-              rarity: 'legendary',
-              earnedAt: new Date().toISOString()
-            }],
-            pollCount: 0,
-            winRate: 0,
-            joinDate: new Date().toISOString()
-          },
-          {
-            id: 'user-john-1',
-            name: 'John Doe',
-            username: '@johndoe',
-            email: 'john@example.com',
-            password: '$2a$10$JohnDoe123HashExampleForDemoPurposesOnly',
-            role: 'user',
-            avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=0066ff&color=ffffff&size=150',
-            followers: 42,
-            following: 38,
-            reputation: 156,
-            badges: [],
-            pollCount: 0,
-            winRate: 0,
-            joinDate: new Date().toISOString()
-          }
-        ],
-        polls: [],
-        votes: [],
-        notifications: [],
-        pollHistory: []
-      }
-      
-      // Generate 50 polls (simplified version)
-      const categories = ['Food', 'Technology', 'Lifestyle', 'Work', 'Entertainment', 'Sports', 'Travel', 'Education']
-      const pollTemplates: Record<string, string[][]> = {
-        Food: [
-          ['Pizza vs Burgers?', 'Pizza', 'Burgers'],
-          ['Coffee vs Tea?', 'Coffee', 'Tea'],
-          ['Sushi vs Tacos?', 'Sushi', 'Tacos']
-        ],
-        Technology: [
-          ['iOS vs Android?', 'iOS', 'Android'],
-          ['Mac vs PC?', 'Mac', 'PC'],
-          ['Dark Mode vs Light Mode?', 'Dark Mode', 'Light Mode']
-        ],
-        Lifestyle: [
-          ['Cats vs Dogs?', 'Cats', 'Dogs'],
-          ['Beach vs Mountains?', 'Beach', 'Mountains'],
-          ['Summer vs Winter?', 'Summer', 'Winter']
-        ],
-        Work: [
-          ['Work from Home vs Office?', 'Work from Home', 'Office'],
-          ['Freelance vs Full-time?', 'Freelance', 'Full-time']
-        ],
-        Entertainment: [
-          ['Netflix vs YouTube?', 'Netflix', 'YouTube'],
-          ['Movies vs TV Series?', 'Movies', 'TV Series']
-        ],
-        Sports: [
-          ['Football vs Basketball?', 'Football', 'Basketball'],
-          ['Gym vs Home Workout?', 'Gym', 'Home']
-        ],
-        Travel: [
-          ['Plane vs Train?', 'Plane', 'Train'],
-          ['Hotel vs Airbnb?', 'Hotel', 'Airbnb']
-        ],
-        Education: [
-          ['Online vs In-Person?', 'Online', 'In-Person'],
-          ['STEM vs Humanities?', 'STEM', 'Humanities']
-        ]
-      }
-      
-      const polls = []
-      const authors = ['Admin', 'John Doe']
-      const authorIds = ['admin-1', 'user-john-1']
-      
-      for (let i = 0; i < 50; i++) {
-        const category = categories[i % categories.length]
-        const templates = pollTemplates[category]
-        const template = templates[i % templates.length]
-        const authorIndex = Math.floor(Math.random() * 2)
-        const minutes = 60 + Math.floor(Math.random() * 10000)
-        const optionA = 10 + Math.floor(Math.random() * 81)
-        
-        polls.push({
-          id: `poll-${i + 1}`,
-          title: template[0],
-          description: `${template[1]} or ${template[2]}?`,
-          category: category,
-          authorId: authorIds[authorIndex],
-          author: authors[authorIndex],
-          votesOptionA: optionA,
-          votesOptionB: 100 - optionA,
-          votes: 100,
-          timeLeft: minutes < 60 ? `${minutes}m left` : minutes < 1440 ? `${Math.floor(minutes/60)}h left` : `${Math.floor(minutes/1440)}d left`,
-          createdAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + minutes * 60 * 1000).toISOString(),
-          isVoted: false,
-          isLiked: false,
-          isExpired: false,
-          pollType: 'options-only',
-          timerEnabled: true,
-          timerDuration: minutes,
-          notificationEnabled: false,
-          context: `The ultimate ${category.toLowerCase()} debate`,
-          arguments: {
-            optionA: template[1],
-            optionB: template[2]
-          },
-          evidence: { optionA: [], optionB: [] },
-          comments: [],
-          trendingScore: 50 + Math.floor(Math.random() * 250)
-        })
-      }
-      
-      database.polls = polls
-      
-      // Save to localStorage
-      localStorage.setItem('paul-db', JSON.stringify(database))
-      
-      console.log('✅ Quick setup complete!')
-      alert(
-        '✅ SETUP COMPLETE!\n\n' +
-        `📊 Created:\n` +
-        `• 2 users (Admin + Demo user)\n` +
-        `• ${polls.length} polls\n\n` +
-        `🔐 Login credentials:\n` +
-        `Email: admin@pollz.app\n` +
-        `Password: Admin@123\n\n` +
-        `App will reload now...`
-      )
-      
-      // Reload to show new data
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
-    } catch (error) {
-      console.error('❌ Quick setup failed:', error)
-      alert('❌ Setup failed. Check console for details.')
-      setToolsLoading(false)
-    }
-  }
-
-  const handleCheckDatabase = () => {
-    const dbData = localStorage.getItem('paul-db')
-    if (!dbData) {
-      alert('❌ NO DATABASE FOUND\n\nLocalStorage is empty or database has not been initialized.')
-      return
-    }
-    
-    try {
-      const data = JSON.parse(dbData)
-      const dbSize = (JSON.stringify(data).length / 1024).toFixed(2)
-      
-      let message = '💾 DATABASE CHECK\n\n'
-      message += `📦 Storage Size: ${dbSize} KB\n\n`
-      message += `👥 Users: ${data.users?.length || 0}\n`
-      message += `📊 Polls: ${data.polls?.length || 0}\n`
-      message += `🗳️ Votes: ${data.votes?.length || 0}\n`
-      message += `🔔 Notifications: ${data.notifications?.length || 0}\n`
-      message += `📜 Poll History: ${data.pollHistory?.length || 0}\n\n`
-      
-      if (data.users && data.users.length > 0) {
-        message += '👥 USERS:\n'
-        data.users.forEach((user: any, i: number) => {
-          message += `${i + 1}. ${user.name} (${user.email})\n`
-          message += `   Role: ${user.role || 'user'}\n`
-        })
-      }
-      
-      alert(message)
-      console.log('📦 Full database:', data)
-    } catch (error) {
-      alert(`❌ ERROR PARSING DATABASE\n\n${error}`)
-    }
-  }
 
   const renderUsersTab = () => (
-    <div className="admin-section">
-      <div className="section-header">
-        <h2>REGISTERED USERS</h2>
-        <IonBadge color="primary">{users.length} TOTAL</IonBadge>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{
+        textAlign: 'center',
+        padding: '60px 20px',
+        fontFamily: 'Courier New, monospace'
+      }}>
+        <IonIcon icon={people} style={{ fontSize: '64px', color: '#667eea', marginBottom: '16px' }} />
+        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+          Users Management
+        </h3>
+        <p style={{ fontSize: '14px', color: '#666' }}>
+          User management features coming soon
+        </p>
       </div>
-
-      {users.map((user, index) => (
-        <IonCard key={user.id || index} className="user-card">
-          <IonCardHeader>
-            <div className="user-header">
-              <img src={user.avatar} alt={user.name} className="user-avatar" />
-              <div className="user-info">
-                <IonCardTitle className="user-name">{user.name}</IonCardTitle>
-                <div className="user-username">{user.username}</div>
-              </div>
-            </div>
-          </IonCardHeader>
-          <IonCardContent>
-            <div className="user-details">
-              <div className="detail-row">
-                <IonIcon icon={mail} />
-                <span>{user.email}</span>
-              </div>
-              <div className="detail-row">
-                <IonIcon icon={key} />
-                <span className="password-hash">
-                  {user.password ? user.password.substring(0, 30) + '...' : 'No password'}
-                </span>
-              </div>
-              <div className="detail-row">
-                <strong>ID:</strong> {user.id}
-              </div>
-              <div className="detail-row">
-                <strong>Joined:</strong> {new Date(user.joinDate).toLocaleDateString()}
-              </div>
-              <div className="detail-row">
-                <strong>Polls:</strong> {user.pollCount || 0}
-              </div>
-            </div>
-            <div className="user-actions">
-              <IonButton size="small" fill="outline" onClick={() => resetUserPassword(user.id)}>
-                RESET PASSWORD
-              </IonButton>
-              <IonButton size="small" fill="outline" color="danger" onClick={() => {
-                if (confirm(`Delete user ${user.name}?`)) {
-                  alert('User deletion would happen here')
-                }
-              }}>
-                DELETE USER
-              </IonButton>
-            </div>
-          </IonCardContent>
-        </IonCard>
-      ))}
-
-      {users.length === 0 && (
-        <div className="empty-state">
-          <IonIcon icon={people} style={{ fontSize: '64px', color: '#ccc' }} />
-          <p>NO USERS REGISTERED YET</p>
-        </div>
-      )}
     </div>
   )
 
-  const renderPollsTab = () => {
-    // Sort polls by creation date (newest first)
-    const sortedPolls = [...polls].sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-
-    // Calculate category breakdown
-    const categoryBreakdown = polls.reduce((acc, poll) => {
-      acc[poll.category] = (acc[poll.category] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-
-    return (
-      <div className="admin-section">
-        <div className="section-header">
-          <h2>ALL POLLS</h2>
-          <IonBadge color="primary">{polls.length} TOTAL</IonBadge>
-        </div>
-
-        {/* Category breakdown */}
-        <IonCard>
-          <IonCardHeader>
-            <IonCardTitle>📂 Category Breakdown</IonCardTitle>
-          </IonCardHeader>
-          <IonCardContent>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {Object.entries(categoryBreakdown)
-                .sort((a, b) => b[1] - a[1])
-                .map(([category, count]) => (
-                  <IonBadge key={category} color="secondary" style={{ padding: '8px 12px' }}>
-                    {category}: {count}
-                  </IonBadge>
-                ))}
-            </div>
-          </IonCardContent>
-        </IonCard>
-
-        {/* Polls list */}
-        {sortedPolls.map((poll, index) => {
-          const isExpired = poll.isExpired || new Date(poll.expiresAt) < new Date()
-          const totalVotes = poll.votes || 0
-          const optionAPercentage = totalVotes > 0 ? Math.round((poll.votesOptionA / totalVotes) * 100) : 0
-          const optionBPercentage = totalVotes > 0 ? Math.round((poll.votesOptionB / totalVotes) * 100) : 0
-          
-          return (
-            <IonCard key={poll.id || index} style={{ 
-              borderLeft: isExpired ? '4px solid #ff4444' : '4px solid #44ff44',
-              opacity: isExpired ? 0.7 : 1
-            }}>
-              <IonCardHeader>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <IonCardTitle style={{ fontSize: '1.1em', marginBottom: '8px' }}>
-                      {poll.title}
-                    </IonCardTitle>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                      <IonBadge color={isExpired ? 'danger' : 'success'}>
-                        {isExpired ? '⏱️ EXPIRED' : '🔥 ACTIVE'}
-                      </IonBadge>
-                      <IonBadge color="medium">{poll.category}</IonBadge>
-                      <IonBadge color="tertiary">{totalVotes} votes</IonBadge>
-                    </div>
-                  </div>
-                </div>
-              </IonCardHeader>
-              
-              <IonCardContent>
-                <div className="user-details">
-                  <div className="detail-row">
-                    <strong>ID:</strong> {poll.id}
-                  </div>
-                  <div className="detail-row">
-                    <strong>Author:</strong> {poll.author} (ID: {poll.authorId})
-                  </div>
-                  <div className="detail-row">
-                    <strong>Created:</strong> {new Date(poll.createdAt).toLocaleString()}
-                  </div>
-                  <div className="detail-row">
-                    <strong>Expires:</strong> {new Date(poll.expiresAt).toLocaleString()} ({poll.timeLeft})
-                  </div>
-                  <div className="detail-row">
-                    <strong>Description:</strong> {poll.description}
-                  </div>
-                  
-                  {poll.arguments && (
-                    <div style={{ marginTop: '12px' }}>
-                      <strong>Options:</strong>
-                      <div style={{ 
-                        display: 'grid', 
-                        gap: '8px', 
-                        marginTop: '8px',
-                        gridTemplateColumns: '1fr 1fr'
-                      }}>
-                        <div style={{ 
-                          padding: '12px', 
-                          background: '#f0f0f0', 
-                          borderRadius: '8px',
-                          border: '2px solid #667eea'
-                        }}>
-                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                            Option A: {poll.arguments.optionA}
-                          </div>
-                          <div style={{ fontSize: '0.9em', color: '#666' }}>
-                            {poll.votesOptionA || 0} votes ({optionAPercentage}%)
-                          </div>
-                          <div style={{ 
-                            marginTop: '8px',
-                            height: '8px',
-                            background: '#ddd',
-                            borderRadius: '4px',
-                            overflow: 'hidden'
-                          }}>
-                            <div style={{ 
-                              width: `${optionAPercentage}%`,
-                              height: '100%',
-                              background: '#667eea',
-                              transition: 'width 0.3s'
-                            }} />
-                          </div>
-                        </div>
-                        
-                        <div style={{ 
-                          padding: '12px', 
-                          background: '#f0f0f0', 
-                          borderRadius: '8px',
-                          border: '2px solid #764ba2'
-                        }}>
-                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                            Option B: {poll.arguments.optionB}
-                          </div>
-                          <div style={{ fontSize: '0.9em', color: '#666' }}>
-                            {poll.votesOptionB || 0} votes ({optionBPercentage}%)
-                          </div>
-                          <div style={{ 
-                            marginTop: '8px',
-                            height: '8px',
-                            background: '#ddd',
-                            borderRadius: '4px',
-                            overflow: 'hidden'
-                          }}>
-                            <div style={{ 
-                              width: `${optionBPercentage}%`,
-                              height: '100%',
-                              background: '#764ba2',
-                              transition: 'width 0.3s'
-                            }} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {poll.context && (
-                    <div className="detail-row" style={{ marginTop: '8px' }}>
-                      <strong>Context:</strong> {poll.context}
-                    </div>
-                  )}
-                </div>
-
-                <div className="user-actions" style={{ marginTop: '12px' }}>
-                  <IonButton 
-                    size="small" 
-                    fill="outline"
-                    onClick={() => {
-                      console.log('Poll details:', poll)
-                      alert(`Poll ID: ${poll.id}\n\nFull details logged to console`)
-                    }}
-                  >
-                    VIEW DETAILS
-                  </IonButton>
-                  <IonButton 
-                    size="small" 
-                    fill="outline" 
-                    color="danger"
-                    onClick={() => {
-                      if (confirm(`Delete poll "${poll.title}"?`)) {
-                        // TODO: Implement delete functionality
-                        alert('Poll deletion would happen here')
-                      }
-                    }}
-                  >
-                    DELETE POLL
-                  </IonButton>
-                </div>
-              </IonCardContent>
-            </IonCard>
-          )
-        })}
-
-        {polls.length === 0 && (
-          <div className="empty-state">
-            <IonIcon icon={statsChart} style={{ fontSize: '64px', color: '#ccc' }} />
-            <p>NO POLLS FOUND</p>
-          </div>
-        )}
+  const renderPollsTab = () => (
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{
+        textAlign: 'center',
+        padding: '60px 20px',
+        fontFamily: 'Courier New, monospace'
+      }}>
+        <IonIcon icon={clipboard} style={{ fontSize: '64px', color: '#4facfe', marginBottom: '16px' }} />
+        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+          Polls Management
+        </h3>
+        <p style={{ fontSize: '14px', color: '#666' }}>
+          Poll management features coming soon
+        </p>
       </div>
-    )
-  }
+    </div>
+  )
 
   const renderAPITab = () => (
-    <div className="admin-section">
-      <div className="section-header">
-        <h2>API ENDPOINTS</h2>
-        <IonBadge color="success">SWAGGER-LIKE</IonBadge>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{
+        textAlign: 'center',
+        padding: '60px 20px',
+        fontFamily: 'Courier New, monospace'
+      }}>
+        <IonIcon icon={code} style={{ fontSize: '64px', color: '#30cfd0', marginBottom: '16px' }} />
+        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+          API Documentation
+        </h3>
+        <p style={{ fontSize: '14px', color: '#666' }}>
+          API endpoints documentation coming soon
+        </p>
       </div>
-
-      <IonCard className="api-card">
-        <IonCardHeader>
-          <IonCardTitle className="api-title">🔐 AUTHENTICATION</IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <div className="api-endpoint">
-            <div className="method post">POST</div>
-            <div className="path">/api/auth/login</div>
-            <div className="description">User login with email and password</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method post">POST</div>
-            <div className="path">/api/auth/signup</div>
-            <div className="description">Create new user account</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method post">POST</div>
-            <div className="path">/api/auth/reset-password</div>
-            <div className="description">Request password reset email</div>
-          </div>
-        </IonCardContent>
-      </IonCard>
-
-      <IonCard className="api-card">
-        <IonCardHeader>
-          <IonCardTitle className="api-title">👤 USERS</IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <div className="api-endpoint">
-            <div className="method get">GET</div>
-            <div className="path">/api/users/:id</div>
-            <div className="description">Get user by ID</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method get">GET</div>
-            <div className="path">/api/users/email/:email</div>
-            <div className="description">Get user by email</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method post">POST</div>
-            <div className="path">/api/users</div>
-            <div className="description">Create new user</div>
-          </div>
-        </IonCardContent>
-      </IonCard>
-
-      <IonCard className="api-card">
-        <IonCardHeader>
-          <IonCardTitle className="api-title">📊 POLLS</IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <div className="api-endpoint">
-            <div className="method get">GET</div>
-            <div className="path">/api/polls</div>
-            <div className="description">Get all polls (with pagination)</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method get">GET</div>
-            <div className="path">/api/polls/:id</div>
-            <div className="description">Get poll by ID</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method post">POST</div>
-            <div className="path">/api/polls</div>
-            <div className="description">Create new poll</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method post">POST</div>
-            <div className="path">/api/polls/:id/vote</div>
-            <div className="description">Vote on a poll</div>
-          </div>
-        </IonCardContent>
-      </IonCard>
-
-      <IonCard className="api-card">
-        <IonCardHeader>
-          <IonCardTitle className="api-title">🔔 NOTIFICATIONS</IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <div className="api-endpoint">
-            <div className="method get">GET</div>
-            <div className="path">/api/notifications/:userId</div>
-            <div className="description">Get user notifications</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method post">POST</div>
-            <div className="path">/api/notifications</div>
-            <div className="description">Create notification</div>
-          </div>
-          <div className="api-endpoint">
-            <div className="method put">PUT</div>
-            <div className="path">/api/notifications/:id/read</div>
-            <div className="description">Mark notification as read</div>
-          </div>
-        </IonCardContent>
-      </IonCard>
     </div>
   )
 
   const renderToolsTab = () => (
-    <div className="admin-section">
-      <div className="section-header">
-        <h2>ADMIN TOOLS</h2>
-        <IonBadge color="danger">DANGEROUS OPERATIONS</IonBadge>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px'
+      }}>
+        <h2 style={{
+          fontFamily: 'Courier New, monospace',
+          fontSize: '24px',
+          fontWeight: '700',
+          letterSpacing: '2px',
+          margin: 0,
+          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent'
+        }}>
+          ADMIN TOOLS
+        </h2>
+        <IonBadge 
+          color="warning" 
+          style={{ 
+            fontSize: '11px', 
+            fontWeight: '700',
+            letterSpacing: '1px',
+            padding: '8px 12px'
+          }}
+        >
+          USE WITH CAUTION
+        </IonBadge>
       </div>
 
-      <IonCard className="tool-card">
-        <IonCardHeader>
-          <IonCardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <IonIcon icon={clipboard} />
-            DATABASE CHECK
-          </IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <p style={{ marginBottom: '16px', color: '#666' }}>
-            View detailed information about the current database state, including all users, polls, and storage size.
-          </p>
+      <div style={{ display: 'grid', gap: '16px' }}>
+        {/* Refresh Stats */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '1px solid #e9ecef',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <IonIcon icon={refresh} style={{ fontSize: '32px', color: '#667eea' }} />
+            <div>
+              <h3 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '700', 
+                fontFamily: 'Courier New, monospace'
+              }}>
+                Refresh Statistics
+              </h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#666' }}>
+                Reload all statistics from the database
+              </p>
+            </div>
+          </div>
           <IonButton 
             expand="block" 
-            fill="outline" 
+            fill="solid"
             color="primary"
-            onClick={handleCheckDatabase}
-            disabled={toolsLoading}
+            onClick={loadData}
+            disabled={loading}
+            style={{
+              fontFamily: 'Courier New, monospace',
+              fontWeight: '700',
+              letterSpacing: '1px'
+            }}
           >
-            <IonIcon icon={statsChart} style={{ marginRight: '8px' }} />
-            CHECK DATABASE
+            <IonIcon icon={refresh} style={{ marginRight: '8px' }} />
+            {loading ? 'REFRESHING...' : 'REFRESH NOW'}
           </IonButton>
-        </IonCardContent>
-      </IonCard>
+        </div>
 
-      <IonCard className="tool-card">
-        <IonCardHeader>
-          <IonCardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <IonIcon icon={refresh} />
-            QUICK SETUP
-          </IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <p style={{ marginBottom: '16px', color: '#666' }}>
-            Reset the database and create a fresh setup with admin user, demo user, and 50 sample polls.
+        {/* Database Info */}
+        <div style={{
+          background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '1px solid #4dd0e1'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <IonIcon icon={server} style={{ fontSize: '32px', color: '#00838f' }} />
+            <h3 style={{ 
+              margin: 0, 
+              fontSize: '18px', 
+              fontWeight: '700', 
+              fontFamily: 'Courier New, monospace',
+              color: '#00838f'
+            }}>
+              System Information
+            </h3>
+          </div>
+          <div style={{ display: 'grid', gap: '12px' }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              padding: '12px',
+              background: 'rgba(255, 255, 255, 0.7)',
+              borderRadius: '8px',
+              fontSize: '14px'
+            }}>
+              <strong>Database:</strong>
+              <span>Supabase</span>
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              padding: '12px',
+              background: 'rgba(255, 255, 255, 0.7)',
+              borderRadius: '8px',
+              fontSize: '14px'
+            }}>
+              <strong>Environment:</strong>
+              <span>{import.meta.env.DEV ? 'Development' : 'Production'}</span>
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              padding: '12px',
+              background: 'rgba(255, 255, 255, 0.7)',
+              borderRadius: '8px',
+              fontSize: '14px'
+            }}>
+              <strong>Status:</strong>
+              <IonBadge color="success" style={{ fontSize: '11px' }}>CONNECTED</IonBadge>
+            </div>
+          </div>
+        </div>
+
+        {/* Coming Soon Tools */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '1px dashed #e9ecef',
+          textAlign: 'center'
+        }}>
+          <IonIcon icon={construct} style={{ fontSize: '48px', color: '#ccc', marginBottom: '16px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px', color: '#666' }}>
+            More Tools Coming Soon
+          </h3>
+          <p style={{ fontSize: '13px', color: '#999' }}>
+            Advanced admin tools will be available in future updates
           </p>
-          <div style={{ 
-            background: '#fff3cd', 
-            border: '2px solid #ffc107', 
-            padding: '12px', 
-            borderRadius: '8px',
-            marginBottom: '16px',
-            fontSize: '14px'
-          }}>
-            <strong>📋 Creates:</strong><br />
-            • Admin user (admin@pollz.app / Admin@123)<br />
-            • Demo user (john@example.com)<br />
-            • 50 sample polls across 8 categories
-          </div>
-          <IonButton 
-            expand="block" 
-            fill="solid" 
-            color="success"
-            onClick={handleQuickSetup}
-            disabled={toolsLoading}
-          >
-            <IonIcon icon={code} style={{ marginRight: '8px' }} />
-            {toolsLoading ? 'SETTING UP...' : 'QUICK SETUP'}
-          </IonButton>
-        </IonCardContent>
-      </IonCard>
-
-      <IonCard className="tool-card" style={{ borderColor: '#ff0000' }}>
-        <IonCardHeader>
-          <IonCardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ff0000' }}>
-            <IonIcon icon={warning} />
-            FORCE RESET DATABASE
-          </IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <p style={{ marginBottom: '16px', color: '#666' }}>
-            <strong style={{ color: '#ff0000' }}>⚠️ DANGER ZONE:</strong> This will completely clear all localStorage data, 
-            including all users, polls, votes, and settings. The app will restart fresh.
-          </p>
-          <div style={{ 
-            background: '#ffe6e6', 
-            border: '2px solid #ff0000', 
-            padding: '12px', 
-            borderRadius: '8px',
-            marginBottom: '16px',
-            fontSize: '14px'
-          }}>
-            <strong>🔥 This will delete:</strong><br />
-            • ALL users (including admin)<br />
-            • ALL polls and votes<br />
-            • ALL notifications and history<br />
-            • ALL app data and settings
-          </div>
-          <IonButton 
-            expand="block" 
-            fill="solid" 
-            color="danger"
-            onClick={handleDatabaseReset}
-            disabled={toolsLoading}
-          >
-            <IonIcon icon={warning} style={{ marginRight: '8px' }} />
-            {toolsLoading ? 'RESETTING...' : 'FORCE RESET'}
-          </IonButton>
-        </IonCardContent>
-      </IonCard>
-
-      <IonCard>
-        <IonCardHeader>
-          <IonCardTitle>ℹ️ INFORMATION</IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <div style={{ fontSize: '14px', color: '#666' }}>
-            <p><strong>Storage Location:</strong> Browser localStorage</p>
-            <p><strong>Current Size:</strong> {(JSON.stringify(localStorage).length / 1024).toFixed(2)} KB</p>
-            <p><strong>Environment:</strong> {process.env.NODE_ENV || 'production'}</p>
-            <p style={{ marginTop: '12px', padding: '12px', background: '#f0f0f0', borderRadius: '8px' }}>
-              💡 <strong>Tip:</strong> These tools are designed for development and testing. 
-              Always backup important data before using reset operations.
-            </p>
-          </div>
-        </IonCardContent>
-      </IonCard>
+        </div>
+      </div>
     </div>
   )
 
   const renderStatsTab = () => {
-    const totalVotes = polls.reduce((sum, poll) => sum + (poll.votes || 0), 0)
-    const activePolls = polls.filter(p => !p.isExpired && new Date(p.expiresAt) > new Date()).length
-    const expiredPolls = polls.filter(p => p.isExpired || new Date(p.expiresAt) <= new Date()).length
-    const avgVotesPerPoll = polls.length > 0 ? (totalVotes / polls.length).toFixed(1) : '0'
-    
-    // Category stats
-    const categoryStats = polls.reduce((acc, poll) => {
-      acc[poll.category] = (acc[poll.category] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    
-    const topCategory = Object.entries(categoryStats).sort((a, b) => b[1] - a[1])[0]
-    
-    // Most active user (by poll count)
-    const userPollCounts = polls.reduce((acc, poll) => {
-      acc[poll.author] = (acc[poll.author] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    
-    const mostActiveUser = Object.entries(userPollCounts).sort((a, b) => b[1] - a[1])[0]
+    if (loading) {
+      return (
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '400px',
+          gap: '20px'
+        }}>
+          <IonSpinner name="crescent" style={{ width: '48px', height: '48px' }} />
+          <div style={{
+            fontFamily: 'Courier New, monospace',
+            fontSize: '14px',
+            fontWeight: '700',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            color: '#666'
+          }}>
+            Loading statistics...
+          </div>
+        </div>
+      )
+    }
 
     return (
-      <div className="admin-section">
-        <div className="section-header">
-          <h2>STATISTICS OVERVIEW</h2>
-          <IonBadge color="success">REAL-TIME</IonBadge>
+      <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px'
+        }}>
+          <h2 style={{
+            fontFamily: 'Courier New, monospace',
+            fontSize: '24px',
+            fontWeight: '700',
+            letterSpacing: '2px',
+            margin: 0,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            STATISTICS
+          </h2>
+          <IonBadge 
+            color="success" 
+            style={{ 
+              fontSize: '11px', 
+              fontWeight: '700',
+              letterSpacing: '1px',
+              padding: '8px 12px'
+            }}
+          >
+            LIVE DATA
+          </IonBadge>
         </div>
 
-        <div className="stats-grid">
-          <IonCard className="stat-card">
-            <IonCardContent>
-              <IonIcon icon={clipboard} className="stat-icon" />
-              <div className="stat-value">{polls.length}</div>
-              <div className="stat-label">TOTAL POLLS</div>
-            </IonCardContent>
-          </IonCard>
+        {/* Main Stats Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: '16px',
+          marginBottom: '24px'
+        }}>
+          {/* Total Polls */}
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '16px',
+            padding: '24px',
+            color: 'white',
+            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+            transition: 'transform 0.2s ease',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <IonIcon icon={clipboard} style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.9 }} />
+            <div style={{ fontSize: '36px', fontWeight: '700', fontFamily: 'Courier New, monospace', marginBottom: '4px' }}>
+              {stats.totalPolls}
+            </div>
+            <div style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', opacity: 0.9 }}>
+              Total Polls
+            </div>
+          </div>
 
-          <IonCard className="stat-card">
-            <IonCardContent>
-              <IonIcon icon={people} className="stat-icon" />
-              <div className="stat-value">{users.length}</div>
-              <div className="stat-label">TOTAL USERS</div>
-            </IonCardContent>
-          </IonCard>
+          {/* Total Votes */}
+          <div style={{
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            borderRadius: '16px',
+            padding: '24px',
+            color: 'white',
+            boxShadow: '0 4px 12px rgba(245, 87, 108, 0.3)',
+            transition: 'transform 0.2s ease',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <IonIcon icon={statsChart} style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.9 }} />
+            <div style={{ fontSize: '36px', fontWeight: '700', fontFamily: 'Courier New, monospace', marginBottom: '4px' }}>
+              {stats.totalVotes.toLocaleString()}
+            </div>
+            <div style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', opacity: 0.9 }}>
+              Total Votes
+            </div>
+          </div>
 
-          <IonCard className="stat-card">
-            <IonCardContent>
-              <IonIcon icon={statsChart} className="stat-icon" />
-              <div className="stat-value">{totalVotes}</div>
-              <div className="stat-label">TOTAL VOTES</div>
-            </IonCardContent>
-          </IonCard>
+          {/* Active Polls */}
+          <div style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            borderRadius: '16px',
+            padding: '24px',
+            color: 'white',
+            boxShadow: '0 4px 12px rgba(0, 242, 254, 0.3)',
+            transition: 'transform 0.2s ease',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <IonIcon icon={flame} style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.9 }} />
+            <div style={{ fontSize: '36px', fontWeight: '700', fontFamily: 'Courier New, monospace', marginBottom: '4px' }}>
+              {stats.activePolls}
+            </div>
+            <div style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', opacity: 0.9 }}>
+              Active Polls
+            </div>
+          </div>
 
-          <IonCard className="stat-card">
-            <IonCardContent>
-              <IonIcon icon={code} className="stat-icon" />
-              <div className="stat-value">{votes.length}</div>
-              <div className="stat-label">VOTE RECORDS</div>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard className="stat-card" style={{ background: 'linear-gradient(135deg, #44ff44 0%, #22bb22 100%)', color: 'white' }}>
-            <IonCardContent>
-              <div style={{ fontSize: '2em', marginBottom: '10px' }}>🔥</div>
-              <div className="stat-value" style={{ color: 'white' }}>{activePolls}</div>
-              <div className="stat-label" style={{ color: 'white' }}>ACTIVE POLLS</div>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard className="stat-card" style={{ background: 'linear-gradient(135deg, #ff4444 0%, #bb2222 100%)', color: 'white' }}>
-            <IonCardContent>
-              <div style={{ fontSize: '2em', marginBottom: '10px' }}>⏱️</div>
-              <div className="stat-value" style={{ color: 'white' }}>{expiredPolls}</div>
-              <div className="stat-label" style={{ color: 'white' }}>EXPIRED POLLS</div>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard className="stat-card">
-            <IonCardContent>
-              <div style={{ fontSize: '2em', marginBottom: '10px' }}>📊</div>
-              <div className="stat-value">{avgVotesPerPoll}</div>
-              <div className="stat-label">AVG VOTES/POLL</div>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard className="stat-card">
-            <IonCardContent>
-              <div style={{ fontSize: '2em', marginBottom: '10px' }}>📂</div>
-              <div className="stat-value">{Object.keys(categoryStats).length}</div>
-              <div className="stat-label">CATEGORIES</div>
-            </IonCardContent>
-          </IonCard>
+          {/* Expired Polls */}
+          <div style={{
+            background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+            borderRadius: '16px',
+            padding: '24px',
+            color: 'white',
+            boxShadow: '0 4px 12px rgba(254, 225, 64, 0.3)',
+            transition: 'transform 0.2s ease',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <IonIcon icon={checkmarkCircle} style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.9 }} />
+            <div style={{ fontSize: '36px', fontWeight: '700', fontFamily: 'Courier New, monospace', marginBottom: '4px' }}>
+              {stats.expiredPolls}
+            </div>
+            <div style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', opacity: 0.9 }}>
+              Expired Polls
+            </div>
+          </div>
         </div>
 
-        {topCategory && (
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>🏆 Top Category</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <div style={{ fontSize: '1.5em', fontWeight: 'bold', marginBottom: '8px' }}>
-                {topCategory[0]}
-              </div>
-              <div style={{ color: '#666' }}>
-                {topCategory[1]} polls ({Math.round((topCategory[1] / polls.length) * 100)}% of all polls)
-              </div>
-            </IonCardContent>
-          </IonCard>
-        )}
+        {/* Secondary Stats */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '16px',
+          marginBottom: '24px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            border: '1px solid #e9ecef',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <IonIcon icon={barChart} style={{ fontSize: '24px', color: '#667eea' }} />
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Avg Votes
+              </span>
+            </div>
+            <div style={{ fontSize: '32px', fontWeight: '700', fontFamily: 'Courier New, monospace', color: '#333' }}>
+              {stats.avgVotesPerPoll}
+            </div>
+          </div>
 
-        {mostActiveUser && (
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>👑 Most Active Creator</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <div style={{ fontSize: '1.5em', fontWeight: 'bold', marginBottom: '8px' }}>
-                {mostActiveUser[0]}
-              </div>
-              <div style={{ color: '#666' }}>
-                {mostActiveUser[1]} polls created ({Math.round((mostActiveUser[1] / polls.length) * 100)}% of all polls)
-              </div>
-            </IonCardContent>
-          </IonCard>
-        )}
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            border: '1px solid #e9ecef',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <IonIcon icon={server} style={{ fontSize: '24px', color: '#f5576c' }} />
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Categories
+              </span>
+            </div>
+            <div style={{ fontSize: '32px', fontWeight: '700', fontFamily: 'Courier New, monospace', color: '#333' }}>
+              {stats.categoriesCount}
+            </div>
+          </div>
+        </div>
 
-        <IonCard className="database-info">
-          <IonCardHeader>
-            <IonCardTitle>💾 DATABASE INFO</IonCardTitle>
-          </IonCardHeader>
-          <IonCardContent>
-            <div className="db-info-row">
-              <strong>Storage Type:</strong> localStorage (Browser)
+        {/* Top Performers */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '16px'
+        }}>
+          {/* Top Category */}
+          {stats.topCategory.name && (
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              border: '1px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <IonIcon icon={trendingUp} style={{ fontSize: '28px', color: '#667eea' }} />
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '16px', 
+                  fontWeight: '700', 
+                  fontFamily: 'Courier New, monospace',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  Top Category
+                </h3>
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', color: '#333' }}>
+                {stats.topCategory.name}
+              </div>
+              <div style={{ fontSize: '14px', color: '#666' }}>
+                {stats.topCategory.count} polls ({stats.totalPolls > 0 ? Math.round((stats.topCategory.count / stats.totalPolls) * 100) : 0}%)
+              </div>
             </div>
-            <div className="db-info-row">
-              <strong>Database Size:</strong> {(JSON.stringify(localStorage).length / 1024).toFixed(2)} KB
+          )}
+
+          {/* Most Active User */}
+          {stats.mostActiveUser.name && (
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              border: '1px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <IonIcon icon={personAdd} style={{ fontSize: '28px', color: '#f5576c' }} />
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '16px', 
+                  fontWeight: '700', 
+                  fontFamily: 'Courier New, monospace',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  Top Creator
+                </h3>
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', color: '#333' }}>
+                {stats.mostActiveUser.name}
+              </div>
+              <div style={{ fontSize: '14px', color: '#666' }}>
+                {stats.mostActiveUser.count} polls ({stats.totalPolls > 0 ? Math.round((stats.mostActiveUser.count / stats.totalPolls) * 100) : 0}%)
+              </div>
             </div>
-            <div className="db-info-row">
-              <strong>Location:</strong> Browser Storage (Client-side)
+          )}
+        </div>
+
+        {/* Database Info */}
+        <div style={{
+          marginTop: '24px',
+          background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+          borderRadius: '12px',
+          padding: '20px',
+          border: '1px solid #dee2e6'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <IonIcon icon={server} style={{ fontSize: '24px', color: '#667eea' }} />
+            <h3 style={{ 
+              margin: 0, 
+              fontSize: '14px', 
+              fontWeight: '700', 
+              fontFamily: 'Courier New, monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: '#666'
+            }}>
+              Database Info
+            </h3>
+          </div>
+          <div style={{ display: 'grid', gap: '8px', fontSize: '13px', color: '#666' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <strong>Storage Type:</strong>
+              <span>Supabase (PostgreSQL)</span>
             </div>
-            <div className="db-info-row">
-              <strong>Persistence:</strong> Session-based (cleared on browser data clear)
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <strong>Status:</strong>
+              <IonBadge color="success" style={{ fontSize: '10px' }}>CONNECTED</IonBadge>
             </div>
-            <div className="db-info-row" style={{ marginTop: '12px', padding: '12px', background: '#fff3cd', borderRadius: '8px' }}>
-              <strong>⚠️ Migration Recommended:</strong> Consider migrating to Supabase or a dedicated database for production use
-            </div>
-          </IonCardContent>
-        </IonCard>
+          </div>
+        </div>
       </div>
     )
   }
@@ -1048,28 +700,196 @@ const AdminDashboard: React.FC = () => {
       </IonHeader>
       
       <IonContent fullscreen className="admin-dashboard">
-        <IonSegment value={activeTab} onIonChange={e => setActiveTab(e.detail.value as any)}>
-          <IonSegmentButton value="stats">
-            <IonIcon icon={statsChart} />
-            <IonLabel>STATS</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="tools">
-            <IonIcon icon={shield} />
-            <IonLabel>TOOLS</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="polls">
-            <IonIcon icon={clipboard} />
-            <IonLabel>POLLS</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="users">
-            <IonIcon icon={people} />
-            <IonLabel>USERS</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="api">
-            <IonIcon icon={code} />
-            <IonLabel>API</IonLabel>
-          </IonSegmentButton>
-        </IonSegment>
+        {/* Modern Tab Navigation */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '16px',
+          gap: '8px',
+          background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
+          borderBottom: '1px solid #e9ecef',
+          overflowX: 'auto'
+        }}>
+          <button
+            onClick={() => setActiveTab('stats')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '12px 16px',
+              border: 'none',
+              background: activeTab === 'stats' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              transform: activeTab === 'stats' ? 'scale(1.05)' : 'scale(1)',
+              boxShadow: activeTab === 'stats' ? '0 4px 12px rgba(102, 126, 234, 0.3)' : '0 2px 4px rgba(0, 0, 0, 0.1)',
+              minWidth: '80px'
+            }}
+          >
+            <IonIcon 
+              icon={barChart} 
+              style={{ 
+                fontSize: '28px', 
+                marginBottom: '6px',
+                color: activeTab === 'stats' ? 'white' : '#667eea'
+              }} 
+            />
+            <span style={{ 
+              fontSize: '11px', 
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              color: activeTab === 'stats' ? 'white' : '#666'
+            }}>
+              Stats
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('tools')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '12px 16px',
+              border: 'none',
+              background: activeTab === 'tools' ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' : 'white',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              transform: activeTab === 'tools' ? 'scale(1.05)' : 'scale(1)',
+              boxShadow: activeTab === 'tools' ? '0 4px 12px rgba(245, 87, 108, 0.3)' : '0 2px 4px rgba(0, 0, 0, 0.1)',
+              minWidth: '80px'
+            }}
+          >
+            <IonIcon 
+              icon={construct} 
+              style={{ 
+                fontSize: '28px', 
+                marginBottom: '6px',
+                color: activeTab === 'tools' ? 'white' : '#f5576c'
+              }} 
+            />
+            <span style={{ 
+              fontSize: '11px', 
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              color: activeTab === 'tools' ? 'white' : '#666'
+            }}>
+              Tools
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('polls')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '12px 16px',
+              border: 'none',
+              background: activeTab === 'polls' ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' : 'white',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              transform: activeTab === 'polls' ? 'scale(1.05)' : 'scale(1)',
+              boxShadow: activeTab === 'polls' ? '0 4px 12px rgba(0, 242, 254, 0.3)' : '0 2px 4px rgba(0, 0, 0, 0.1)',
+              minWidth: '80px'
+            }}
+          >
+            <IonIcon 
+              icon={clipboard} 
+              style={{ 
+                fontSize: '28px', 
+                marginBottom: '6px',
+                color: activeTab === 'polls' ? 'white' : '#4facfe'
+              }} 
+            />
+            <span style={{ 
+              fontSize: '11px', 
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              color: activeTab === 'polls' ? 'white' : '#666'
+            }}>
+              Polls
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('users')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '12px 16px',
+              border: 'none',
+              background: activeTab === 'users' ? 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' : 'white',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              transform: activeTab === 'users' ? 'scale(1.05)' : 'scale(1)',
+              boxShadow: activeTab === 'users' ? '0 4px 12px rgba(254, 225, 64, 0.3)' : '0 2px 4px rgba(0, 0, 0, 0.1)',
+              minWidth: '80px'
+            }}
+          >
+            <IonIcon 
+              icon={people} 
+              style={{ 
+                fontSize: '28px', 
+                marginBottom: '6px',
+                color: activeTab === 'users' ? 'white' : '#fa709a'
+              }} 
+            />
+            <span style={{ 
+              fontSize: '11px', 
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              color: activeTab === 'users' ? 'white' : '#666'
+            }}>
+              Users
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('api')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '12px 16px',
+              border: 'none',
+              background: activeTab === 'api' ? 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)' : 'white',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              transform: activeTab === 'api' ? 'scale(1.05)' : 'scale(1)',
+              boxShadow: activeTab === 'api' ? '0 4px 12px rgba(48, 207, 208, 0.3)' : '0 2px 4px rgba(0, 0, 0, 0.1)',
+              minWidth: '80px'
+            }}
+          >
+            <IonIcon 
+              icon={code} 
+              style={{ 
+                fontSize: '28px', 
+                marginBottom: '6px',
+                color: activeTab === 'api' ? 'white' : '#30cfd0'
+              }} 
+            />
+            <span style={{ 
+              fontSize: '11px', 
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              color: activeTab === 'api' ? 'white' : '#666'
+            }}>
+              API
+            </span>
+          </button>
+        </div>
 
         <div className="admin-content">
           {activeTab === 'stats' && renderStatsTab()}

@@ -32,13 +32,6 @@ body {
   min-height: 100vh;
 }
 
-/* Desktop: Add margin for sidebar */
-@media (min-width: 1025px) {
-  .main-content {
-    margin-left: 250px;
-  }
-}
-
 /* Loading and Error States */
 .loading-overlay {
   position: fixed;
@@ -77,13 +70,6 @@ body {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 1px;
-}
-
-/* Desktop: Add margin for sidebar */
-@media (min-width: 1025px) {
-  .error-banner {
-    margin-left: 250px;
-  }
 }
 
 .error-banner button {
@@ -554,101 +540,22 @@ ion-refresher-content ion-spinner {
   display: block;
 }
 
-/* Desktop container styling */
-@media (min-width: 1025px) {
-  ion-content {
-    --padding-start: 0;
-    --padding-end: 0;
-    --padding-top: 0;
-    --padding-bottom: 0;
-  }
-  
-  .poll-stack-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-  }
-
-  /* Hide tabs on desktop when using sidebar */
-  ion-tab-bar {
-    display: none !important;
-  }
-
-  /* Add left margin to all pages for sidebar */
-  ion-page {
-    margin-left: 250px;
-  }
-
-  /* Ensure IonHeader also accounts for sidebar */
-  ion-page ion-header {
-    margin-left: 0; /* Header stays within the page margin */
-  }
+/* Mobile/Tablet only - tabs always visible */
+ion-tab-bar {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
-/* Ensure tab bar is visible on mobile */
-@media (max-width: 1024px) {
-  ion-tab-bar {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  
-  ion-tab-button {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  /* Remove sidebar margin on mobile */
-  ion-page {
-    margin-left: 0 !important;
-  }
+ion-tab-button {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-/* Sidebar styles */
-.sidebar {
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-open {
-  left: 0 !important;
-}
-
-/* Desktop grid layout */
-@media (min-width: 1025px) {
-  .desktop-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 40px;
-    padding: 40px;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  
-  .desktop-poll-card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-}
-
-/* High resolution desktop */
-@media (min-width: 1440px) {
-  .desktop-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 50px;
-    padding: 50px;
-  }
-}
-
-/* Ultra-wide displays */
-@media (min-width: 1920px) {
-  .desktop-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 60px;
-    padding: 60px;
-  }
+ion-page {
+  margin-left: 0 !important;
 }
 
 .swipe-poll-card:active {
@@ -711,59 +618,7 @@ ion-refresher-content ion-spinner {
   }
 }
 
-/* Desktop optimizations */
-@media (min-width: 1025px) {
-  .swipe-poll-card {
-    margin: 0;
-    padding: 32px;
-    max-width: 100%;
-    width: 100%;
-  }
-  
-  .swipe-poll-card:hover {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-  }
-  
-  .poll-title {
-    font-size: 22px !important;
-    letter-spacing: 3px !important;
-  }
-  
-  .option-container {
-    padding: 24px !important;
-  }
-  
-  .option-container div {
-    font-size: 14px !important;
-  }
-  
-  .vs-divider {
-    font-size: 16px !important;
-    letter-spacing: 4px !important;
-  }
-}
-
-/* High resolution displays */
-@media (min-width: 1440px) {
-  .swipe-poll-card {
-    max-width: 900px;
-    padding: 40px;
-  }
-  
-  .poll-title {
-    font-size: 26px !important;
-    letter-spacing: 4px !important;
-  }
-  
-  .option-container {
-    padding: 28px !important;
-  }
-  
-  .option-container div {
-    font-size: 16px !important;
-  }
-}
+/* Mobile and tablet only - no desktop optimizations needed */
 
 /* Touch feedback */
 @media (hover: none) and (pointer: coarse) {

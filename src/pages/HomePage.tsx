@@ -459,14 +459,9 @@ const HomePage: React.FC<HomePageProps> = ({
             50% { transform: translateY(-3px); }
           }
 
-          /* Carousel scroll behavior */
+          /* Carousel scroll behavior - smooth scrolling only */
           .carousel-scroll {
             scroll-behavior: smooth;
-          }
-
-          .carousel-scroll::part(scroll) {
-            scroll-snap-type: y mandatory;
-            scroll-padding: 50vh;
           }
 
           /* Hide scrollbar for category filters */

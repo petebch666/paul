@@ -6,8 +6,6 @@ import { Route, Redirect } from 'react-router-dom'
 import { home, add, person, shield } from 'ionicons/icons'
 import { useAppState } from './hooks/useAppState'
 import HomePage from './pages/HomePage'
-import SwipeHomePage from './pages/SwipeHomePage'
-import DesktopHomePage from './pages/DesktopHomePage'
 import CreatePage from './pages/CreatePage'
 import ProfilePage from './pages/ProfilePage'
 import NotificationsPage from './pages/NotificationsPage'
@@ -16,12 +14,12 @@ import AdminDashboard from './pages/AdminDashboard'
 import MigrationPage from './pages/MigrationPage'
 import AuthenticationWrapper from './components/AuthenticationWrapper'
 import SecurityBadge from './components/SecurityBadge'
-import Navigation, { DevResetButton, DevGeneratePollsButton } from './components/Navigation'
+import { DevResetButton, DevGeneratePollsButton } from './components/Navigation'
 import { useAuth } from './hooks/useAuth'
 import './App.css'
 
 // Import utilities for development (DISABLED - Using real data only)
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   // Removed auto-population scripts - we're using real data now!
   // Migration to Supabase complete
   
@@ -258,21 +256,10 @@ const mockPolls = [
 
 // Inner component that has access to router context
 function AppContent() {
-  const [isDesktop, setIsDesktop] = useState(false)
   const [currentPage, setCurrentPage] = useState<'home' | 'notifications' | 'history'>('home')
   const [currentTab, setCurrentTab] = useState<'home' | 'create' | 'profile' | 'admin'>('home')
   const { logout: authLogout } = useAuth()
   const router = useIonRouter()
-  
-  // Track current route for desktop sidebar highlighting
-  useEffect(() => {
-    if (!router.routeInfo) return
-    const path = router.routeInfo.pathname
-    if (path.includes('/home')) setCurrentTab('home')
-    else if (path.includes('/create')) setCurrentTab('create')
-    else if (path.includes('/profile')) setCurrentTab('profile')
-    else if (path.includes('/admin')) setCurrentTab('admin')
-  }, [router.routeInfo])
 
   const {
     polls,
@@ -295,25 +282,13 @@ function AppContent() {
     updatePollTimers
   } = useAppState()
 
-  // Detect screen size
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsDesktop(window.innerWidth > 1024)
-    }
-    
-    checkScreenSize()
-    window.addEventListener('resize', checkScreenSize)
-    return () => window.removeEventListener('resize', checkScreenSize)
-  }, [])
-
   // Debug: Log user role when it changes
   useEffect(() => {
     if (user) {
       console.log('👤 User loaded:', user.name, 'Role:', user.role)
-      console.log('📱 Is Desktop:', isDesktop)
-      console.log('🔐 Show Admin Tab:', user.role === 'admin' && !isDesktop)
+      console.log('🔐 Show Admin Tab:', user.role === 'admin')
     }
-  }, [user, isDesktop])
+  }, [user])
 
   // Navigation functions
   const navigateToNotifications = () => {
@@ -354,43 +329,15 @@ function AppContent() {
     }
   }
 
-  // Handle desktop navigation
-  const handleDesktopNavigate = (page: 'home' | 'create' | 'profile' | 'admin') => {
-    console.log('Desktop navigate to:', page)
-    if (page === 'home') {
-      router.push('/home')
-      setCurrentPage('home')
-    } else if (page === 'create') {
-      router.push('/create')
-      setCurrentPage('home')
-    } else if (page === 'profile') {
-      router.push('/profile')
-      setCurrentPage('home')
-    } else if (page === 'admin') {
-      router.push('/admin')
-      setCurrentPage('home')
-    }
-    setCurrentTab(page)
-  }
-
   return (
     <>
-      {/* Desktop: Always show sidebar navigation */}
-      {isDesktop && (
-        <Navigation 
-          currentPage={currentTab}
-          onNavigate={handleDesktopNavigate}
-          userRole={user?.role}
-        />
+      {/* Development Buttons - visible on all screens */}
+      {import.meta.env.DEV && (
+        <>
+          <DevResetButton userRole={user?.role} />
+          <DevGeneratePollsButton />
+        </>
       )}
-
-            {/* Development Buttons - visible on all screens */}
-            {process.env.NODE_ENV === 'development' && (
-              <>
-                <DevResetButton />
-                <DevGeneratePollsButton />
-              </>
-            )}
             
             {currentPage === 'notifications' ? (
               <div className="main-content">
@@ -413,33 +360,15 @@ function AppContent() {
               <IonTabs>
               <IonRouterOutlet>
             <Route exact path="/home">
-              {isDesktop ? (
-                <DesktopHomePage
-                  polls={polls}
-                  user={user}
-                  onVote={handleVote}
-                  onLike={handleLike}
-                  loadPolls={loadPolls}
-                  loadMorePolls={loadMorePolls}
-                  loading={loading}
-                  loadingMore={loadingMore}
-                  hasMorePolls={hasMorePolls}
-                  totalPolls={totalPolls}
-                  currentPage={0}
-                  error={error}
-                  onNavigate={handleNavigate}
-                />
-              ) : (
-                <HomePage
-                  polls={polls}
-                  user={user}
-                  onVote={handleVote}
-                  onLike={handleLike}
-                  loadPolls={loadPolls}
-                  loading={loading}
-                  error={error}
-                />
-              )}
+              <HomePage
+                polls={polls}
+                user={user}
+                onVote={handleVote}
+                onLike={handleLike}
+                loadPolls={loadPolls}
+                loading={loading}
+                error={error}
+              />
             </Route>
             <Route exact path="/create">
               <CreatePage
@@ -493,7 +422,7 @@ function AppContent() {
               <IonIcon icon={person} />
               <IonLabel>Profile</IonLabel>
             </IonTabButton>
-            {user?.role === 'admin' && !isDesktop && (
+            {user?.role === 'admin' && (
               <IonTabButton 
                 tab="admin" 
                 href="/admin"

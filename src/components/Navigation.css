@@ -1,23 +1,6 @@
-/* Navigation Styles */
+/* Navigation Styles - Removed desktop sidebar (mobile/tablet only app) */
 .navigation {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 250px;
-  height: 100vh;
-  background: #ffffff;
-  border-right: 2px solid #000000;
-  display: none; /* Hidden by default, shown only on desktop */
-  flex-direction: column;
-  z-index: 1000;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-/* Show navigation sidebar on desktop */
-@media (min-width: 1025px) {
-  .navigation {
-    display: flex;
-  }
+  display: none; /* Navigation sidebar removed - using only Ionic tab bar */
 }
 
 .nav-brand {
@@ -106,12 +89,7 @@
   font-weight: 500;
 }
 
-/* Mobile: Hide sidebar navigation (use Ionic tab bar instead) */
-@media (max-width: 1024px) {
-  .navigation {
-    display: none !important;
-  }
-}
+/* Mobile/Tablet only - sidebar navigation removed */
 
 /* Development Reset Button */
 .dev-reset-button {
@@ -243,14 +221,5 @@
   }
 }
 
-/* On desktop with sidebar, adjust position to avoid sidebar */
-@media (min-width: 1025px) {
-  .dev-reset-button {
-    right: 20px;
-  }
-
-  .dev-generate-button {
-    right: 20px;
-  }
-}
+/* Mobile/Tablet only app - no desktop sidebar */
 

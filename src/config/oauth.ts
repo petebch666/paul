@@ -60,7 +60,7 @@ export const OAUTH_SETUP_INSTRUCTIONS = `
    - Add environment variable: VITE_APPLE_CLIENT_ID=your_service_id
 
 3. ENVIRONMENT VARIABLES:
-   Create a .env file in your project root:
+   Create a .supaenv file in your project root:
    VITE_GOOGLE_CLIENT_ID=your_google_client_id
    VITE_APPLE_CLIENT_ID=your_apple_service_id
 

@@ -15,7 +15,7 @@ export function resetAndPopulateDatabase() {
 }
 
 // Make available globally in development
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   try {
     (window as any).resetAndPopulateDatabase = resetAndPopulateDatabase
     console.log('💡 Run resetAndPopulateDatabase() to reset and create 50 polls')

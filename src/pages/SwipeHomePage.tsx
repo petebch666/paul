@@ -60,7 +60,7 @@ const SwipeHomePage: React.FC<SwipeHomePageProps> = ({
       const nextIndex = currentPollIndex + 1
       
       if (nextIndex < availablePolls.length && pollCards[nextIndex]) {
-        // For desktop, scroll to the next poll
+        // Scroll to the next poll
         await pollCards[nextIndex].scrollIntoView({ 
           behavior: 'smooth',
           block: 'start'

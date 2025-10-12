@@ -100,19 +100,25 @@ export function useAppState() {
   const loadUser = useCallback(async () => {
     try {
       if (authUser) {
+        console.log('📥 Loading user from API:', authUser.id, authUser.name)
         // Fetch latest user data from database
         const apiUser = await PollzAPI.getUserById(authUser.id)
         if (apiUser) {
+          console.log('✅ User loaded from API:', apiUser.name)
           setUser(apiUser)
         } else {
+          console.log('⚠️ User not found in DB, using auth user:', authUser.name)
           // If not found in DB, use auth user
           setUser(authUser)
         }
+      } else {
+        console.log('⚠️ No authUser available to load')
       }
     } catch (err) {
-      console.error('Error loading user:', err)
+      console.error('❌ Error loading user:', err)
       // Use auth user if API fails
       if (authUser) {
+        console.log('🔄 Using auth user as fallback:', authUser.name)
         setUser(authUser)
       }
     }
@@ -156,36 +162,56 @@ export function useAppState() {
     }
   }, [polls, loadPolls])
 
-  // Initialize database and data on mount (ONLY ONCE)
+  // Initialize database and data when authUser is available
   useEffect(() => {
     if (initialized) {
       console.log('⏭️ App already initialized, skipping')
       return
     }
 
+    if (!authUser) {
+      console.log('⏳ Waiting for authUser before initialization...')
+      return
+    }
+
     const init = async () => {
       try {
-        console.log('Initializing app...')
+        console.log('🚀 Initializing app...')
+        console.log('📍 Auth user available:', !!authUser, authUser?.name)
+        
         await initializeDatabase()
-        console.log('Database initialized')
-        await loadPolls(true) // Reset to page 0
-        console.log('Polls loaded')
+        console.log('✅ Database initialized')
+        
         await loadUser()
-        console.log('User loaded')
+        console.log('✅ User load called')
+        
+        await loadPolls(true) // Reset to page 0
+        console.log('✅ Polls loaded')
+        
         await loadNotifications()
-        console.log('Notifications loaded')
+        console.log('✅ Notifications loaded')
+        
         await loadPollHistory()
-        console.log('Poll history loaded')
+        console.log('✅ Poll history loaded')
+        
         setInitialized(true)
         console.log('✅ App initialization complete')
       } catch (error) {
-        console.error('Failed to initialize app:', error)
+        console.error('❌ Failed to initialize app:', error)
         setError('Failed to initialize application')
       }
     }
     
     init()
-  }, []) // Empty deps - run ONLY on mount
+  }, [authUser, initialized]) // Wait for authUser
+
+  // Sync user when authUser changes (after initial load)
+  useEffect(() => {
+    if (initialized && authUser && !user) {
+      console.log('🔄 Syncing user after auth change...')
+      loadUser()
+    }
+  }, [authUser, initialized, user, loadUser])
 
   // Set up timer interval for updating poll timers
   useEffect(() => {

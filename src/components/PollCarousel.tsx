@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { IonContent } from '@ionic/react'
+import React, { useState, useRef, useEffect } from 'react'
 import SwipePollCard from './SwipePollCard'
 import { Poll, User } from '../types'
 
@@ -8,7 +7,7 @@ interface PollCarouselProps {
   user: User | null
   onVote: (pollId: string, option: 'A' | 'B') => void | Promise<void>
   onLike: (pollId: string) => void
-  contentRef?: React.RefObject<HTMLIonContentElement>
+  contentRef?: React.RefObject<HTMLIonContentElement | null>
   onVoteComplete?: (pollId: string) => void
   className?: string
 }
@@ -24,97 +23,139 @@ const PollCarousel: React.FC<PollCarouselProps> = ({
 }) => {
   const [focusedPollIndex, setFocusedPollIndex] = useState<number>(0)
   const pollRefs = useRef<(HTMLDivElement | null)[]>([])
-  const localContentRef = useRef<HTMLIonContentElement>(null)
-  const activeContentRef = contentRef || localContentRef
+  const observerRef = useRef<IntersectionObserver | null>(null)
 
-  // Detect which poll is at the center of the screen
-  const updateFocusedPoll = useCallback(() => {
-    if (!activeContentRef.current) return
+  // Use Intersection Observer to detect which poll is in view
+  useEffect(() => {
+    // Don't set up observer if there are no polls
+    if (polls.length === 0) {
+      console.log('⚠️ No polls to observe')
+      return
+    }
 
-    const scrollElement = activeContentRef.current as any
-    scrollElement.getScrollElement().then((element: HTMLElement) => {
-      const scrollTop = element.scrollTop
-      const viewportHeight = element.clientHeight
-      const centerY = scrollTop + viewportHeight / 2
+    // Clean up previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect()
+    }
 
-      // Find which poll is closest to center
-      let closestIndex = 0
-      let closestDistance = Infinity
+    // Create new observer with more sensitive settings
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the entry with the highest intersection ratio (most visible)
+        let maxRatio = 0
+        let maxIndex = -1
 
-      pollRefs.current.forEach((pollEl, index) => {
-        if (!pollEl) return
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const ratio = entry.intersectionRatio
+            if (ratio > maxRatio) {
+              maxRatio = ratio
+              const index = pollRefs.current.findIndex(ref => ref === entry.target)
+              if (index !== -1) {
+                maxIndex = index
+              }
+            }
+          }
+        })
 
-        const rect = pollEl.getBoundingClientRect()
-        const pollTop = rect.top + scrollTop
-        const pollCenter = pollTop + rect.height / 2
-        const distance = Math.abs(pollCenter - centerY)
+        // Update focused index if we found a visible poll
+        if (maxIndex >= 0 && maxRatio > 0.1) {
+          setFocusedPollIndex(prevIndex => {
+            if (prevIndex !== maxIndex) {
+              console.log(`📍 Focus changed from ${prevIndex} to ${maxIndex} (ratio: ${maxRatio.toFixed(2)})`)
+              return maxIndex
+            }
+            return prevIndex
+          })
+        }
+      },
+      {
+        root: null, // Use viewport as root
+        threshold: Array.from({ length: 21 }, (_, i) => i * 0.05), // 0, 0.05, 0.1, ... 1.0 for very smooth detection
+        rootMargin: '-40% 0px -40% 0px' // Focus on center 20% of viewport - smaller zone = more sensitive
+      }
+    )
 
-        if (distance < closestDistance) {
-          closestDistance = distance
-          closestIndex = index
+    observerRef.current = observer
+
+    // Observe all poll elements - use requestAnimationFrame to ensure refs are set
+    requestAnimationFrame(() => {
+      const validRefs = pollRefs.current.filter(ref => ref !== null)
+      console.log(`🔄 Setting up Intersection Observer for ${validRefs.length} polls (total: ${polls.length})`)
+      
+      validRefs.forEach((pollEl) => {
+        if (pollEl && observer) {
+          observer.observe(pollEl)
         }
       })
 
-      if (closestIndex !== focusedPollIndex) {
-        setFocusedPollIndex(closestIndex)
+      if (validRefs.length === 0) {
+        console.warn('⚠️ No valid refs found! Retrying in 300ms...')
+        setTimeout(() => {
+          const retryRefs = pollRefs.current.filter(ref => ref !== null)
+          console.log(`🔄 Retry: Found ${retryRefs.length} refs`)
+          retryRefs.forEach((pollEl) => {
+            if (pollEl && observer) {
+              observer.observe(pollEl)
+            }
+          })
+          
+          // Final fallback - if still no refs, try one more time
+          if (retryRefs.length === 0) {
+            console.warn('⚠️ Still no refs! Final retry in 500ms...')
+            setTimeout(() => {
+              const finalRefs = pollRefs.current.filter(ref => ref !== null)
+              console.log(`🔄 Final retry: Found ${finalRefs.length} refs`)
+              finalRefs.forEach((pollEl) => {
+                if (pollEl && observer) {
+                  observer.observe(pollEl)
+                }
+              })
+            }, 500)
+          }
+        }, 300)
       }
     })
-  }, [focusedPollIndex, activeContentRef])
-
-  // Update focused poll on scroll
-  useEffect(() => {
-    const ionContent = activeContentRef.current
-    if (!ionContent) return
-
-    const handleScroll = () => {
-      updateFocusedPoll()
-    }
-
-    ionContent.addEventListener('ionScroll', handleScroll as any)
-
-    // Initial update
-    setTimeout(() => updateFocusedPoll(), 100)
 
     return () => {
-      ionContent.removeEventListener('ionScroll', handleScroll as any)
+      if (observer) {
+        observer.disconnect()
+      }
     }
-  }, [updateFocusedPoll, polls])
+  }, [polls.length]) // Only re-run when number of polls changes, not on every render
 
-  // Reset focused index when polls change
+  // Reset focused index when polls change (but don't clear refs - they're set by React render)
   useEffect(() => {
     setFocusedPollIndex(0)
-    pollRefs.current = []
   }, [polls.length])
 
   // Handle vote completion with animation
   const handleVoteCompleteInternal = (pollId: string) => {
     console.log(`📜 Vote completed for poll: ${pollId}`)
     
-    // Add slide-out animation to voted poll card
-    const votedPollCard = document.querySelector(`[data-poll-id="${pollId}"]`)
-    if (votedPollCard) {
-      votedPollCard.classList.add('poll-voted-animation')
-      
-      setTimeout(() => {
-        votedPollCard.classList.remove('poll-voted-animation')
-      }, 1000)
-    }
-    
     // Find the index of the voted poll
     const votedIndex = polls.findIndex(p => p.id === pollId)
-    if (votedIndex !== -1 && votedIndex < polls.length - 1) {
-      // Scroll to next poll after animation delay
-      setTimeout(() => {
-        const nextIndex = votedIndex + 1
-        const nextPollElement = document.querySelector(`[data-poll-index="${nextIndex}"]`)
-        if (nextPollElement) {
-          nextPollElement.scrollIntoView({ 
+    
+    // Wait for gauge animation to complete (300ms) + a bit for user to see results
+    setTimeout(() => {
+      console.log(`🎯 Auto-scrolling to next poll after vote`)
+      
+      if (votedIndex !== -1 && votedIndex < polls.length - 1) {
+        // Scroll to next poll wrapper element
+        const nextPollWrapper = pollRefs.current[votedIndex + 1]
+        if (nextPollWrapper) {
+          nextPollWrapper.scrollIntoView({ 
             behavior: 'smooth',
             block: 'center'
           })
+          console.log(`✅ Scrolled to poll ${votedIndex + 1}`)
+        } else {
+          console.warn(`⚠️ Could not find next poll wrapper`)
         }
-      }, 800) // Delay scroll to let gauge animation finish
-    }
+      } else {
+        console.log(`ℹ️ This was the last poll`)
+      }
+    }, 1200) // 300ms gauge animation + 900ms to see results
 
     // Call parent's onVoteComplete if provided
     if (onVoteComplete) {
@@ -129,10 +170,10 @@ const PollCarousel: React.FC<PollCarouselProps> = ({
         padding: '8px 16px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
-        scrollSnapType: 'y mandatory',
-        paddingTop: '20px',
-        paddingBottom: 'calc(50vh - 200px)'
+        gap: '20px',
+        paddingTop: 'max(20vh, 200px)',
+        paddingBottom: 'max(20vh, 200px)',
+        minHeight: '100vh'
       }}
     >
       {polls.map((poll, index) => {
@@ -146,15 +187,18 @@ const PollCarousel: React.FC<PollCarouselProps> = ({
             key={poll.id}
             ref={(el) => (pollRefs.current[index] = el)}
             data-poll-wrapper={index}
+            data-poll-id={poll.id}
             style={{
-              filter: isNearFocused ? 'blur(4px)' : (isFocused ? 'none' : 'blur(2px)'),
-              opacity: isFocused ? 1 : (isNearFocused ? 0.4 : 0.2),
-              transition: 'filter 0.4s ease, opacity 0.4s ease, transform 0.4s ease',
+              filter: isFocused ? 'none' : (isNearFocused ? 'blur(4px)' : 'blur(6px)'),
+              opacity: isFocused ? 1 : (isNearFocused ? 0.5 : 0.3),
+              transition: 'filter 0.3s ease, opacity 0.3s ease, transform 0.3s ease',
               pointerEvents: isFocused ? 'auto' : 'none',
               scrollSnapAlign: 'center',
               scrollSnapStop: 'always',
-              transform: isFocused ? 'scale(1)' : 'scale(0.95)',
-              transformOrigin: 'center'
+              transform: isFocused ? 'scale(1)' : 'scale(0.92)',
+              transformOrigin: 'center',
+              willChange: isFocused ? 'filter, opacity, transform' : 'auto', // Only apply to focused card to reduce memory
+              marginBottom: '8px'
             }}
           >
             <SwipePollCard
@@ -171,27 +215,6 @@ const PollCarousel: React.FC<PollCarouselProps> = ({
         )
       })}
 
-      <style>{`
-        /* Animation for poll cards when voted - slide out to the right */
-        .poll-voted-animation {
-          animation: voteSlideOut 0.8s ease-out forwards;
-        }
-
-        @keyframes voteSlideOut {
-          0% {
-            transform: translateX(0) scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: translateX(20px) scale(0.95);
-            opacity: 0.7;
-          }
-          100% {
-            transform: translateX(100vw) scale(0.8);
-            opacity: 0;
-          }
-        }
-      `}</style>
     </div>
   )
 }

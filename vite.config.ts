@@ -1,10 +1,20 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  plugins: [react()],
   test: {
     environment: 'node',
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
   },
+  server: {
+    port: 5173,
+    host: true
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true
+  }
 })

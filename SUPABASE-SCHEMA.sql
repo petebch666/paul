@@ -250,7 +250,7 @@ ON CONFLICT (email) DO NOTHING;
 -- ============================================
 -- ✅ Your database is ready!
 -- Next steps:
--- 1. Copy your Supabase URL and anon key to .env file
+-- 1. Copy your Supabase URL and anon key to .supaenv file
 -- 2. Run the migration script to import your localStorage data
 -- 3. Update your app to use Supabase instead of localStorage
 

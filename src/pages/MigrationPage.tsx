@@ -85,7 +85,7 @@ const MigrationPage: React.FC = () => {
                     Please follow these steps:
                   </p>
                   <ol style={{ fontSize: '14px', color: '#666', paddingLeft: '20px' }}>
-                    <li>Create a `.env` file in your project root</li>
+                    <li>Create a `.supaenv` file in your project root</li>
                     <li>Add your Supabase URL and anon key</li>
                     <li>Restart your dev server</li>
                     <li>See `SUPABASE-SETUP-INSTRUCTIONS.md` for details</li>
@@ -106,7 +106,7 @@ const MigrationPage: React.FC = () => {
                 <li>✅ Created a Supabase account at https://supabase.com</li>
                 <li>✅ Created a new project</li>
                 <li>✅ Run the SQL schema from `SUPABASE-SCHEMA.sql` in SQL Editor</li>
-                <li>✅ Added your credentials to `.env` file</li>
+                <li>✅ Added your credentials to `.supaenv` file</li>
                 <li>✅ Restarted your dev server</li>
               </ol>
             </IonCardContent>
@@ -174,7 +174,7 @@ const MigrationPage: React.FC = () => {
                     <div style={{ marginTop: '10px' }}>
                       <strong>Errors:</strong>
                       <ul style={{ fontSize: '12px', color: '#fff', marginTop: '5px' }}>
-                        {migrationResult.details.errors.slice(0, 5).map((error, i) => (
+                        {migrationResult.details.errors.slice(0, 5).map((error: string, i: number) => (
                           <li key={i}>{error}</li>
                         ))}
                       </ul>

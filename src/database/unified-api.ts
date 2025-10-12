@@ -5,7 +5,7 @@ import { isSupabaseConfigured } from './supabase'
 /**
  * Unified API that automatically switches between localStorage and Supabase
  * 
- * - If Supabase is configured (.env has valid credentials), uses Supabase
+ * - If Supabase is configured (.supaenv has valid credentials), uses Supabase
  * - Otherwise, falls back to localStorage
  * 
  * This allows seamless migration without changing code everywhere
@@ -118,8 +118,10 @@ export const UnifiedPollzAPI = {
   // Timer methods (localStorage only)
   updatePollTimer: LocalStorageAPI.updatePollTimer.bind(LocalStorageAPI),
 
-  // Development methods (localStorage only)
-  resetPollsForDevelopment: LocalStorageAPI.resetPollsForDevelopment.bind(LocalStorageAPI),
+  // Development methods - route to appropriate implementation
+  resetPollsForDevelopment: useSupabase
+    ? SupabasePollzAPI.resetPollsForDevelopment.bind(SupabasePollzAPI)
+    : LocalStorageAPI.resetPollsForDevelopment.bind(LocalStorageAPI),
   generate50AdditionalPolls: LocalStorageAPI.generate50AdditionalPolls.bind(LocalStorageAPI),
 }
 
