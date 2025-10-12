@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { User } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 import { oauthService, OAuthUser } from '../services/oauth'
 import { 
   hashPassword, 

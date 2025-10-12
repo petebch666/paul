@@ -1,8 +1,11 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Poll, User, CreatePollFormData, PollNotification, PollHistory } from '../types'
-import { PollzAPI } from '../database/api'
+import { UnifiedPollzAPI as PollzAPI, getAPIType } from '../database/unified-api'
 import { initializeDatabase } from '../database/simple-db'
 import { useAuth } from './useAuth'
+
+// Log which API is being used
+console.log(`🔄 useAppState using: ${getAPIType()}`)
 
 // Custom hook for managing app state
 export function useAppState() {
@@ -15,6 +18,7 @@ export function useAppState() {
   const [totalPolls, setTotalPolls] = useState<number>(0)
   const [notifications, setNotifications] = useState<PollNotification[]>([])
   const [pollHistory, setPollHistory] = useState<PollHistory[]>([])
+  const [initialized, setInitialized] = useState<boolean>(false)
   
   // Get authenticated user from useAuth hook
   const { user: authUser } = useAuth()
@@ -152,8 +156,13 @@ export function useAppState() {
     }
   }, [polls, loadPolls])
 
-  // Initialize database and data on mount
+  // Initialize database and data on mount (ONLY ONCE)
   useEffect(() => {
+    if (initialized) {
+      console.log('⏭️ App already initialized, skipping')
+      return
+    }
+
     const init = async () => {
       try {
         console.log('Initializing app...')
@@ -167,6 +176,8 @@ export function useAppState() {
         console.log('Notifications loaded')
         await loadPollHistory()
         console.log('Poll history loaded')
+        setInitialized(true)
+        console.log('✅ App initialization complete')
       } catch (error) {
         console.error('Failed to initialize app:', error)
         setError('Failed to initialize application')
@@ -174,7 +185,7 @@ export function useAppState() {
     }
     
     init()
-  }, [loadPolls, loadUser, loadNotifications, loadPollHistory])
+  }, []) // Empty deps - run ONLY on mount
 
   // Set up timer interval for updating poll timers
   useEffect(() => {

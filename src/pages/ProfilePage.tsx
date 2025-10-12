@@ -25,7 +25,7 @@ import {
   IonRefresher,
   IonRefresherContent
 } from '@ionic/react'
-import { medal, flag, trophy, star, add, people, chevronDownCircleOutline } from 'ionicons/icons'
+import { medal, flag, trophy, star, add, people, chevronDownCircleOutline, logOut } from 'ionicons/icons'
 import { User, Badge, Poll } from '../types'
 import PollCarousel from '../components/PollCarousel'
 import SecurityBadge from '../components/SecurityBadge'
@@ -316,7 +316,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                       marginTop: '12px'
                     }}
                   >
-                    <IonIcon icon="log-out-outline" style={{ marginRight: '8px' }} />
+                    <IonIcon icon={logOut} style={{ marginRight: '8px' }} />
                     LOGOUT
                   </IonButton>
                 )}

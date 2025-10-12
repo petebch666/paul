@@ -180,6 +180,7 @@ class SimpleDatabase {
   }
 
   private async getDefaultData(): Promise<DatabaseSchema> {
+    // Only create admin user - no more dummy data!
     const initialUsers: User[] = [
       {
         id: 'admin-1',
@@ -207,77 +208,18 @@ class SimpleDatabase {
         pollCount: 0,
         winRate: 0,
         joinDate: new Date()
-      },
-      {
-        id: 'user-1',
-        name: 'Alex Johnson',
-        username: '@alexjohnson',
-        email: 'alex@example.com',
-        role: 'user',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-        followers: 1247,
-        following: 89,
-        reputation: 2847,
-        badges: [
-          {
-            id: 'badge-1',
-            name: 'Master Debater',
-            description: 'Won 25+ debates',
-            icon: 'Crown',
-            category: 'debate',
-            rarity: 'legendary',
-            earnedAt: new Date('2024-01-15')
-          },
-          {
-            id: 'badge-2',
-            name: 'Poll Creator',
-            description: 'Created 50+ polls',
-            icon: 'Plus',
-            category: 'creation',
-            rarity: 'epic',
-            earnedAt: new Date('2024-02-01')
-          }
-        ],
-        pollCount: 52,
-        winRate: 0.73,
-        joinDate: new Date('2023-12-01')
-      },
-      {
-        id: 'user-2',
-        name: 'Sarah Chen',
-        username: '@sarahchen',
-        email: 'sarah@example.com',
-        avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-        followers: 892,
-        following: 234,
-        reputation: 1956,
-        badges: [
-          {
-            id: 'badge-5',
-            name: 'Evidence Master',
-            description: 'Submitted 30+ pieces of evidence',
-            icon: 'Target',
-            category: 'debate',
-            rarity: 'rare',
-            earnedAt: new Date('2024-01-20')
-          }
-        ],
-        pollCount: 23,
-        winRate: 0.68,
-        joinDate: new Date('2024-01-01'),
-        isFollowing: false
       }
     ]
 
-    // Generate 50 diverse polls
-    const initialPolls: Poll[] = generate50Polls()
+    // No more auto-generated polls! Start with empty database
+    const initialPolls: Poll[] = []
 
     return {
       users: initialUsers,
       polls: initialPolls,
       votes: [],
       categories: ['Food', 'Animals', 'Lifestyle', 'Technology', 'Social', 'Work', 'Entertainment', 'Sports'],
-      trendingPolls: [...initialPolls].sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0)),
+      trendingPolls: [],
       notifications: [],
       pollHistory: []
     }

@@ -14,7 +14,9 @@ import {
 import { chevronForward, refresh, list } from 'ionicons/icons'
 import PollCarousel from '../components/PollCarousel'
 import { Poll, User } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 
 interface SwipeHomePageProps {
   polls: Poll[]

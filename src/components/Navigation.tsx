@@ -1,22 +1,30 @@
 import React, { useState } from 'react'
-import { Home, Plus, User, RotateCcw } from 'lucide-react'
+import { Home, Plus, User, RotateCcw, Shield } from 'lucide-react'
 import '../components/Navigation.css'
-import PollzAPI from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
 
-type NavigationPage = 'home' | 'create' | 'profile'
+const PollzAPI = UnifiedPollzAPI
+
+type NavigationPage = 'home' | 'create' | 'profile' | 'admin'
 
 interface NavigationProps {
   currentPage: NavigationPage
   onNavigate: (page: NavigationPage) => void
   onReset?: () => void
+  userRole?: 'user' | 'admin'
 }
 
-const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate, onReset }) => {
-  const navItems = [
+const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate, onReset, userRole }) => {
+  const baseNavItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'create', label: 'Create', icon: Plus },
     { id: 'profile', label: 'Profile', icon: User }
   ] as const
+
+  // Add admin item if user is admin
+  const navItems = userRole === 'admin' 
+    ? [...baseNavItems, { id: 'admin' as const, label: 'Admin', icon: Shield }]
+    : baseNavItems
 
   return (
     <nav className="navigation">

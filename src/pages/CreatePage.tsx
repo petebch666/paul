@@ -24,7 +24,9 @@ import {
 } from '@ionic/react'
 import { chevronDownCircleOutline } from 'ionicons/icons'
 import { CreatePollFormData } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 
 interface CreatePageProps {
   onCreatePoll: (pollData: CreatePollFormData) => Promise<any>

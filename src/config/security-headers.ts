@@ -3,6 +3,10 @@
  * Defines Content Security Policy and other security headers
  */
 
+// Get Supabase URL from environment (if configured)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseDomain = supabaseUrl ? new URL(supabaseUrl).origin : ''
+
 export const SECURITY_HEADERS = {
   /**
    * Content Security Policy (CSP)
@@ -14,7 +18,7 @@ export const SECURITY_HEADERS = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://accounts.google.com https://appleid.apple.com",
+    `connect-src 'self' https://accounts.google.com https://appleid.apple.com ${supabaseDomain ? supabaseDomain : ''}`.trim(),
     "frame-src 'self' https://accounts.google.com https://appleid.apple.com",
     "object-src 'none'",
     "base-uri 'self'",
@@ -97,6 +101,9 @@ export function applySecurityHeaders() {
   }
 
   console.log('🔒 Security headers applied')
+  if (supabaseDomain) {
+    console.log('✅ Supabase domain allowed in CSP:', supabaseDomain)
+  }
 }
 
 /**
