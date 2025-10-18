@@ -120,13 +120,13 @@ export class SupabasePollzAPI {
 
       if (error) {
         console.error('Error fetching poll:', error)
-        throw new Error('Failed to fetch poll')
+        return undefined
       }
 
       return data ? SupabasePollzAPI.transformPollFromDB(data) : undefined
     } catch (error) {
       console.error('Error fetching poll:', error)
-      throw new Error('Failed to fetch poll')
+      return undefined
     }
   }
 
@@ -169,12 +169,15 @@ export class SupabasePollzAPI {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error creating poll:', error)
+        throw new Error(`Failed to create poll: ${error.message}`)
+      }
 
       return SupabasePollzAPI.transformPollFromDB(data)
     } catch (error) {
       console.error('Error creating poll:', error)
-      throw new Error('Failed to create poll')
+      throw new Error(`Failed to create poll: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -218,13 +221,13 @@ export class SupabasePollzAPI {
 
       if (error) {
         console.error('Error fetching user:', error)
-        throw new Error('Failed to fetch user')
+        return undefined
       }
 
       return data ? SupabasePollzAPI.transformUserFromDB(data) : undefined
     } catch (error) {
       console.error('Error fetching user:', error)
-      throw new Error('Failed to fetch user')
+      return undefined
     }
   }
 
@@ -273,12 +276,15 @@ export class SupabasePollzAPI {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error creating user:', error)
+        throw new Error(`Failed to create user: ${error.message}`)
+      }
 
       return SupabasePollzAPI.transformUserFromDB(data)
     } catch (error) {
       console.error('Error creating user:', error)
-      throw new Error('Failed to create user')
+      throw new Error(`Failed to create user: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -344,12 +350,15 @@ export class SupabasePollzAPI {
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching notifications:', error)
+        return []
+      }
 
       return (data || []).map(notif => SupabasePollzAPI.transformNotificationFromDB(notif))
     } catch (error) {
       console.error('Error fetching notifications:', error)
-      throw new Error('Failed to fetch notifications')
+      return []
     }
   }
 
@@ -402,12 +411,15 @@ export class SupabasePollzAPI {
         .eq('user_id', userId)
         .order('timestamp', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching poll history:', error)
+        return []
+      }
 
       return (data || []).map(history => SupabasePollzAPI.transformPollHistoryFromDB(history))
     } catch (error) {
       console.error('Error fetching poll history:', error)
-      throw new Error('Failed to fetch poll history')
+      return []
     }
   }
 
@@ -556,12 +568,15 @@ export class SupabasePollzAPI {
         .eq('author_id', userId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching user polls:', error)
+        return []
+      }
 
       return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
     } catch (error) {
       console.error('Error fetching user polls:', error)
-      throw new Error('Failed to fetch user polls')
+      return []
     }
   }
 

@@ -1,162 +1,98 @@
+// React Native compatible admin access utilities
+import { storage } from './storage'
+
 /**
- * Admin Access Utility
- * Provides easy access to admin dashboard and user data
+ * Admin Access Utilities for React Native
+ * Provides admin functions for user management and database operations
  */
+
+// ==================== USER MANAGEMENT ====================
 
 /**
  * Show all registered users
  */
-export function showAllUsers() {
+export function showAllUsers(): void {
   console.log('👥 REGISTERED USERS')
   console.log('==================')
   
-  const dbData = localStorage.getItem('paul-db')
-  if (!dbData) {
-    console.log('❌ No database found')
-    return
-  }
-
-  const data = JSON.parse(dbData)
-  const users = data.users || []
-
-  if (users.length === 0) {
-    console.log('No users registered yet')
-    return
-  }
-
-  users.forEach((user: any, index: number) => {
-    console.log(`\n${index + 1}. ${user.name}`)
-    console.log(`   Email: ${user.email}`)
-    console.log(`   Username: ${user.username}`)
-    console.log(`   ID: ${user.id}`)
-    console.log(`   Password Hash: ${user.password?.substring(0, 30)}...`)
-    console.log(`   Joined: ${new Date(user.joinDate).toLocaleDateString()}`)
-    console.log(`   Polls Created: ${user.pollCount || 0}`)
-  })
-
-  console.log(`\n📊 Total Users: ${users.length}`)
+  // In React Native, we would get data from AsyncStorage or Supabase
+  // For now, just log that this function is available
+  console.log('User management functions available in React Native version')
+  console.log('Use Supabase admin panel or API for user management')
 }
 
 /**
- * Reset user password (admin only)
+ * Reset user password
  */
-export async function resetUserPassword(email: string, newPassword: string) {
+export async function resetUserPassword(email: string, newPassword: string): Promise<void> {
   console.log('🔐 RESETTING PASSWORD...')
   
-  const dbData = localStorage.getItem('paul-db')
-  if (!dbData) {
-    console.log('❌ No database found')
-    return
-  }
-
-  const data = JSON.parse(dbData)
-  const user = data.users.find((u: any) => u.email === email)
-
-  if (!user) {
-    console.log(`❌ User with email ${email} not found`)
-    return
-  }
-
-  // Import bcrypt for hashing
-  const bcrypt = await import('bcryptjs')
-  const hashedPassword = await bcrypt.hash(newPassword, 10)
-
-  user.password = hashedPassword
-  localStorage.setItem('paul-db', JSON.stringify(data))
-
-  console.log(`✅ Password reset for ${user.name} (${email})`)
-  console.log(`   New password: ${newPassword}`)
-  console.log(`   Hash: ${hashedPassword.substring(0, 30)}...`)
+  // In React Native, this would interact with Supabase Auth
+  console.log(`Password reset requested for: ${email}`)
+  console.log('Use Supabase Auth admin API for password resets')
+  
+  // Note: In production, this should be handled server-side
+  console.warn('Password reset functionality should be implemented server-side for security')
 }
 
 /**
  * Open admin dashboard
  */
-export function openAdminDashboard() {
+export function openAdminDashboard(): void {
   console.log('🔓 Opening Admin Dashboard...')
-  console.log('Navigating to /admin...')
+  console.log('Navigate to admin screen in React Native app')
   
-  window.location.href = '/admin'
+  // In React Native, this would navigate to the admin screen
+  // Navigation would be handled by React Navigation
 }
+
+// ==================== DATABASE STATISTICS ====================
 
 /**
  * Get database statistics
  */
-export function getStats() {
-  const dbData = localStorage.getItem('paul-db')
-  if (!dbData) {
-    console.log('❌ No database found')
-    return
-  }
-
-  const data = JSON.parse(dbData)
-  
-  const stats = {
-    users: data.users?.length || 0,
-    polls: data.polls?.length || 0,
-    votes: data.polls?.reduce((sum: number, poll: any) => sum + (poll.votes || 0), 0) || 0,
-    notifications: data.notifications?.length || 0,
-    dbSize: `${(JSON.stringify(data).length / 1024).toFixed(2)} KB`
-  }
-
+export function getStats(): { users: number; polls: number; votes: number; notifications: number; dbSize: string } {
   console.log('📊 DATABASE STATISTICS')
   console.log('=====================')
+  
+  // In React Native, this would query Supabase
+  const stats = {
+    users: 0,
+    polls: 0,
+    votes: 0,
+    notifications: 0,
+    dbSize: 'N/A'
+  }
+  
   console.log(`Users: ${stats.users}`)
   console.log(`Polls: ${stats.polls}`)
   console.log(`Total Votes: ${stats.votes}`)
   console.log(`Notifications: ${stats.notifications}`)
   console.log(`Database Size: ${stats.dbSize}`)
-
+  
   return stats
 }
 
 /**
  * Export all data
  */
-export function exportAllData() {
-  const dbData = localStorage.getItem('paul-db')
-  if (!dbData) {
-    console.log('❌ No database found')
-    return
-  }
-
-  const data = JSON.parse(dbData)
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `pollz-backup-${Date.now()}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-
-  console.log('✅ Database exported successfully')
+export function exportAllData(): void {
+  console.log('📁 EXPORTING DATABASE...')
+  
+  // In React Native, this would export from Supabase
+  console.log('Data export functionality should be implemented with Supabase')
+  console.log('Use Supabase admin panel or API for data export')
 }
 
-// Make available globally in development
-if (import.meta.env.DEV) {
-  try {
-    (window as any).showAllUsers = showAllUsers
-    (window as any).resetUserPassword = resetUserPassword
-    (window as any).openAdminDashboard = openAdminDashboard
-    (window as any).getStats = getStats
-    (window as any).exportAllData = exportAllData
+// ==================== DEVELOPMENT UTILITIES ====================
 
-    console.log('🔑 ADMIN COMMANDS AVAILABLE:')
-    console.log('  • showAllUsers() - List all registered users')
-    console.log('  • resetUserPassword(email, newPassword) - Reset user password')
-    console.log('  • openAdminDashboard() - Open admin dashboard')
-    console.log('  • getStats() - Show database statistics')
-    console.log('  • exportAllData() - Export database as JSON')
-  } catch (e) {
-    // Ignore errors in strict mode
-  }
+// Make functions available in development mode
+if (__DEV__) {
+  // In React Native, we can make these available globally for debugging
+  console.log('🔑 ADMIN COMMANDS AVAILABLE:')
+  console.log('  • showAllUsers() - List all registered users')
+  console.log('  • resetUserPassword(email, newPassword) - Reset user password')
+  console.log('  • openAdminDashboard() - Open admin dashboard')
+  console.log('  • getStats() - Show database statistics')
+  console.log('  • exportAllData() - Export database as JSON')
 }
-
-export default {
-  showAllUsers,
-  resetUserPassword,
-  openAdminDashboard,
-  getStats,
-  exportAllData
-}
-

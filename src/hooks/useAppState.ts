@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Poll, User, CreatePollFormData, PollNotification, PollHistory } from '../types'
 import { UnifiedPollzAPI as PollzAPI, getAPIType } from '../database/unified-api'
 import { initializeDatabase } from '../database/simple-db'
@@ -245,14 +245,7 @@ export function useAppState() {
     // Clear any previous errors
     setError(null)
     
-    // Add visual feedback
-    const pollCard = document.querySelector(`[data-poll-id="${pollId}"]`)
-    if (pollCard) {
-      pollCard.classList.add('success-animation')
-      setTimeout(() => {
-        pollCard.classList.remove('success-animation')
-      }, 600)
-    }
+    // Note: Visual feedback will be handled by React Native components
 
     try {
       // First call API to persist the vote
@@ -282,14 +275,7 @@ export function useAppState() {
   }, [user, loadPolls])
 
   const handleLike = useCallback((pollId: string) => {
-    // Add visual feedback
-    const pollCard = document.querySelector(`[data-poll-id="${pollId}"]`)
-    if (pollCard) {
-      pollCard.classList.add('success-animation')
-      setTimeout(() => {
-        pollCard.classList.remove('success-animation')
-      }, 600)
-    }
+    // Note: Visual feedback will be handled by React Native components
 
     setPolls(prev => prev.map(poll => 
       poll.id === pollId 

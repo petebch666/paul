@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { User } from '../types'
 import UnifiedPollzAPI from '../database/unified-api'
+import { storage } from '../utils/storage'
 
 const PollzAPI = UnifiedPollzAPI
-import { oauthService, OAuthUser } from '../services/oauth'
 import { 
   hashPassword, 
   comparePassword, 
@@ -46,8 +46,8 @@ export function useAuth() {
       try {
         setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
         
-        // Check if user is stored in localStorage
-        const storedUser = localStorage.getItem('paul-user')
+        // Check if user is stored in AsyncStorage
+        const storedUser = await storage.getItem('paul-user')
         console.log('📦 Stored user:', storedUser ? 'Found' : 'Not found')
         
         if (storedUser) {
@@ -71,12 +71,12 @@ export function useAuth() {
               return
             } else {
               // User no longer exists in database, clear storage
-              localStorage.removeItem('paul-user')
+              await storage.removeItem('paul-user')
               console.log('⚠️ User not found in database, cleared storage')
             }
           } catch (error) {
             console.error('❌ Error parsing stored user:', error)
-            localStorage.removeItem('paul-user')
+            await storage.removeItem('paul-user')
           }
         }
 
@@ -167,12 +167,12 @@ export function useAuth() {
       // Remove password from user object before storing
       const { password: _, ...userWithoutPassword } = user
       
-      console.log('💾 Storing user in localStorage...')
-      // Store user in localStorage
-      localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
+      console.log('💾 Storing user in AsyncStorage...')
+      // Store user in AsyncStorage
+      await storage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
       // Verify storage
-      const stored = localStorage.getItem('paul-user')
+      const stored = await storage.getItem('paul-user')
       console.log('✅ User stored:', stored ? 'Success' : 'Failed')
       
       console.log('🔐 Setting auth state...')
@@ -272,12 +272,12 @@ export function useAuth() {
       // Remove password from user object before storing
       const { password, ...userWithoutPassword } = newUser
       
-      console.log('💾 Storing new user in localStorage...')
-      // Store user in localStorage
-      localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
+      console.log('💾 Storing new user in AsyncStorage...')
+      // Store user in AsyncStorage
+      await storage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
       // Verify storage
-      const stored = localStorage.getItem('paul-user')
+      const stored = await storage.getItem('paul-user')
       console.log('✅ User stored:', stored ? 'Success' : 'Failed')
       
       console.log('🔐 Setting auth state for new user...')
@@ -310,9 +310,9 @@ export function useAuth() {
     }
   }, [])
 
-  const logout = useCallback(() => {
-    // Clear user from localStorage
-    localStorage.removeItem('paul-user')
+  const logout = useCallback(async () => {
+    // Clear user from AsyncStorage
+    await storage.removeItem('paul-user')
     
     setAuthState({
       user: null,
@@ -324,9 +324,9 @@ export function useAuth() {
     console.log('✅ User logged out')
   }, [])
 
-  const updateUser = useCallback((updatedUser: User) => {
-    // Update user in localStorage
-    localStorage.setItem('paul-user', JSON.stringify(updatedUser))
+  const updateUser = useCallback(async (updatedUser: User) => {
+    // Update user in AsyncStorage
+    await storage.setItem('paul-user', JSON.stringify(updatedUser))
     
     setAuthState(prev => ({
       ...prev,
@@ -372,8 +372,8 @@ export function useAuth() {
       // Remove password from user object before storing
       const { password: _, ...userWithoutPassword } = user
       
-      // Store user in localStorage
-      localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
+      // Store user in AsyncStorage
+      await storage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
       setAuthState({
         user: userWithoutPassword,
@@ -432,8 +432,8 @@ export function useAuth() {
       // Remove password from user object before storing
       const { password: _, ...userWithoutPassword } = user
       
-      // Store user in localStorage
-      localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
+      // Store user in AsyncStorage
+      await storage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
       setAuthState({
         user: userWithoutPassword,
