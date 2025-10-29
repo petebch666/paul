@@ -10,6 +10,7 @@ export interface Poll {
   timeLeft: string
   author: string
   authorId: string
+  authorUsername?: string  // Username of poll creator
   isVoted: boolean
   isLiked: boolean
   createdAt: Date
@@ -38,6 +39,14 @@ export interface Poll {
   }
   // Smart Features
   trendingScore?: number
+  // Deathmatch Features
+  isDeathmatch: boolean
+  isShadowDeathmatch?: boolean  // Hide usernames until poll expires
+  optionAOwnerId?: string
+  optionAOwner?: User  // Populated when fetching poll
+  optionBOwnerId?: string
+  optionBOwner?: User  // Populated when fetching poll
+  deathmatchStatus?: 'pending' | 'accepted' | 'rejected'  // Pending until user B accepts
 }
 
 export interface Evidence {
@@ -160,13 +169,18 @@ export interface CreatePollFormData {
   timerEnabled: boolean
   timerDuration?: number // in minutes
   notificationEnabled: boolean
+  // Deathmatch Options
+  isDeathmatch: boolean
+  isShadowDeathmatch?: boolean  // Hide usernames until poll expires
+  optionAUserId?: string  // User to assign to Option A
+  optionBUserId?: string  // User to assign to Option B
 }
 
 export interface PollNotification {
   id: string
   pollId: string
   userId: string
-  type: 'poll_expired' | 'poll_created' | 'poll_trending'
+  type: 'poll_expired' | 'poll_created' | 'poll_trending' | 'deathmatch_created' | 'deathmatch_awaiting_acceptance' | 'deathmatch_accepted' | 'deathmatch_100_votes' | 'deathmatch_surpassed'
   message: string
   isRead: boolean
   createdAt: Date

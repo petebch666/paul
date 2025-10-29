@@ -49,6 +49,14 @@ export const UnifiedPollzAPI = {
     ? SupabasePollzAPI.voteOnPoll.bind(SupabasePollzAPI)
     : LocalStorageAPI.voteOnPoll.bind(LocalStorageAPI),
 
+  acceptDeathmatchPoll: useSupabase
+    ? SupabasePollzAPI.acceptDeathmatchPoll.bind(SupabasePollzAPI)
+    : async () => { throw new Error('Not implemented for localStorage') },
+
+  rejectDeathmatchPoll: useSupabase
+    ? SupabasePollzAPI.rejectDeathmatchPoll.bind(SupabasePollzAPI)
+    : async () => { throw new Error('Not implemented for localStorage') },
+
   // User operations
   getUserById: useSupabase
     ? SupabasePollzAPI.getUserById.bind(SupabasePollzAPI)
@@ -61,6 +69,14 @@ export const UnifiedPollzAPI = {
   createUser: useSupabase
     ? SupabasePollzAPI.createUser.bind(SupabasePollzAPI)
     : LocalStorageAPI.createUser.bind(LocalStorageAPI),
+
+  searchUsers: useSupabase
+    ? SupabasePollzAPI.searchUsers.bind(SupabasePollzAPI)
+    : async () => [], // localStorage fallback (empty for now)
+
+  getAllUsers: useSupabase
+    ? SupabasePollzAPI.getAllUsers.bind(SupabasePollzAPI)
+    : async () => [], // localStorage fallback (empty for now)
 
   // Trending operations
   getTrendingPolls: useSupabase

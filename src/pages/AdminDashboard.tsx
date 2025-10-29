@@ -38,6 +38,7 @@ import {
 } from 'ionicons/icons'
 import { SupabasePollzAPI } from '../database/supabase-api'
 import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../database/supabase'
 import './AdminDashboard.css'
 
 const AdminDashboard: React.FC = () => {
@@ -58,6 +59,12 @@ const AdminDashboard: React.FC = () => {
     categoriesCount: 0,
     recentUsers: 0 // Users joined in last 7 days
   })
+
+  // User and Poll Management State
+  const [users, setUsers] = useState<any[]>([])
+  const [allPolls, setAllPolls] = useState<any[]>([])
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [selectedPoll, setSelectedPoll] = useState<any>(null)
 
   // Check if user is admin
   const isAdmin = user?.role === 'admin'
@@ -124,39 +131,287 @@ const AdminDashboard: React.FC = () => {
   }
 
 
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (error) {
+        console.error('Error loading users:', error)
+        return
+      }
+
+      setUsers(data || [])
+      
+      // Update stats
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      const recentUsers = data?.filter(user => new Date(user.created_at) >= sevenDaysAgo).length || 0
+      
+      setStats(prev => ({
+        ...prev,
+        totalUsers: data?.length || 0,
+        recentUsers
+      }))
+    } catch (error) {
+      console.error('Error loading users:', error)
+    }
+  }
+
+  const loadPollsForManagement = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('polls')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (error) {
+        console.error('Error loading polls:', error)
+        return
+      }
+
+      setAllPolls(data || [])
+    } catch (error) {
+      console.error('Error loading polls:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'users' && users.length === 0) {
+      loadUsers()
+    }
+    if (activeTab === 'polls' && allPolls.length === 0) {
+      loadPollsForManagement()
+    }
+  }, [activeTab])
+
   const renderUsersTab = () => (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{
-        textAlign: 'center',
-        padding: '60px 20px',
-        fontFamily: 'Courier New, monospace'
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px'
       }}>
-        <IonIcon icon={people} style={{ fontSize: '64px', color: '#667eea', marginBottom: '16px' }} />
-        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
-          Users Management
-        </h3>
-        <p style={{ fontSize: '14px', color: '#666' }}>
-          User management features coming soon
-        </p>
+        <h2 style={{
+          fontFamily: 'Courier New, monospace',
+          fontSize: '24px',
+          fontWeight: '700',
+          letterSpacing: '2px',
+          margin: 0,
+          background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent'
+        }}>
+          USERS MANAGEMENT
+        </h2>
+        <IonBadge color="primary" style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '1px', padding: '8px 12px' }}>
+          {users.length} Users
+        </IonBadge>
       </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+          <IonSpinner name="crescent" />
+        </div>
+      ) : users.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          fontFamily: 'Courier New, monospace'
+        }}>
+          <IonIcon icon={people} style={{ fontSize: '64px', color: '#ccc', marginBottom: '16px' }} />
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px', color: '#666' }}>
+            No Users Found
+          </h3>
+          <p style={{ fontSize: '14px', color: '#999' }}>
+            No users in the database yet
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: '16px' }}>
+          {users.map((user: any) => (
+            <div
+              key={user.id}
+              style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '20px',
+                border: '1px solid #e9ecef',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)'
+              }}
+              onClick={() => setSelectedUser(user)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <img
+                  src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`}
+                  alt={user.name}
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    border: '2px solid #e9ecef'
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    marginBottom: '4px'
+                  }}>
+                    {user.name}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>
+                    {user.username} • {user.email}
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999' }}>
+                    <span>📊 {user.poll_count || 0} polls</span>
+                    <span>👥 {user.followers || 0} followers</span>
+                    <span>⭐ {user.reputation || 0} rep</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  {user.role === 'admin' && (
+                    <IonBadge color="danger" style={{ fontSize: '10px', marginBottom: '8px' }}>
+                      ADMIN
+                    </IonBadge>
+                  )}
+                  <div style={{ fontSize: '11px', color: '#999' }}>
+                    {user.join_date ? new Date(user.join_date).toLocaleDateString() : 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 
   const renderPollsTab = () => (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{
-        textAlign: 'center',
-        padding: '60px 20px',
-        fontFamily: 'Courier New, monospace'
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px'
       }}>
-        <IonIcon icon={clipboard} style={{ fontSize: '64px', color: '#4facfe', marginBottom: '16px' }} />
-        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
-          Polls Management
-        </h3>
-        <p style={{ fontSize: '14px', color: '#666' }}>
-          Poll management features coming soon
-        </p>
+        <h2 style={{
+          fontFamily: 'Courier New, monospace',
+          fontSize: '24px',
+          fontWeight: '700',
+          letterSpacing: '2px',
+          margin: 0,
+          background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent'
+        }}>
+          POLLS MANAGEMENT
+        </h2>
+        <IonBadge color="primary" style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '1px', padding: '8px 12px' }}>
+          {allPolls.length} Polls
+        </IonBadge>
       </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+          <IonSpinner name="crescent" />
+        </div>
+      ) : allPolls.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          fontFamily: 'Courier New, monospace'
+        }}>
+          <IonIcon icon={clipboard} style={{ fontSize: '64px', color: '#ccc', marginBottom: '16px' }} />
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px', color: '#666' }}>
+            No Polls Found
+          </h3>
+          <p style={{ fontSize: '14px', color: '#999' }}>
+            No polls in the database yet
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: '16px' }}>
+          {allPolls.map((poll: any) => (
+            <div
+              key={poll.id}
+              style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '20px',
+                border: '1px solid #e9ecef',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)'
+              }}
+              onClick={() => setSelectedPoll(poll)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    marginBottom: '8px'
+                  }}>
+                    {poll.title}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
+                    {poll.description || 'No description'}
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999', marginBottom: '8px' }}>
+                    <span>📊 {poll.votes || 0} votes</span>
+                    <span>🗳️ A: {poll.votes_option_a || 0} B: {poll.votes_option_b || 0}</span>
+                    <span>🔖 {poll.category}</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#999' }}>
+                    by {poll.author_name} • {new Date(poll.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                  {poll.is_expired && (
+                    <IonBadge color="warning" style={{ fontSize: '10px' }}>
+                      EXPIRED
+                    </IonBadge>
+                  )}
+                  {!poll.is_expired && (
+                    <IonBadge color="success" style={{ fontSize: '10px' }}>
+                      ACTIVE
+                    </IonBadge>
+                  )}
+                  <div style={{ fontSize: '11px', color: '#999' }}>
+                    {Math.round(((poll.votes_option_a + poll.votes_option_b) / Math.max(poll.votes, 1)) * 100)}% engaged
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 

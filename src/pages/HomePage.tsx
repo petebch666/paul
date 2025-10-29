@@ -17,10 +17,11 @@ import {
   IonSelect,
   IonSelectOption
 } from '@ionic/react'
-import { chevronDownCircleOutline, flame, star, checkmark, time, checkmarkCircle } from 'ionicons/icons'
+import { chevronDownCircleOutline, time } from 'ionicons/icons'
 import PollCarousel from '../components/PollCarousel'
-import CategoryIcon from '../components/CategoryIcon'
+import PixelIcon from '../components/PixelIcon'
 import { Poll, User } from '../types'
+import './HomePage.css'
 
 interface HomePageProps {
   polls: Poll[]
@@ -258,187 +259,44 @@ const HomePage: React.FC<HomePageProps> = ({
           />
         </IonRefresher>
 
-        {/* Section Selector - Poll Status */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          padding: '16px 16px 12px',
-          gap: '24px',
-          background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
-          borderBottom: '1px solid #e9ecef'
-        }}>
+        {/* Section Selector - Poll Status (Minimalist) */}
+        <div className="ribbon-container poll-status-ribbon">
           <button
             onClick={() => setActiveSection('last')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '12px 16px',
-              border: 'none',
-              background: activeSection === 'last' ? '#ffffff' : 'transparent',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              transform: activeSection === 'last' ? 'scale(1.05)' : 'scale(1)',
-              minWidth: '70px',
-              boxShadow: activeSection === 'last' ? '0 2px 8px rgba(102, 126, 234, 0.15)' : 'none'
-            }}
+            className={`ribbon-item ${activeSection === 'last' ? 'active' : ''}`}
           >
-            <IonIcon 
-              icon={star} 
-              style={{ 
-                fontSize: '28px', 
-                marginBottom: '6px',
-                color: '#667eea',
-                animation: activeSection === 'last' ? 'pulse 2s infinite' : 'none'
-              }} 
-            />
-            <span style={{ 
-              fontSize: '11px', 
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              color: activeSection === 'last' ? '#667eea' : '#666666'
-            }}>
-              Last ({pollCounts.last})
-            </span>
+            <PixelIcon type="last" size={20} active={activeSection === 'last'} />
+            <span className="ribbon-label">LAST</span>
+            <span className="ribbon-count">{pollCounts.last}</span>
           </button>
-
           <button
             onClick={() => setActiveSection('trending')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '12px 16px',
-              border: 'none',
-              background: activeSection === 'trending' ? '#ffffff' : 'transparent',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              transform: activeSection === 'trending' ? 'scale(1.05)' : 'scale(1)',
-              minWidth: '70px',
-              boxShadow: activeSection === 'trending' ? '0 2px 8px rgba(255, 107, 107, 0.15)' : 'none'
-            }}
+            className={`ribbon-item ${activeSection === 'trending' ? 'active' : ''}`}
           >
-            <IonIcon 
-              icon={flame} 
-              style={{ 
-                fontSize: '28px', 
-                marginBottom: '6px',
-                color: '#ff6b6b',
-                animation: activeSection === 'trending' ? 'flicker 1.5s infinite' : 'none'
-              }} 
-            />
-            <span style={{ 
-              fontSize: '11px', 
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              color: activeSection === 'trending' ? '#ff6b6b' : '#666666'
-            }}>
-              Trending ({pollCounts.trending})
-            </span>
+            <PixelIcon type="trending" size={20} active={activeSection === 'trending'} />
+            <span className="ribbon-label">TRENDING</span>
+            <span className="ribbon-count">{pollCounts.trending}</span>
           </button>
-
           <button
             onClick={() => setActiveSection('voted')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '12px 16px',
-              border: 'none',
-              background: activeSection === 'voted' ? '#ffffff' : 'transparent',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              transform: activeSection === 'voted' ? 'scale(1.05)' : 'scale(1)',
-              minWidth: '70px',
-              boxShadow: activeSection === 'voted' ? '0 2px 8px rgba(95, 39, 205, 0.15)' : 'none'
-            }}
+            className={`ribbon-item ${activeSection === 'voted' ? 'active' : ''}`}
           >
-            <IonIcon 
-              icon={checkmarkCircle} 
-              style={{ 
-                fontSize: '28px', 
-                marginBottom: '6px',
-                color: '#5f27cd',
-                animation: activeSection === 'voted' ? 'pulse 2s infinite' : 'none'
-              }} 
-            />
-            <span style={{ 
-              fontSize: '11px', 
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              color: activeSection === 'voted' ? '#5f27cd' : '#666666'
-            }}>
-              My Votes ({pollCounts.voted})
-            </span>
+            <PixelIcon type="voted" size={20} active={activeSection === 'voted'} />
+            <span className="ribbon-label">MY VOTES</span>
+            <span className="ribbon-count">{pollCounts.voted}</span>
           </button>
-
           <button
             onClick={() => setActiveSection('expired')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '12px 16px',
-              border: 'none',
-              background: activeSection === 'expired' ? '#ffffff' : 'transparent',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              transform: activeSection === 'expired' ? 'scale(1.05)' : 'scale(1)',
-              minWidth: '70px',
-              boxShadow: activeSection === 'expired' ? '0 2px 8px rgba(46, 213, 115, 0.15)' : 'none'
-            }}
+            className={`ribbon-item ${activeSection === 'expired' ? 'active' : ''}`}
           >
-            <IonIcon 
-              icon={checkmark} 
-              style={{ 
-                fontSize: '28px', 
-                marginBottom: '6px',
-                color: '#2ed573',
-                animation: activeSection === 'expired' ? 'bounce 2s infinite' : 'none'
-              }} 
-            />
-            <span style={{ 
-              fontSize: '11px', 
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              color: activeSection === 'expired' ? '#2ed573' : '#666666'
-            }}>
-              Expired ({pollCounts.expired})
-            </span>
+            <PixelIcon type="expired" size={20} active={activeSection === 'expired'} />
+            <span className="ribbon-label">EXPIRED</span>
+            <span className="ribbon-count">{pollCounts.expired}</span>
           </button>
         </div>
 
         {/* Visual Separator */}
-        <div style={{
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent 0%, #dee2e6 50%, transparent 100%)',
-          margin: '0 20px'
-        }}></div>
-
-        {/* Category Section Label */}
-        <div style={{
-          padding: '16px 16px 8px',
-          textAlign: 'center'
-        }}>
-          <span style={{
-            fontSize: '12px',
-            fontWeight: '600',
-            color: '#6c757d',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            fontFamily: 'Courier New, monospace'
-          }}>
-            Filter by Category
-          </span>
-        </div>
+        <div className="ribbon-separator"></div>
 
         <style>{`
           @keyframes pulse {
@@ -475,64 +333,15 @@ const HomePage: React.FC<HomePageProps> = ({
           }
         `}</style>
 
-        {/* Category Filters - Single Row */}
-        <div style={{ 
-          padding: '8px 16px 12px',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '8px',
-          maxWidth: '600px',
-          margin: '0 auto',
-          background: '#ffffff',
-          overflowX: 'auto',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
-        }}>
-          {/* Individual category filters */}
+        {/* Category Filters - Minimalist */}
+        <div className="ribbon-container category-ribbon">
           {categories.filter(c => c !== 'all').map(category => (
             <button
               key={category}
               onClick={() => setCategoryFilter(categoryFilter === category ? '' : category)}
-            style={{
-              background: categoryFilter === category ? '#000000' : '#ffffff',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '12px 8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              boxShadow: categoryFilter === category ? '4px 4px 0 #000000' : 'none',
-              transform: categoryFilter === category ? 'translate(-2px, -2px)' : 'none',
-              minWidth: '60px',
-              flexShrink: 0
-            }}
+              className={`ribbon-item category-item ${categoryFilter === category ? 'active' : ''}`}
             >
-              <div style={{
-                filter: categoryFilter === category ? 'brightness(3) saturate(0) invert(1)' : 'none',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <CategoryIcon category={category} size={36} />
-              </div>
-              <span style={{
-                fontFamily: 'Courier New, monospace',
-                fontSize: '8px',
-                fontWeight: '700',
-                color: categoryFilter === category ? '#ffffff' : '#666666',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                maxWidth: '100%'
-              }}>
-                {category.substring(0, 7)}
-              </span>
+              <span className="ribbon-label">{category}</span>
             </button>
           ))}
         </div>

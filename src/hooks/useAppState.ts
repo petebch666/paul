@@ -316,11 +316,12 @@ export function useAppState() {
         title: pollData.title,
         description: pollData.description,
         category: pollData.category,
-        timeLeft: pollData.timerEnabled 
+        timeLeft: pollData.timerEnabled
           ? `${pollData.timerDuration} hours left`
           : 'No time limit',
         authorId: user.id,
         author: user.name,
+        authorUsername: user.username, // Include username
         context: pollData.context,
         arguments: {
           optionA: pollData.optionA,
@@ -332,7 +333,12 @@ export function useAppState() {
         timerDuration: pollData.timerDuration,
         timerEnabled: pollData.timerEnabled,
         notificationEnabled: pollData.notificationEnabled,
-        isExpired: false
+        isExpired: false,
+        // Deathmatch features
+        isDeathmatch: pollData.isDeathmatch || false,
+        isShadowDeathmatch: pollData.isShadowDeathmatch || false,
+        optionAUserId: pollData.optionAUserId,
+        optionBUserId: pollData.optionBUserId
       })
 
       // Add poll history entry

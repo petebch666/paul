@@ -19,7 +19,19 @@ export class SupabasePollzAPI {
 
       if (error) throw error
 
-      return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
+      const polls = (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
+      
+      // Load author usernames for polls that don't have them stored (backward compatibility)
+      for (const poll of polls) {
+        if (!poll.authorUsername && poll.authorId) {
+          const author = await SupabasePollzAPI.getUserById(poll.authorId)
+          if (author) {
+            poll.authorUsername = author.username
+          }
+        }
+      }
+
+      return polls
     } catch (error) {
       console.error('Error fetching polls:', error)
       throw new Error('Failed to fetch polls')
@@ -28,8 +40,8 @@ export class SupabasePollzAPI {
 
   static async getPollsWithVoteStatus(userId: string): Promise<Poll[]> {
     try {
-      // Get all polls
-      const { data: polls, error: pollsError } = await supabase
+      // Get all polls, but exclude pending deathmatch polls (user can still see their own pending polls)
+      const { data: pollsData, error: pollsError } = await supabase
         .from('polls')
         .select('*')
         .order('created_at', { ascending: false })
@@ -46,10 +58,33 @@ export class SupabasePollzAPI {
 
       const votedPollIds = new Set(votes?.map(v => v.poll_id) || [])
 
-      return (polls || []).map(poll => ({
+      // Filter out pending deathmatch polls that user is not involved in
+      const filteredPolls = (pollsData || []).filter(poll => {
+        // If it's a pending deathmatch, only show if user is the creator, option A owner, or option B owner
+        if (poll.is_deathmatch && poll.deathmatch_status === 'pending') {
+          return poll.author_id === userId || 
+                 poll.option_a_owner_id === userId || 
+                 poll.option_b_owner_id === userId
+        }
+        return true
+      })
+
+      const pollsWithVotes = filteredPolls.map(poll => ({
         ...SupabasePollzAPI.transformPollFromDB(poll),
         isVoted: votedPollIds.has(poll.id)
       }))
+      
+      // Load author usernames for polls that don't have them stored (backward compatibility)
+      for (const poll of pollsWithVotes) {
+        if (!poll.authorUsername && poll.authorId) {
+          const author = await SupabasePollzAPI.getUserById(poll.authorId)
+          if (author) {
+            poll.authorUsername = author.username
+          }
+        }
+      }
+      
+      return pollsWithVotes
     } catch (error) {
       console.error('Error fetching polls with vote status:', error)
       throw new Error('Failed to fetch polls with vote status')
@@ -123,7 +158,31 @@ export class SupabasePollzAPI {
         throw new Error('Failed to fetch poll')
       }
 
-      return data ? SupabasePollzAPI.transformPollFromDB(data) : undefined
+      if (!data) return undefined
+
+      const poll = SupabasePollzAPI.transformPollFromDB(data)
+
+      // Load author username if not stored (for backward compatibility)
+      if (!poll.authorUsername && poll.authorId) {
+        const author = await SupabasePollzAPI.getUserById(poll.authorId)
+        if (author) {
+          poll.authorUsername = author.username
+        }
+      }
+
+      // Load owner data for deathmatch polls
+      if (poll.isDeathmatch) {
+        if (poll.optionAOwnerId) {
+          const ownerA = await SupabasePollzAPI.getUserById(poll.optionAOwnerId)
+          if (ownerA) poll.optionAOwner = ownerA
+        }
+        if (poll.optionBOwnerId) {
+          const ownerB = await SupabasePollzAPI.getUserById(poll.optionBOwnerId)
+          if (ownerB) poll.optionBOwner = ownerB
+        }
+      }
+
+      return poll
     } catch (error) {
       console.error('Error fetching poll:', error)
       throw new Error('Failed to fetch poll')
@@ -137,14 +196,21 @@ export class SupabasePollzAPI {
     timeLeft: string
     authorId: string
     author: string
+    authorUsername?: string
     context?: string
     arguments?: {
       optionA: string
       optionB: string
     }
     expiresAt: Date
+    isDeathmatch?: boolean
+    isShadowDeathmatch?: boolean
+    optionAUserId?: string
+    optionBUserId?: string
   }): Promise<Poll> {
     try {
+      const isDeathmatch = !!(pollData.optionAUserId && pollData.optionBUserId)
+      
       const { data, error } = await supabase
         .from('polls')
         .insert({
@@ -164,27 +230,158 @@ export class SupabasePollzAPI {
           trending_score: 0,
           poll_type: 'question',
           timer_enabled: true,
-          notification_enabled: false
+          notification_enabled: false,
+          is_deathmatch: isDeathmatch,
+          is_shadow_deathmatch: pollData.isShadowDeathmatch || false,
+          option_a_owner_id: pollData.optionAUserId || null,
+          option_b_owner_id: pollData.optionBUserId || null,
+          deathmatch_status: isDeathmatch ? 'pending' : 'accepted',  // Deathmatch polls start as pending
+          author_username: pollData.authorUsername || null  // Store author username
         })
         .select()
         .single()
 
       if (error) throw error
 
-      return SupabasePollzAPI.transformPollFromDB(data)
+      const newPoll = SupabasePollzAPI.transformPollFromDB(data)
+
+      // Create notifications for deathmatch users
+      if (isDeathmatch && pollData.optionAUserId && pollData.optionBUserId) {
+        // Notify option A owner (creator or assigned user)
+        await SupabasePollzAPI.createNotification({
+          pollId: newPoll.id,
+          userId: pollData.optionAUserId,
+          type: 'deathmatch_created',
+          message: `You've been assigned to defend Option A in: "${pollData.title}"`
+        })
+
+        // Notify option B owner - they need to ACCEPT first
+        await SupabasePollzAPI.createNotification({
+          pollId: newPoll.id,
+          userId: pollData.optionBUserId,
+          type: 'deathmatch_awaiting_acceptance',
+          message: `You've been challenged to a deathmatch! Accept or modify your option: "${pollData.title}"`
+        })
+      }
+
+      return newPoll
     } catch (error) {
       console.error('Error creating poll:', error)
       throw new Error('Failed to create poll')
     }
   }
 
+  static async acceptDeathmatchPoll(pollId: string, userId: string, modifiedOptionB?: string): Promise<Poll> {
+    try {
+      const poll = await SupabasePollzAPI.getPollById(pollId)
+      if (!poll || !poll.isDeathmatch) {
+        throw new Error('Poll is not a deathmatch poll')
+      }
+
+      if (poll.optionBOwnerId !== userId) {
+        throw new Error('Only the assigned user can accept this deathmatch')
+      }
+
+      if (poll.deathmatchStatus === 'accepted') {
+        throw new Error('This deathmatch has already been accepted')
+      }
+
+      // Update poll status and optionally modify option B
+      const updateData: any = {
+        deathmatch_status: 'accepted'
+      }
+
+      if (modifiedOptionB) {
+        updateData.option_b = modifiedOptionB
+      }
+
+      const { data, error } = await supabase
+        .from('polls')
+        .update(updateData)
+        .eq('id', pollId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      const updatedPoll = SupabasePollzAPI.transformPollFromDB(data)
+
+      // Notify option A owner that the deathmatch was accepted
+      if (poll.optionAOwnerId) {
+        await SupabasePollzAPI.createNotification({
+          pollId: pollId,
+          userId: poll.optionAOwnerId,
+          type: 'deathmatch_accepted',
+          message: `Your deathmatch has been accepted! "${poll.title}" is now active.`
+        })
+      }
+
+      return updatedPoll
+    } catch (error) {
+      console.error('Error accepting deathmatch:', error)
+      throw new Error('Failed to accept deathmatch')
+    }
+  }
+
+  static async rejectDeathmatchPoll(pollId: string, userId: string): Promise<void> {
+    try {
+      const poll = await SupabasePollzAPI.getPollById(pollId)
+      if (!poll || !poll.isDeathmatch) {
+        throw new Error('Poll is not a deathmatch poll')
+      }
+
+      if (poll.optionBOwnerId !== userId) {
+        throw new Error('Only the assigned user can reject this deathmatch')
+      }
+
+      const { error } = await supabase
+        .from('polls')
+        .update({ deathmatch_status: 'rejected' })
+        .eq('id', pollId)
+
+      if (error) throw error
+
+      // Notify option A owner that the deathmatch was rejected
+      if (poll.optionAOwnerId) {
+        await SupabasePollzAPI.createNotification({
+          pollId: pollId,
+          userId: poll.optionAOwnerId,
+          type: 'deathmatch_created',
+          message: `Your deathmatch was rejected: "${poll.title}"`
+        })
+      }
+    } catch (error) {
+      console.error('Error rejecting deathmatch:', error)
+      throw new Error('Failed to reject deathmatch')
+    }
+  }
+
   static async voteOnPoll(pollId: string, userId: string, option: 'A' | 'B'): Promise<void> {
     try {
+      // Check if poll is a pending deathmatch
+      const poll = await SupabasePollzAPI.getPollById(pollId)
+      if (poll?.isDeathmatch && poll.deathmatchStatus === 'pending') {
+        throw new Error('This deathmatch poll is pending acceptance. Cannot vote yet.')
+      }
+
       // Check if already voted
       const hasVoted = await SupabasePollzAPI.hasUserVoted(pollId, userId)
       if (hasVoted) {
         throw new Error('User already voted on this poll')
       }
+
+      // Get poll before voting to check for deathmatch and current state
+      const pollBefore = await SupabasePollzAPI.getPollById(pollId)
+      if (!pollBefore) {
+        throw new Error('Poll not found')
+      }
+
+      const votesBeforeA = pollBefore.votesOptionA
+      const votesBeforeB = pollBefore.votesOptionB
+      const totalVotesBefore = pollBefore.votes
+      const wasLeadingA = votesBeforeA > votesBeforeB
+      const wasLeadingB = votesBeforeB > votesBeforeA
+      const wasTied = votesBeforeA === votesBeforeB
 
       // Insert vote (trigger will automatically update poll counts)
       const { error } = await supabase
@@ -198,6 +395,74 @@ export class SupabasePollzAPI {
       if (error) throw error
 
       console.log('✅ Vote recorded successfully')
+
+      // Check for deathmatch notifications
+      if (pollBefore.isDeathmatch && pollBefore.optionAOwnerId && pollBefore.optionBOwnerId) {
+        // Get updated poll to check new vote counts
+        const pollAfter = await SupabasePollzAPI.getPollById(pollId)
+        if (pollAfter) {
+          const totalVotesAfter = pollAfter.votes
+          const votesAfterA = pollAfter.votesOptionA
+          const votesAfterB = pollAfter.votesOptionB
+
+          // Check 100-vote threshold
+          const wasMultipleOf100 = Math.floor(totalVotesBefore / 100) * 100 === totalVotesBefore
+          const isMultipleOf100 = Math.floor(totalVotesAfter / 100) * 100 === totalVotesAfter
+          
+          if (!wasMultipleOf100 && isMultipleOf100 && totalVotesAfter > 0) {
+            // Notify both owners for 100-vote milestone
+            await SupabasePollzAPI.createNotification({
+              pollId: pollId,
+              userId: pollBefore.optionAOwnerId,
+              type: 'deathmatch_100_votes',
+              message: `Your deathmatch poll reached ${totalVotesAfter} votes!`
+            })
+            await SupabasePollzAPI.createNotification({
+              pollId: pollId,
+              userId: pollBefore.optionBOwnerId,
+              type: 'deathmatch_100_votes',
+              message: `Your deathmatch poll reached ${totalVotesAfter} votes!`
+            })
+          }
+
+          // Check if one option surpassed the other
+          const isNowLeadingA = votesAfterA > votesAfterB
+          const isNowLeadingB = votesAfterB > votesAfterA
+          const isNowTied = votesAfterA === votesAfterB
+
+          // Option A surpassed B
+          if ((wasLeadingB || wasTied) && isNowLeadingA) {
+            await SupabasePollzAPI.createNotification({
+              pollId: pollId,
+              userId: pollBefore.optionAOwnerId,
+              type: 'deathmatch_surpassed',
+              message: `Your deathmatch poll: Option A is now leading!`
+            })
+            await SupabasePollzAPI.createNotification({
+              pollId: pollId,
+              userId: pollBefore.optionBOwnerId,
+              type: 'deathmatch_surpassed',
+              message: `Your deathmatch poll: Option A is now leading!`
+            })
+          }
+
+          // Option B surpassed A
+          if ((wasLeadingA || wasTied) && isNowLeadingB) {
+            await SupabasePollzAPI.createNotification({
+              pollId: pollId,
+              userId: pollBefore.optionAOwnerId,
+              type: 'deathmatch_surpassed',
+              message: `Your deathmatch poll: Option B is now leading!`
+            })
+            await SupabasePollzAPI.createNotification({
+              pollId: pollId,
+              userId: pollBefore.optionBOwnerId,
+              type: 'deathmatch_surpassed',
+              message: `Your deathmatch poll: Option B is now leading!`
+            })
+          }
+        }
+      }
     } catch (error) {
       console.error('Error voting on poll:', error)
       throw error
@@ -279,6 +544,39 @@ export class SupabasePollzAPI {
     } catch (error) {
       console.error('Error creating user:', error)
       throw new Error('Failed to create user')
+    }
+  }
+
+  static async searchUsers(query: string, limit: number = 10): Promise<User[]> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .or(`name.ilike.%${query}%,username.ilike.%${query}%`)
+        .limit(limit)
+
+      if (error) throw error
+
+      return (data || []).map(user => SupabasePollzAPI.transformUserFromDB(user))
+    } catch (error) {
+      console.error('Error searching users:', error)
+      throw new Error('Failed to search users')
+    }
+  }
+
+  static async getAllUsers(): Promise<User[]> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('name', { ascending: true })
+
+      if (error) throw error
+
+      return (data || []).map(user => SupabasePollzAPI.transformUserFromDB(user))
+    } catch (error) {
+      console.error('Error fetching all users:', error)
+      throw new Error('Failed to fetch users')
     }
   }
 
@@ -416,6 +714,12 @@ export class SupabasePollzAPI {
   // ============================================
 
   private static transformPollFromDB(dbPoll: any): Poll {
+    // Get author username from database or fetch from users table if not stored
+    let authorUsername = dbPoll.author_username
+    
+    // If no author_username stored, try to get it from author_id if possible
+    // (We'll update existing polls with a migration script)
+    
     return {
       id: dbPoll.id,
       title: dbPoll.title,
@@ -427,6 +731,7 @@ export class SupabasePollzAPI {
       timeLeft: SupabasePollzAPI.calculateTimeLeft(dbPoll.expires_at),
       authorId: dbPoll.author_id,
       author: dbPoll.author_name,
+      authorUsername: authorUsername || undefined,  // Include username
       isVoted: false, // Will be set by getPollsWithVoteStatus
       isLiked: false,
       createdAt: new Date(dbPoll.created_at),
@@ -446,7 +751,12 @@ export class SupabasePollzAPI {
       timerDuration: undefined,
       timerEnabled: dbPoll.timer_enabled !== undefined ? dbPoll.timer_enabled : true,
       notificationEnabled: dbPoll.notification_enabled !== undefined ? dbPoll.notification_enabled : false,
-      isExpired: dbPoll.is_expired || new Date(dbPoll.expires_at) < new Date()
+      isExpired: dbPoll.is_expired || new Date(dbPoll.expires_at) < new Date(),
+      isDeathmatch: dbPoll.is_deathmatch || false,
+      isShadowDeathmatch: dbPoll.is_shadow_deathmatch || false,
+      optionAOwnerId: dbPoll.option_a_owner_id || undefined,
+      optionBOwnerId: dbPoll.option_b_owner_id || undefined,
+      deathmatchStatus: dbPoll.deathmatch_status || 'accepted'
     }
   }
 

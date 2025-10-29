@@ -1,6 +1,7 @@
 {
   "name": "paul-app",
   "version": "1.0.0",
+  "type": "module",
   "description": "A modern TypeScript responsive app",
   "main": "dist/index.js",
   "scripts": {

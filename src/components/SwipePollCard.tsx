@@ -604,6 +604,25 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
             {poll.arguments?.optionA || 'Option A'}
           </div>
           
+          {/* Deathmatch username placeholder for Option A */}
+          {poll.isDeathmatch && (
+            <div style={{
+              fontSize: '9px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: voteDirection === 'A' ? '#ffffff' : ((isHovered || isFocused) ? '#cccccc' : '#666666'),
+              marginTop: '-4px',
+              marginBottom: '4px',
+              fontFamily: 'Courier New, Courier, monospace'
+            }}>
+              {poll.isShadowDeathmatch && !poll.isExpired 
+                ? '@??????'
+                : (poll.optionAOwner?.username || '@unknown')
+              }
+            </div>
+          )}
+          
           {showResults && (
             <div style={{ width: '100%', marginTop: '12px' }}>
               {/* Animated Gauge */}
@@ -707,6 +726,25 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
             {poll.arguments?.optionB || 'Option B'}
           </div>
           
+          {/* Deathmatch username placeholder for Option B */}
+          {poll.isDeathmatch && (
+            <div style={{
+              fontSize: '9px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: voteDirection === 'B' ? '#ffffff' : ((isHovered || isFocused) ? '#cccccc' : '#666666'),
+              marginTop: '-4px',
+              marginBottom: '4px',
+              fontFamily: 'Courier New, Courier, monospace'
+            }}>
+              {poll.isShadowDeathmatch && !poll.isExpired 
+                ? '@??????'
+                : (poll.optionBOwner?.username || '@unknown')
+              }
+            </div>
+          )}
+          
           {showResults && (
             <div style={{ width: '100%', marginTop: '12px' }}>
               {/* Animated Gauge */}
@@ -757,20 +795,55 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         className="poll-stats"
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: 'column',
+          gap: '8px',
           paddingTop: '16px',
           borderTop: '2px solid #000000',
           fontFamily: 'Courier New, Courier, monospace',
           fontSize: '11px',
           textTransform: 'uppercase',
           letterSpacing: '1px',
-          color: '#000000',
+          color: (isHovered || isFocused) ? '#ffffff' : '#000000',
           fontWeight: '700'
         }}
       >
-        <span>{poll.votes} VOTES</span>
-        <span>by {poll.author}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{poll.votes} VOTES</span>
+          {/* Show author username or placeholder */}
+          <span>
+            by {poll.authorUsername || poll.author || 'ANONYMOUS'}
+          </span>
+        </div>
+        
+        {/* Deathmatch usernames */}
+        {poll.isDeathmatch && (poll.optionAOwner || poll.optionBOwner) && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '9px',
+            letterSpacing: '0.5px',
+            opacity: 0.8,
+            marginTop: '4px'
+          }}>
+            {/* Show usernames only if not shadow deathmatch or if poll is expired */}
+            {poll.isShadowDeathmatch && !poll.isExpired ? (
+              <>
+                <span>OPTION A: @??????</span>
+                <span>OPTION B: @??????</span>
+              </>
+            ) : (
+              <>
+                <span>
+                  OPTION A: {poll.optionAOwner?.username || '@unknown'}
+                </span>
+                <span>
+                  OPTION B: {poll.optionBOwner?.username || '@unknown'}
+                </span>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
     </>

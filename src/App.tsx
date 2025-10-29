@@ -14,7 +14,6 @@ import AdminDashboard from './pages/AdminDashboard'
 import MigrationPage from './pages/MigrationPage'
 import AuthenticationWrapper from './components/AuthenticationWrapper'
 import SecurityBadge from './components/SecurityBadge'
-import { DevResetButton, DevGeneratePollsButton } from './components/Navigation'
 import { useAuth } from './hooks/useAuth'
 import './App.css'
 
@@ -331,14 +330,6 @@ function AppContent() {
 
   return (
     <>
-      {/* Development Buttons - visible on all screens */}
-      {import.meta.env.DEV && (
-        <>
-          <DevResetButton userRole={user?.role} />
-          <DevGeneratePollsButton />
-        </>
-      )}
-            
             {currentPage === 'notifications' ? (
               <div className="main-content">
                 <NotificationsPage

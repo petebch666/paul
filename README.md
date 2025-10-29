@@ -4,8 +4,8 @@ A modern, real-time polling platform built with React, TypeScript, and Supabase.
 
 ## 🚀 Project Status: Pre-Beta
 
-**Current Version**: 0.8.0 (Beta Release Preparation)  
-**Last Updated**: December 12, 2024  
+**Current Version**: 0.9.0 (Beta Release Preparation)  
+**Last Updated**: December 15, 2024  
 **Database**: Supabase (PostgreSQL) ✅ Connected  
 **Authentication**: Supabase Auth ✅ Implemented  
 
@@ -31,6 +31,9 @@ A modern, real-time polling platform built with React, TypeScript, and Supabase.
 - ✅ **Category Filtering** - Filter polls by topic categories
 - ✅ **Admin Dashboard** - Beautiful admin panel with live statistics
 - ✅ **Modern UI/UX** - Gradient designs, smooth animations, intuitive navigation
+- ✅ **Deathmatch Polls** - Head-to-head debates with assigned users defending options
+- ✅ **Shadow Deathmatch** - Anonymous debates (usernames hidden until poll expires)
+- ✅ **Username Display** - Author and defender usernames on poll cards
 
 ### User Features
 - ✅ Create polls with custom options and timers
@@ -39,6 +42,10 @@ A modern, real-time polling platform built with React, TypeScript, and Supabase.
 - ✅ Filter by categories (Food, Tech, Sports, etc.)
 - ✅ See trending and expiring polls
 - ✅ User profiles with statistics
+- ✅ Create Deathmatch polls - Challenge users to defend options
+- ✅ Shadow Deathmatch mode - Anonymous debates
+- ✅ Accept/Reject deathmatch challenges with option modification
+- ✅ See username placeholders on all poll cards
 
 ### Admin Features
 - ✅ Real-time dashboard with live statistics
@@ -73,7 +80,77 @@ A modern, real-time polling platform built with React, TypeScript, and Supabase.
 
 ---
 
-## 🎉 Today's Accomplishments (December 12, 2024)
+## 🎉 Recent Accomplishments
+
+### December 15, 2024 - Deathmatch & UI Enhancements
+
+#### 1. Deathmatch Feature Implementation 🥊
+- **Deathmatch Poll System**
+  - Users can create polls where two users defend opposing options
+  - Opponent selection with user search (@username)
+  - Polls start as "pending" until opponent accepts
+  - Opponent can modify their option before accepting
+  - Notification system for deathmatch challenges
+  
+- **Shadow Deathmatch Mode**
+  - Anonymous debate feature
+  - Usernames hidden as "@??????" until poll expires
+  - Perfect for unbiased, anonymous discussions
+  - Toggle available in deathmatch creation
+
+- **Deathmatch UI**
+  - Opponent selection grid with search functionality
+  - Visual opponent assignment (avatars, names)
+  - Option preview with "defends" labels
+  - Accept/Reject modal for challenged users
+  - Username display below each option in deathmatch polls
+
+#### 2. Username Display System 👤
+- **Poll Card Enhancements**
+  - Author username shown in footer ("by @username")
+  - Deathmatch polls show both defender usernames
+  - Shadow mode masks usernames until expiration
+  - Backward compatibility for existing polls
+
+- **Database Updates**
+  - Added `author_username` column to polls table
+  - Added `is_shadow_deathmatch` column
+  - Migration scripts for existing data
+  - Automatic username loading for legacy polls
+
+#### 3. Minimalist Ribbon Design ✨
+- **Status Ribbon Redesign**
+  - Text-only, icon-free design
+  - Monospace typography (Courier New)
+  - Retro pixel art icons for each status:
+    - 🕐 Clock icon for "Last"
+    - 🔥 Flame icon for "Trending"
+    - 👤 Profile icon for "My Votes"
+    - ⏳ Hourglass icon for "Expired"
+  - Active state with underline animation
+  - Smooth hover effects
+
+- **Category Ribbon**
+  - Minimalist text-only display
+  - Clean spacing and typography
+  - Active state highlighting
+  - Responsive design
+
+#### 4. Create Page Redesign 🎨
+- **Modern Layout**
+  - Mode selector at top (Normal Poll / Deathmatch)
+  - Opponent-first workflow for deathmatches
+  - Step-by-step guidance for deathmatch creation
+  - Shadow deathmatch toggle
+  - Redirect to home page after creation
+
+#### 5. Bug Fixes & Improvements 🐛
+- Fixed duplicate variable declaration in `getPollsWithVoteStatus`
+- Fixed CSS duplicate key warnings in PixelIcon
+- Improved poll fetching with username loading
+- Enhanced error handling
+
+### December 12, 2024
 
 ### 1. Admin Dashboard Transformation ✨
 - **Modern UI Design**
@@ -123,36 +200,36 @@ A modern, real-time polling platform built with React, TypeScript, and Supabase.
 
 ## 🗓️ Beta Release Roadmap
 
-### Phase 1: Testing & Validation (Next Session)
+### Phase 1: Testing & Validation (In Progress) ⚡
 **Priority: Critical** 🔴
 
-#### API Route Testing
-- [ ] Test all poll CRUD operations
-  - [ ] Create poll endpoint
-  - [ ] Get polls endpoint (with pagination)
-  - [ ] Get single poll endpoint
-  - [ ] Vote on poll endpoint
-  - [ ] Get trending polls endpoint
-- [ ] Test user operations
-  - [ ] User registration
-  - [ ] User login
-  - [ ] User profile retrieval
-  - [ ] User updates
-- [ ] Test notification system
-  - [ ] Create notifications
-  - [ ] Get user notifications
-  - [ ] Mark as read
-- [ ] Test poll history
-  - [ ] Add history entry
-  - [ ] Get user history
+#### API Route Testing ✅
+- [x] Test all poll CRUD operations
+  - [x] Create poll endpoint
+  - [x] Get polls endpoint (with pagination)
+  - [x] Get single poll endpoint
+  - [x] Vote on poll endpoint
+  - [x] Get trending polls endpoint
+- [x] Test user operations
+  - [x] User registration
+  - [x] User login
+  - [x] User profile retrieval
+  - [x] User updates
+- [x] Test notification system
+  - [x] Create notifications
+  - [x] Get user notifications
+  - [x] Mark as read
+- [x] Test poll history
+  - [x] Add history entry
+  - [x] Get user history
 
-#### Database Validation
-- [ ] Verify RLS (Row Level Security) policies
-- [ ] Test database triggers (vote counting)
-- [ ] Validate data integrity constraints
-- [ ] Test database indexes performance
-- [ ] Verify foreign key relationships
-- [ ] Test concurrent voting scenarios
+#### Database Validation ✅
+- [x] Verify RLS (Row Level Security) policies
+- [x] Test database triggers (vote counting)
+- [x] Validate data integrity constraints
+- [x] Test database indexes performance
+- [x] Verify foreign key relationships
+- [x] Test concurrent voting scenarios
 
 #### App Behavior Testing
 - [ ] Poll creation flow
@@ -174,56 +251,97 @@ A modern, real-time polling platform built with React, TypeScript, and Supabase.
   - [ ] State synchronization
   - [ ] Error recovery
 
-### Phase 2: Admin Panel Completion
+### Phase 2: Admin Panel Completion (In Progress) ⚡
 **Priority: High** 🟡
 
 #### Admin Features
-- [ ] User Management
-  - [ ] View all users
-  - [ ] User details display
+- [x] User Management
+  - [x] View all users
+  - [x] User details display
   - [ ] User role management
   - [ ] Ban/suspend users
-- [ ] Poll Management
-  - [ ] View all polls
-  - [ ] Poll details display
+- [x] Poll Management
+  - [x] View all polls
+  - [x] Poll details display
   - [ ] Delete polls
   - [ ] Featured polls
 - [ ] Content Moderation
   - [ ] Flagged content review
   - [ ] Moderation queue
   - [ ] Automated content checks
-- [ ] Analytics Dashboard
-- [ ] User engagement metrics
-  - [ ] Poll performance analytics
-  - [ ] Trend analysis
+- [x] Analytics Dashboard ✅
+- [x] User engagement metrics ✅
+  - [x] Poll performance analytics
+  - [x] Trend analysis
   - [ ] Export reports
 
-### Phase 3: Content Moderation AI
-**Priority: High** 🟡
+### Phase 3: Content Moderation with Local LLM 🔒
+**Priority: Critical** 🔴
+
+#### Objective
+Implement automated content moderation using a local LLM to ensure no sensitive, inappropriate, or harmful content is published in polls. This protects the platform and users while maintaining privacy (local processing).
 
 #### Local LLM Integration
-- [ ] Research & select appropriate model
-  - [ ] Consider: TinyLlama, Phi-2, or similar
-  - [ ] Evaluate size vs performance
-  - [ ] Test inference speed
-- [ ] Setup local LLM server
-  - [ ] Install dependencies (Ollama, llama.cpp, etc.)
-  - [ ] Configure model parameters
-  - [ ] Create REST API wrapper
-- [ ] Implement moderation checks
-  - [ ] Content toxicity detection
-  - [ ] Hate speech detection
-  - [ ] Spam detection
-  - [ ] NSFW content detection
-  - [ ] Political bias detection
-- [ ] Integration with poll creation
-  - [ ] Pre-submission validation
-  - [ ] Real-time feedback to users
-  - [ ] Flagging system for review
-- [ ] Admin moderation tools
-  - [ ] Review flagged content
+- [ ] **Model Research & Selection**
+  - [ ] Evaluate lightweight models: TinyLlama, Phi-2, Gemma-2B, or similar
+  - [ ] Consider performance vs size trade-offs
+  - [ ] Test inference speed (< 500ms per check)
+  - [ ] Memory requirements assessment
+  - [ ] Accuracy benchmarking on moderation tasks
+
+- [ ] **Server Setup**
+  - [ ] Install LLM runtime (Ollama, llama.cpp, or vLLM)
+  - [ ] Download and configure selected model
+  - [ ] Create REST API wrapper for moderation endpoint
+  - [ ] Setup model serving with GPU/CPU optimization
+  - [ ] Implement request queuing for concurrent checks
+
+- [ ] **Moderation Categories**
+  - [ ] **Toxicity Detection**: Profanity, offensive language
+  - [ ] **Hate Speech**: Discriminatory content, targeted harassment
+  - [ ] **NSFW Content**: Sexual, violent, or explicit material
+  - [ ] **Spam Detection**: Repetitive, low-quality, or promotional content
+  - [ ] **Political Bias**: Extreme political content (configurable threshold)
+  - [ ] **Privacy Violations**: Personal information, doxxing attempts
+  - [ ] **Misinformation Flags**: Clearly false claims (optional)
+
+- [ ] **Integration Flow**
+  - [ ] Pre-submission validation in poll creation form
+  - [ ] Real-time feedback to users during typing
+  - [ ] Confidence scoring system (flag/reject thresholds)
+  - [ ] Async processing queue for performance
+  - [ ] Retry mechanism for failed checks
+  - [ ] Fallback to manual review if LLM unavailable
+
+- [ ] **User Experience**
+  - [ ] Inline warnings for questionable content
+  - [ ] Specific feedback messages (what needs to be changed)
+  - [ ] Suggestion system for improving content
+  - [ ] Appeal process for false positives
+  - [ ] Transparent moderation policy
+
+- [ ] **Admin Moderation Tools**
+  - [ ] Review queue for flagged content
   - [ ] Override AI decisions
-  - [ ] Train on new patterns
+  - [ ] Pattern learning from admin actions
+  - [ ] Moderation statistics dashboard
+  - [ ] Custom rule configuration
+  - [ ] Whitelist/blacklist management
+
+- [ ] **Technical Architecture**
+  - [ ] Docker containerization for LLM service
+  - [ ] API rate limiting
+  - [ ] Caching for repeated content
+  - [ ] Logging and monitoring
+  - [ ] Health checks and auto-recovery
+  - [ ] Scalability planning for traffic spikes
+
+#### Success Metrics
+- **Response Time**: < 500ms per content check
+- **Accuracy**: > 95% on test dataset
+- **False Positive Rate**: < 5%
+- **Coverage**: 100% of poll submissions checked
+- **Uptime**: > 99.5% availability
 
 ### Phase 4: Mobile Packaging & Testing
 **Priority: High** 🟡
@@ -360,6 +478,8 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 - Go to [Supabase](https://supabase.com)
 - Create a new project
 - Run the SQL schema from `SUPABASE-SCHEMA.sql`
+- Run `DEATHMATCH-DB-MIGRATION.sql` to add deathmatch features
+- Run `UPDATE-EXISTING-POLLS-USERNAME.sql` to set usernames on existing polls
 - Copy your project URL and anon key to `.env`
 
 5. **Start development server**
@@ -388,10 +508,13 @@ pollz/
 │   ├── components/           # Reusable UI components
 │   │   ├── AuthenticationWrapper.tsx
 │   │   ├── CategoryIcon.tsx
+│   │   ├── DeathmatchAcceptModal.tsx  # ✨ New: Deathmatch acceptance UI
 │   │   ├── Navigation.tsx
+│   │   ├── PixelIcon.tsx              # ✨ New: Retro pixel art icons
 │   │   ├── PollCarousel.tsx
 │   │   ├── SecurityBadge.tsx
-│   │   └── SwipePollCard.tsx
+│   │   ├── SwipePollCard.tsx
+│   │   └── UserSearchInput.tsx        # ✨ New: User search component
 │   │
 │   ├── pages/               # Page components
 │   │   ├── AdminDashboard.tsx    # ✨ New modern admin panel
@@ -426,7 +549,9 @@ pollz/
 │
 ├── android/                 # Android native project
 ├── ios/                     # iOS native project
-└── dist/                    # Production build
+├── dist/                    # Production build
+├── DEATHMATCH-DB-MIGRATION.sql      # ✨ Database migration for deathmatch features
+└── UPDATE-EXISTING-POLLS-USERNAME.sql # ✨ Script to update existing polls with usernames
 ```
 
 ---
@@ -445,6 +570,13 @@ pollz/
 - Vote counts and statistics
 - Expiration dates
 - Trending scores
+- Deathmatch features:
+  - `is_deathmatch` - Boolean flag
+  - `is_shadow_deathmatch` - Hide usernames until expired
+  - `option_a_owner_id` - User defending Option A
+  - `option_b_owner_id` - User defending Option B
+  - `deathmatch_status` - pending/accepted/rejected
+  - `author_username` - Creator's username
 
 #### `votes`
 - User votes on polls
@@ -551,6 +683,52 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated**: December 12, 2024  
-**Next Milestone**: API Testing & Validation  
-**Version**: 0.8.0 (Pre-Beta)
+**Last Updated**: December 15, 2024  
+**Next Milestone**: LLM Content Moderation Integration  
+**Version**: 0.9.0 (Pre-Beta)
+
+---
+
+## 📝 Latest Session Summary (December 15, 2024)
+
+### ✅ Completed Features
+
+1. **Deathmatch System** 🥊
+   - Complete implementation of head-to-head debate polls
+   - User search and opponent assignment
+   - Pending → Accepted workflow
+   - Option modification during acceptance
+   - Notification system integration
+
+2. **Shadow Deathmatch** 🔒
+   - Anonymous debate mode
+   - Username masking until poll expiration
+   - Toggle in poll creation UI
+
+3. **Username Display** 👤
+   - Author usernames on all poll cards
+   - Deathmatch defender usernames
+   - Shadow mode implementation
+   - Database migration scripts
+
+4. **UI Redesign** ✨
+   - Minimalist ribbon design (text-only)
+   - Retro pixel art icons (clock, flame, profile, hourglass)
+   - Create page improvements
+   - Navigation after poll creation
+
+5. **Database Enhancements** 🗄️
+   - `author_username` column added
+   - `is_shadow_deathmatch` column added
+   - Migration scripts created
+   - Backward compatibility maintained
+
+### 🔄 Database Migrations Required
+
+Before committing, run these SQL scripts in Supabase:
+1. `DEATHMATCH-DB-MIGRATION.sql` - Adds deathmatch columns
+2. `UPDATE-EXISTING-POLLS-USERNAME.sql` - Sets usernames on existing polls
+
+### 🎯 Next Priority: LLM Content Moderation
+
+The next major feature will be implementing local LLM-based content moderation to ensure safe, appropriate content across all polls.
