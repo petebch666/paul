@@ -9,7 +9,8 @@ console.log(`🔄 useAppState using: ${getAPIType()}`)
 
 // Custom hook for managing app state
 export function useAppState() {
-  const [polls, setPolls] = useState<Poll[]>([])
+  const [polls, setPolls] = useState<Poll[]>([]) // Displayed polls (limited to 20 at a time)
+  const [allPolls, setAllPolls] = useState<Poll[]>([]) // All polls for accurate counts
   const [loading, setLoading] = useState<boolean>(false)
   const [loadingMore, setLoadingMore] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,81 +21,87 @@ export function useAppState() {
   const [pollHistory, setPollHistory] = useState<PollHistory[]>([])
   const [initialized, setInitialized] = useState<boolean>(false)
   
+  const POLLS_PER_PAGE = 20 // Display 20 polls at a time for memory efficiency
+  
   // Get authenticated user from useAuth hook
   const { user: authUser } = useAuth()
   const [user, setUser] = useState<User | null>(null)
 
-  // Load initial batch of polls
+  // Load initial batch of polls (always loads from page 0)
   const loadPolls = useCallback(async (reset: boolean = false) => {
     if (!authUser) {
       console.log('⏳ Waiting for user to load before fetching polls')
       return
     }
 
-    if (reset) {
-      setCurrentPage(0)
-      setPolls([])
-      setHasMorePolls(true)
-    }
+    setCurrentPage(0)
+    setPolls([])
+    setHasMorePolls(true)
     
     setLoading(true)
     setError(null)
     try {
-      const page = reset ? 0 : currentPage
-      
       // Get all polls with vote status for current user
-      const allPolls = await PollzAPI.getPollsWithVoteStatus(authUser.id)
+      const fetchedPolls = await PollzAPI.getPollsWithVoteStatus(authUser.id)
       
-      // Paginate on client side
-      const startIndex = page * 10
-      const endIndex = startIndex + 10
-      const batchPolls = allPolls.slice(startIndex, endIndex)
+      console.log(`✅ Loaded ${fetchedPolls.length} polls from database`)
+      console.log(`📊 Voted polls: ${fetchedPolls.filter(p => p.isVoted).length}`)
+      console.log(`📊 Active polls: ${fetchedPolls.filter(p => !p.isExpired && !p.isVoted).length}`)
       
-      console.log(`Loading page ${page}, got ${batchPolls.length} polls, total: ${allPolls.length}`)
-      console.log(`Voted polls: ${batchPolls.filter(p => p.isVoted).length}`)
+      // Store all polls for accurate counts
+      setAllPolls(fetchedPolls)
+      setTotalPolls(fetchedPolls.length)
       
-      setTotalPolls(allPolls.length)
-      setPolls(batchPolls)
-      setCurrentPage(page + 1)
-      setHasMorePolls(endIndex < allPolls.length)
+      // Display only first 20 polls
+      const startIndex = 0
+      const endIndex = POLLS_PER_PAGE
+      const displayedPolls = fetchedPolls.slice(startIndex, endIndex)
+      
+      setPolls(displayedPolls)
+      setCurrentPage(1)
+      setHasMorePolls(endIndex < fetchedPolls.length)
+      
+      console.log(`📄 Displaying ${displayedPolls.length} polls (page 1), ${fetchedPolls.length - endIndex} more available`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load polls')
       console.error('Error loading polls:', err)
     } finally {
       setLoading(false)
     }
-  }, [currentPage, authUser])
+  }, [authUser, POLLS_PER_PAGE])
 
   // Load next batch of polls
   const loadMorePolls = useCallback(async () => {
-    if (loadingMore || !hasMorePolls || !authUser) return
+    if (loadingMore || !hasMorePolls || !authUser || allPolls.length === 0) {
+      console.log('⏸️ Cannot load more polls:', { loadingMore, hasMorePolls, hasAuth: !!authUser, allPollsCount: allPolls.length })
+      return
+    }
     
     setLoadingMore(true)
     setError(null)
     try {
-      // Get all polls with vote status
-      const allPolls = await PollzAPI.getPollsWithVoteStatus(authUser.id)
+      // Use already-fetched allPolls to avoid another API call
+      const startIndex = currentPage * POLLS_PER_PAGE
+      const endIndex = startIndex + POLLS_PER_PAGE
+      const nextBatch = allPolls.slice(startIndex, endIndex)
       
-      // Paginate on client side
-      const startIndex = currentPage * 10
-      const endIndex = startIndex + 10
-      const batchPolls = allPolls.slice(startIndex, endIndex)
+      console.log(`📄 Loading more polls: page ${currentPage + 1}, ${nextBatch.length} polls`)
       
-      console.log(`Loading more polls, page ${currentPage}, got ${batchPolls.length} polls`)
-      
-      if (batchPolls.length > 0) {
-        setPolls(batchPolls)
+      if (nextBatch.length > 0) {
+        setPolls(prev => [...prev, ...nextBatch]) // Append to existing polls
         setCurrentPage(prev => prev + 1)
+        setHasMorePolls(endIndex < allPolls.length)
+        console.log(`✅ Now displaying ${polls.length + nextBatch.length} polls, ${allPolls.length - endIndex} more available`)
+      } else {
+        setHasMorePolls(false)
       }
-      
-      setHasMorePolls(endIndex < allPolls.length)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load more polls')
       console.error('Error loading more polls:', err)
     } finally {
       setLoadingMore(false)
     }
-  }, [currentPage, loadingMore, hasMorePolls, authUser])
+  }, [currentPage, loadingMore, hasMorePolls, authUser, allPolls, polls.length, POLLS_PER_PAGE])
 
   // Load user from API (sync with auth user)
   const loadUser = useCallback(async () => {
@@ -363,6 +370,7 @@ export function useAppState() {
 
       // Add the new poll to local state
       setPolls(prev => [newPoll, ...prev])
+      setAllPolls(prev => [newPoll, ...prev]) // Also update allPolls for accurate counts
       
       // Update user poll count
       setUser(prev => prev ? ({
@@ -397,7 +405,8 @@ export function useAppState() {
   }, [])
 
   return {
-    polls,
+    polls, // Displayed polls (limited to 20 at a time)
+    allPolls, // All polls for accurate counts
     user,
     loading,
     loadingMore,

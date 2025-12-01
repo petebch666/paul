@@ -24,22 +24,30 @@ import { Poll, User } from '../types'
 import './HomePage.css'
 
 interface HomePageProps {
-  polls: Poll[]
+  polls: Poll[] // Displayed polls (limited to 20 at a time)
+  allPolls: Poll[] // All polls for accurate counts
   user: User | null
   onVote: (pollId: string, option: 'A' | 'B') => Promise<void>
   onLike: (pollId: string) => void
   loadPolls: (reset?: boolean) => Promise<void>
+  loadMorePolls: () => Promise<void>
   loading: boolean
+  loadingMore: boolean
+  hasMorePolls: boolean
   error: string | null
 }
 
 const HomePage: React.FC<HomePageProps> = ({ 
-  polls, 
+  polls,
+  allPolls,
   user, 
   onVote, 
   onLike, 
-  loadPolls, 
-  loading, 
+  loadPolls,
+  loadMorePolls,
+  loading,
+  loadingMore,
+  hasMorePolls,
   error 
 }) => {
   const [activeSection, setActiveSection] = useState<'last' | 'trending' | 'expired' | 'voted'>('last')
@@ -124,13 +132,13 @@ const HomePage: React.FC<HomePageProps> = ({
 
   const filteredPolls = getFilteredPolls()
 
-  // Calculate poll counts for each category
+  // Calculate poll counts for each category using ALL polls for accurate counts
   const pollCounts = {
-    last: polls.filter(poll => !poll.isExpired && !poll.isVoted).length,
-    trending: polls.filter(poll => !poll.isExpired && !poll.isVoted).length, // Same as last, but with different sorting
-    voted: polls.filter(poll => poll.isVoted).length,
-    expired: polls.filter(poll => poll.isExpired).length,
-    total: polls.length
+    last: allPolls.filter(poll => !poll.isExpired && !poll.isVoted).length,
+    trending: allPolls.filter(poll => !poll.isExpired && !poll.isVoted).length, // Same as last, but with different sorting
+    voted: allPolls.filter(poll => poll.isVoted).length,
+    expired: allPolls.filter(poll => poll.isExpired).length,
+    total: allPolls.length
   }
 
   // Handle pull-to-refresh
@@ -411,13 +419,48 @@ const HomePage: React.FC<HomePageProps> = ({
             {activeSection === 'expired' && 'NO EXPIRED POLLS'}
           </div>
         ) : (
-          <PollCarousel
-            polls={filteredPolls}
-            user={user}
-            onVote={onVote}
-            onLike={onLike}
-            contentRef={contentRef}
-          />
+          <>
+            <PollCarousel
+              polls={filteredPolls}
+              user={user}
+              onVote={onVote}
+              onLike={onLike}
+              contentRef={contentRef}
+            />
+            
+            {/* Load More Button */}
+            {hasMorePolls && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                padding: '20px 16px 40px',
+                marginTop: '20px'
+              }}>
+                <IonButton
+                  onClick={loadMorePolls}
+                  disabled={loadingMore}
+                  fill="outline"
+                  style={{
+                    fontFamily: 'Courier New, Courier, monospace',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '2px',
+                    minWidth: '200px'
+                  }}
+                >
+                  {loadingMore ? (
+                    <>
+                      <IonSpinner name="crescent" style={{ marginRight: '8px' }} />
+                      LOADING...
+                    </>
+                  ) : (
+                    `LOAD MORE (${allPolls.length - polls.length} remaining)`
+                  )}
+                </IonButton>
+              </div>
+            )}
+          </>
         )}
       </IonContent>
     </IonPage>

@@ -262,6 +262,7 @@ function AppContent() {
 
   const {
     polls,
+    allPolls,
     user,
     loading,
     loadingMore,
@@ -353,11 +354,15 @@ function AppContent() {
             <Route exact path="/home">
               <HomePage
                 polls={polls}
+                allPolls={allPolls}
                 user={user}
                 onVote={handleVote}
                 onLike={handleLike}
                 loadPolls={loadPolls}
+                loadMorePolls={loadMorePolls}
                 loading={loading}
+                loadingMore={loadingMore}
+                hasMorePolls={hasMorePolls}
                 error={error}
               />
             </Route>
