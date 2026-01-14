@@ -5,16 +5,8 @@ import {
   IonToolbar, 
   IonTitle, 
   IonContent,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
-  IonItem,
-  IonLabel,
-  IonInput,
   IonButton,
   IonIcon,
-  IonAlert,
   IonSpinner
 } from '@ionic/react'
 import { 
@@ -23,9 +15,11 @@ import {
   eye, 
   eyeOff,
   logIn,
-  personAdd
+  logoGoogle,
+  logoApple
 } from 'ionicons/icons'
 import { useAuth } from '../hooks/useAuth'
+import './LoginPage.css'
 
 interface LoginPageProps {
   onNavigateToSignUp: () => void
@@ -34,42 +28,61 @@ interface LoginPageProps {
 const LoginPage: React.FC<LoginPageProps> = ({ 
   onNavigateToSignUp
 }) => {
-  const { login, signInWithGoogle, signInWithApple, isLoading, isGoogleAvailable, isAppleAvailable } = useAuth()
+  const { login, signInWithGoogle, signInWithApple, isLoading } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
-    // Clear error when user starts typing
     if (error) setError(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccess(false)
 
     try {
-      // Validate input
+      console.log('🔑 Starting login process...')
+      console.log('📧 Email:', formData.email)
+      
       if (!formData.email || !formData.password) {
         throw new Error('Please fill in all fields')
       }
 
-      const success = await login(formData.email, formData.password)
+      console.log('⏳ Calling login function...')
+      const loginSuccess = await login(formData.email, formData.password)
       
-      if (!success) {
+      console.log('📬 Login result:', loginSuccess)
+      
+      if (!loginSuccess) {
         throw new Error('Login failed. Please check your credentials.')
       }
+      
+      console.log('✅ Login successful! Setting success state...')
+      setSuccess(true)
+      
+      // Give user feedback before navigation
+      console.log('🎉 Waiting for authentication to complete...')
+      
+      // Fallback: If UI doesn't update within 1 second, force reload
+      setTimeout(() => {
+        console.log('⚠️ Forcing page reload to show app...')
+        window.location.reload()
+      }, 1000)
       
     } catch (err) {
       console.error('❌ Login failed:', err)
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.')
+      setSuccess(false)
     }
   }
 
@@ -77,7 +90,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
     try {
       await signInWithGoogle()
     } catch (error) {
-      console.error('Google sign-in error:', error)
+      setError('Google Sign-In is not configured')
     }
   }
 
@@ -85,33 +98,17 @@ const LoginPage: React.FC<LoginPageProps> = ({
     try {
       await signInWithApple()
     } catch (error) {
-      console.error('Apple sign-in error:', error)
+      setError('Apple Sign-In is not configured')
     }
   }
 
   if (isLoading) {
     return (
       <IonPage>
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle>LOGIN</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent fullscreen className="ion-padding">
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '100%',
-            fontFamily: 'Courier New, Courier, monospace',
-            fontSize: '16px',
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: '2px',
-            color: '#000000'
-          }}>
-            <IonSpinner name="crescent" color="dark" style={{ marginRight: '10px' }} />
-            AUTHENTICATING...
+        <IonContent fullscreen className="login-page">
+          <div className="loading-container">
+            <IonSpinner name="crescent" color="dark" />
+            <div>AUTHENTICATING...</div>
           </div>
         </IonContent>
       </IonPage>
@@ -120,261 +117,129 @@ const LoginPage: React.FC<LoginPageProps> = ({
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>LOGIN</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      
-      <IonContent fullscreen className="ion-padding">
-        <div className="page-header-minimal">
-          <h1>WELCOME BACK</h1>
-          <p>ENTER YOUR CREDENTIALS TO CONTINUE</p>
-        </div>
+      <IonContent fullscreen className="login-page">
+        <div className="login-container">
+          {/* Header */}
+          <div className="login-header">
+            <h1>PAUL</h1>
+            <p>WELCOME BACK</p>
+          </div>
 
-        <div style={{ padding: '0 16px' }}>
-          <IonCard className="poll-card-minimal">
-            <IonCardHeader>
-              <IonCardTitle style={{ 
-                fontFamily: 'Courier New, Courier, monospace',
-                fontSize: '18px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-                color: '#000000',
-                textAlign: 'center'
-              }}>
-                SIGN IN
-              </IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <form onSubmit={handleSubmit}>
-                <IonItem>
-                  <IonIcon 
-                    icon={mail} 
-                    slot="start" 
-                    style={{ color: '#000000', marginRight: '8px' }}
-                  />
-                  <IonLabel position="stacked">EMAIL</IonLabel>
-                  <IonInput
+          {/* Login Form */}
+          <div className="login-form-container">
+            <form onSubmit={handleSubmit} className="login-form">
+              {/* Email Input */}
+              <div className="input-group">
+                <div className="input-wrapper">
+                  <IonIcon icon={mail} className="input-icon" />
+                  <input
                     type="email"
                     value={formData.email}
-                    onIonInput={(e) => handleInputChange('email', e.detail.value!)}
-                    placeholder="your@email.com"
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="EMAIL"
                     required
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700'
-                    }}
+                    className="custom-input"
                   />
-                </IonItem>
+                </div>
+              </div>
 
-                <IonItem>
-                  <IonIcon 
-                    icon={lockClosed} 
-                    slot="start" 
-                    style={{ color: '#000000', marginRight: '8px' }}
-                  />
-                  <IonLabel position="stacked">PASSWORD</IonLabel>
-                  <IonInput
+              {/* Password Input */}
+              <div className="input-group">
+                <div className="input-wrapper">
+                  <IonIcon icon={lockClosed} className="input-icon" />
+                  <input
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
-                    onIonInput={(e) => handleInputChange('password', e.detail.value!)}
-                    placeholder="Enter your password"
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    placeholder="PASSWORD"
                     required
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700'
-                    }}
+                    className="custom-input"
                   />
-                  <IonButton
-                    fill="clear"
-                    slot="end"
+                  <button
+                    type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      color: '#000000'
-                    }}
+                    className="password-toggle"
                   >
                     <IonIcon icon={showPassword ? eyeOff : eye} />
-                  </IonButton>
-                </IonItem>
-
-                {error && (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '12px',
-                    margin: '16px 0',
-                    backgroundColor: '#ff0000',
-                    color: '#ffffff',
-                    fontFamily: 'Courier New, Courier, monospace',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    border: '2px solid #000000'
-                  }}>
-                    {error}
-                  </div>
-                )}
-
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '12px',
-                  marginTop: '24px'
-                }}>
-                  <IonButton 
-                    expand="block" 
-                    type="submit"
-                    color="primary"
-                    disabled={!formData.email || !formData.password}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px'
-                    }}
-                  >
-                    <IonIcon icon={logIn} style={{ marginRight: '8px' }} />
-                    SIGN IN
-                  </IonButton>
-
-                  <IonButton 
-                    expand="block" 
-                    fill="outline"
-                    color="primary"
-                    onClick={onNavigateToSignUp}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px'
-                    }}
-                  >
-                    <IonIcon icon={personAdd} style={{ marginRight: '8px' }} />
-                    CREATE ACCOUNT
-                  </IonButton>
+                  </button>
                 </div>
-              </form>
+              </div>
 
-              {/* OAuth Divider */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                margin: '24px 0 16px 0' 
-              }}>
-                <div style={{ 
-                  flex: 1, 
-                  height: '2px', 
-                  backgroundColor: '#000000' 
-                }}></div>
-                <div style={{ 
-                  padding: '0 16px',
+              {/* Success Message */}
+              {success && (
+                <div style={{
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  background: '#00ff00',
+                  color: '#000000',
+                  border: '2px solid #000000',
                   fontFamily: 'Courier New, Courier, monospace',
-                  fontSize: '12px',
                   fontWeight: '700',
-                  color: '#666666',
+                  textAlign: 'center',
                   textTransform: 'uppercase',
-                  letterSpacing: '1px'
+                  letterSpacing: '1px',
+                  fontSize: '12px'
                 }}>
-                  OR CONTINUE WITH
+                  ✅ LOGIN SUCCESSFUL!
                 </div>
-                <div style={{ 
-                  flex: 1, 
-                  height: '2px', 
-                  backgroundColor: '#000000' 
-                }}></div>
-              </div>
-
-              {/* OAuth Buttons */}
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '12px'
-              }}>
-                {isGoogleAvailable && (
-                  <IonButton 
-                    expand="block" 
-                    fill="outline"
-                    color="medium"
-                    onClick={handleGoogleSignIn}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      border: '2px solid #000000'
-                    }}
-                  >
-                    <IonIcon icon="logo-google" style={{ marginRight: '8px' }} />
-                    SIGN IN WITH GOOGLE
-                  </IonButton>
-                )}
-
-                {isAppleAvailable && (
-                  <IonButton 
-                    expand="block" 
-                    fill="solid"
-                    color="dark"
-                    onClick={handleAppleSignIn}
-                    style={{ 
-                      fontFamily: 'Courier New, Courier, monospace',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      backgroundColor: '#000000',
-                      color: '#ffffff'
-                    }}
-                  >
-                    <IonIcon icon="logo-apple" style={{ marginRight: '8px' }} />
-                    SIGN IN WITH APPLE
-                  </IonButton>
-                )}
-              </div>
-            </IonCardContent>
-          </IonCard>
-
-          {/* Demo Credentials */}
-          <IonCard className="poll-card-minimal" style={{ marginTop: '16px' }}>
-            <IonCardHeader>
-              <IonCardTitle style={{ 
-                fontFamily: 'Courier New, Courier, monospace',
-                fontSize: '14px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                color: '#666666',
-                textAlign: 'center'
-              }}>
-                DEMO CREDENTIALS
-              </IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <div style={{
-                fontFamily: 'Courier New, Courier, monospace',
-                fontSize: '12px',
-                fontWeight: '700',
-                color: '#666666',
-                textAlign: 'center',
-                lineHeight: '1.6'
-              }}>
-                <div><strong>Email:</strong> alex@example.com</div>
-                <div><strong>Password:</strong> password123</div>
-                <div style={{ marginTop: '8px', fontSize: '10px' }}>
-                  Click "Sign In" after filling these credentials
+              )}
+              
+              {/* Error Message */}
+              {error && (
+                <div className="error-message">
+                  {error}
                 </div>
-              </div>
-            </IonCardContent>
-          </IonCard>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={!formData.email || !formData.password}
+              >
+                <IonIcon icon={logIn} />
+                SIGN IN
+              </button>
+            </form>
+
+            {/* OAuth Divider */}
+            <div className="divider">
+              <span>OR CONTINUE WITH</span>
+            </div>
+
+            {/* OAuth Buttons */}
+            <div className="oauth-buttons">
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="btn-oauth btn-google"
+              >
+                <IonIcon icon={logoGoogle} />
+                GOOGLE
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAppleSignIn}
+                className="btn-oauth btn-apple"
+              >
+                <IonIcon icon={logoApple} />
+                APPLE
+              </button>
+            </div>
+
+            {/* Sign Up Link */}
+            <div className="signup-link">
+              <span>DON'T HAVE AN ACCOUNT?</span>
+              <button
+                type="button"
+                onClick={onNavigateToSignUp}
+                className="link-button"
+              >
+                SIGN UP
+              </button>
+            </div>
+          </div>
         </div>
       </IonContent>
     </IonPage>

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { 
   IonPage, 
   IonHeader, 
@@ -22,9 +22,14 @@ import {
   notificationsOutline,
   time, 
   checkmarkCircle,
-  calendar
+  calendar,
+  shieldOutline
 } from 'ionicons/icons'
 import { PollNotification } from '../types'
+import DeathmatchAcceptModal from '../components/DeathmatchAcceptModal'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 
 interface NotificationsPageProps {
   notifications: PollNotification[]
@@ -39,11 +44,48 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({
   onRefresh,
   onMarkAsRead
 }) => {
+  const [selectedPollId, setSelectedPollId] = useState<string | null>(null)
+  const [selectedPoll, setSelectedPoll] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const handleNotificationClick = async (notification: PollNotification) => {
+    // If it's a deathmatch awaiting acceptance, open the modal
+    if (notification.type === 'deathmatch_awaiting_acceptance') {
+      try {
+        const poll = await PollzAPI.getPollById(notification.pollId)
+        if (poll) {
+          setSelectedPoll(poll)
+          setSelectedPollId(poll.id)
+          setIsModalOpen(true)
+          // Mark notification as read when opened
+          onMarkAsRead(notification.id)
+        }
+      } catch (error) {
+        console.error('Error loading poll:', error)
+      }
+    }
+  }
+
+  const handleModalClose = () => {
+    setIsModalOpen(false)
+    setSelectedPoll(null)
+    setSelectedPollId(null)
+  }
+
+  const handleAccepted = () => {
+    // Refresh notifications after acceptance
+    onRefresh()
+  }
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'poll_expired': return time
       case 'poll_created': return notifications
       case 'poll_trending': return notificationsOutline
+      case 'deathmatch_awaiting_acceptance': return shieldOutline
+      case 'deathmatch_created': return shieldOutline
+      case 'deathmatch_accepted': return notifications
+      case 'deathmatch_100_votes': return notificationsOutline
+      case 'deathmatch_surpassed': return notificationsOutline
       default: return notifications
     }
   }
@@ -53,6 +95,11 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({
       case 'poll_expired': return 'warning'
       case 'poll_created': return 'success'
       case 'poll_trending': return 'primary'
+      case 'deathmatch_awaiting_acceptance': return 'danger'
+      case 'deathmatch_created': return 'primary'
+      case 'deathmatch_accepted': return 'success'
+      case 'deathmatch_100_votes': return 'warning'
+      case 'deathmatch_surpassed': return 'warning'
       default: return 'medium'
     }
   }
@@ -156,8 +203,10 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({
                 className="poll-card-minimal"
                 style={{ 
                   opacity: notification.isRead ? 0.7 : 1,
-                  borderLeft: notification.isRead ? 'none' : '4px solid #ff0000'
+                  borderLeft: notification.isRead ? 'none' : '4px solid #ff0000',
+                  cursor: notification.type === 'deathmatch_awaiting_acceptance' ? 'pointer' : 'default'
                 }}
+                onClick={() => notification.type === 'deathmatch_awaiting_acceptance' && handleNotificationClick(notification)}
               >
                 <IonCardHeader>
                   <div style={{ 
@@ -243,6 +292,14 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({
             REFRESH NOTIFICATIONS
           </IonButton>
         </div>
+
+        {/* Deathmatch Accept Modal */}
+        <DeathmatchAcceptModal
+          isOpen={isModalOpen}
+          poll={selectedPoll}
+          onClose={handleModalClose}
+          onAccepted={handleAccepted}
+        />
       </IonContent>
     </IonPage>
   )

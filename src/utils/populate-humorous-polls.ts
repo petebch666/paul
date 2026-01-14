@@ -226,7 +226,7 @@ export const populateHumorousPolls = async () => {
 }
 
 // Auto-run in development
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   setTimeout(() => {
     populateHumorousPolls()
   }, 1000)

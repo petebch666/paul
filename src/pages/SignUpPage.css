@@ -1,0 +1,112 @@
+/* Sign Up Page - Minimalistic & Sleek Design */
+
+.signup-page {
+  --background: #ffffff;
+}
+
+.signup-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  max-width: 450px;
+  margin: 0 auto;
+}
+
+/* Header */
+.signup-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.signup-header h1 {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: #000000;
+  margin: 0 0 10px 0;
+}
+
+.signup-header p {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #666666;
+  margin: 0;
+}
+
+/* Form Container */
+.signup-form-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.signup-form {
+  width: 100%;
+}
+
+/* Password Requirements */
+.password-requirements {
+  background: #f0f0f0;
+  border: 3px solid #000000;
+  padding: 16px;
+  margin-bottom: 20px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #666666;
+  transition: all 0.3s ease;
+}
+
+.password-requirements:hover {
+  border-color: #ff0000;
+  background: #fff5f5;
+}
+
+.requirement-title {
+  margin-bottom: 8px;
+  color: #000000;
+  font-size: 11px;
+}
+
+.requirement-item {
+  margin-bottom: 4px;
+  padding-left: 8px;
+}
+
+/* Login Link */
+.login-link {
+  text-align: center;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #666666;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .signup-header h1 {
+    font-size: 32px;
+    letter-spacing: 6px;
+  }
+
+  .signup-header p {
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  .password-requirements {
+    font-size: 9px;
+  }
+
+  .requirement-item {
+    margin-bottom: 3px;
+  }
+}
+

@@ -21,14 +21,16 @@ import {
   IonLabel
 } from '@ionic/react'
 import { trendingUp, refresh, flash } from 'ionicons/icons'
-import PollCard from '../components/PollCard'
+import PollCarousel from '../components/PollCarousel'
 import { Poll, User } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 
 interface TrendingPageProps {
   polls: Poll[]
   user: User
-  onVote: (pollId: string, option: 'A' | 'B') => void
+  onVote: (pollId: string, option: 'A' | 'B') => Promise<void>
   onLike: (pollId: string) => void
 }
 
@@ -44,18 +46,18 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ polls, user, onVote, onLike
     setTrendingPolls(sorted)
   }, [polls])
 
-  const handleRefresh = async () => {
-    setRefreshing(true)
+  const handleRefresh = async (event: CustomEvent) => {
+    console.log('🔄 Refreshing trending polls...')
     try {
       // Update trending polls using API
       await PollzAPI.updateTrendingPolls()
       const updatedTrendingPolls = await PollzAPI.getTrendingPolls()
       setTrendingPolls(updatedTrendingPolls)
-      console.log('🔄 Trending polls refreshed')
+      console.log('✅ Trending polls refreshed')
     } catch (error) {
       console.error('Error refreshing trending polls:', error)
     } finally {
-      setRefreshing(false)
+      event.detail.complete()
     }
   }
 
@@ -116,92 +118,12 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ polls, user, onVote, onLike
           </IonCardContent>
         </IonCard>
 
-        <div style={{ padding: '0 16px' }}>
-          {trendingPolls.map((poll, index) => (
-            <IonCard key={poll.id} style={{ margin: '8px 0' }}>
-              <IonCardHeader>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <IonChip color="warning">
-                    <IonIcon icon={flash} />
-                    <IonLabel>#{index + 1}</IonLabel>
-                  </IonChip>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <IonBadge color="primary">
-                      {Math.round(poll.trendingScore || 0)} trending
-                    </IonBadge>
-                    <IonBadge color="light">
-                      {poll.votes} votes
-                    </IonBadge>
-                    <IonChip color="medium">{poll.category}</IonChip>
-                  </div>
-                </div>
-              </IonCardHeader>
-              <IonCardContent>
-                <PollCard
-                  poll={poll}
-                  onVote={onVote}
-                  onLike={onLike}
-                  currentUser={user}
-                />
-              </IonCardContent>
-            </IonCard>
-          ))}
-        </div>
-
-        <IonCard style={{ margin: '16px' }}>
-          <IonCardHeader>
-            <IonCardTitle>Poll Suggestions</IonCardTitle>
-          </IonCardHeader>
-          <IonCardContent>
-            <IonGrid>
-              <IonRow>
-                {trendingPolls.slice(0, 3).map((poll, index) => (
-                  <IonCol size="12" key={poll.id}>
-                    <IonCard style={{ margin: '8px 0' }}>
-                      <IonCardContent>
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                          <IonIcon icon={flash} style={{ marginRight: '4px', color: '#ff6b35' }} />
-                          <span style={{ fontSize: '12px', color: '#666' }}>
-                            Hot in {poll.category}
-                          </span>
-                        </div>
-                        <h4 style={{ 
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          margin: '8px 0'
-                        }}>
-                          {poll.title}
-                        </h4>
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                          <IonBadge color="light">{poll.votes} votes</IonBadge>
-                          <IonBadge color="warning">{Math.round(poll.trendingScore || 0)} trending</IonBadge>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <IonButton 
-                            size="small" 
-                            fill="outline"
-                            onClick={() => onVote(poll.id, 'A')}
-                            disabled={poll.isVoted}
-                          >
-                            Vote A
-                          </IonButton>
-                          <IonButton 
-                            size="small" 
-                            fill="outline"
-                            onClick={() => onVote(poll.id, 'B')}
-                            disabled={poll.isVoted}
-                          >
-                            Vote B
-                          </IonButton>
-                        </div>
-                      </IonCardContent>
-                    </IonCard>
-                  </IonCol>
-                ))}
-              </IonRow>
-            </IonGrid>
-          </IonCardContent>
-        </IonCard>
+        <PollCarousel
+          polls={trendingPolls}
+          user={user}
+          onVote={onVote}
+          onLike={onLike}
+        />
       </IonContent>
     </IonPage>
   )

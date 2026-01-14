@@ -1,14 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { IonCard, IonChip, IonBadge, IonIcon } from '@ionic/react'
-import { thumbsUp, thumbsDown, checkmark, close } from 'ionicons/icons'
+import { 
+  thumbsUp, 
+  thumbsDown, 
+  checkmark, 
+  close, 
+  timeOutline, 
+  hourglassOutline
+} from 'ionicons/icons'
 import { Poll, User } from '../types'
+import CategoryIcon from './CategoryIcon'
+import ValidationStatusBadge from './ValidationStatusBadge'
 
 interface SwipePollCardProps {
   poll: Poll
   onVote: (pollId: string, option: 'A' | 'B') => void
-  user: User
+  user: User | null
   onLike: (pollId: string) => void
   isActive?: boolean
+  isFocused?: boolean
   onVoteComplete?: () => void
   'data-poll-index'?: number
   style?: React.CSSProperties
@@ -20,6 +30,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
   user, 
   onLike,
   isActive = true,
+  isFocused = false,
   onVoteComplete,
   'data-poll-index': dataPollIndex,
   style
@@ -27,17 +38,76 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [voteDirection, setVoteDirection] = useState<'A' | 'B' | null>(null)
-  const [showResults, setShowResults] = useState(false)
+  const [showResults, setShowResults] = useState(poll.isExpired || poll.isVoted)
   const [hasVoted, setHasVoted] = useState(poll.isVoted)
+  const [isHovered, setIsHovered] = useState(false)
+  const [justVoted, setJustVoted] = useState(false)
+  const [isDisappearing, setIsDisappearing] = useState(false)
+  const [gaugeProgress, setGaugeProgress] = useState(poll.isVoted || poll.isExpired ? 100 : 0) // Start at 100 if already voted
   const cardRef = useRef<HTMLDivElement>(null)
   const startPos = useRef({ x: 0, y: 0 })
 
-  const isCreator = poll.author === user.name
-  const canVote = !hasVoted && !isCreator && isActive
+  // Update hasVoted and showResults when poll changes
+  useEffect(() => {
+    setHasVoted(poll.isVoted)
+    setShowResults(poll.isExpired || poll.isVoted)
+    // If poll is already voted, set gauge to 100% immediately
+    if (poll.isVoted || poll.isExpired) {
+      setGaugeProgress(100)
+    }
+  }, [poll.isVoted, poll.isExpired])
+
+  const isCreator = user ? poll.author === user.name : false
+  const canVote = !hasVoted && isActive && !poll.isExpired // Removed isCreator check - users can vote on their own polls
+
+  // Calculate if poll is "HOT" (time remaining < 1 hour AND vote difference < 10%)
+  const isHotPoll = () => {
+    // Parse time remaining
+    const timeMatch = poll.timeLeft.match(/(\d+)([hm])/)
+    if (!timeMatch) return false
+    
+    const value = parseInt(timeMatch[1])
+    const unit = timeMatch[2]
+    
+    // Check if less than 1 hour
+    const isLowTime = (unit === 'm') || (unit === 'h' && value < 1)
+    
+    // Calculate vote difference percentage
+    const totalVotes = poll.votesOptionA + poll.votesOptionB
+    if (totalVotes === 0) return false
+    
+    const percentageA = (poll.votesOptionA / totalVotes) * 100
+    const percentageB = (poll.votesOptionB / totalVotes) * 100
+    const difference = Math.abs(percentageA - percentageB)
+    
+    // Check if difference is less than 10 percentage points
+    const isClosePoll = difference < 10
+    
+    return isLowTime && isClosePoll && !poll.isExpired
+  }
+
+  const isHot = isHotPoll()
+
+  // Debug logging for swipe issues
+  useEffect(() => {
+    console.log(`Poll "${poll.title}" (ID: ${poll.id}):`, {
+      hasVoted,
+      isCreator,
+      isActive,
+      canVote,
+      isExpired: poll.isExpired,
+      pollAuthor: poll.author,
+      userName: user?.name || 'Unknown',
+      authorMatch: user ? poll.author === user.name : false
+    })
+  }, [poll.title, poll.id, hasVoted, isCreator, isActive, canVote, poll.author, user?.name, poll.isExpired])
 
   // Touch event handlers with improved scroll detection
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (!canVote) return
+    if (!canVote) {
+      console.log(`Cannot vote on "${poll.title}": hasVoted=${hasVoted}, isCreator=${isCreator}, isActive=${isActive}`)
+      return
+    }
     const touch = e.touches[0]
     startPos.current = { x: touch.clientX, y: touch.clientY }
     setIsDragging(true)
@@ -55,8 +125,9 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
       setDragOffset({ x: deltaX, y: 0 })
       
       // Determine vote direction based on swipe
+      // Swipe LEFT (negative) = Option A (left), Swipe RIGHT (positive) = Option B (right)
       if (Math.abs(deltaX) > 50) {
-        setVoteDirection(deltaX > 0 ? 'A' : 'B')
+        setVoteDirection(deltaX > 0 ? 'B' : 'A')
       } else {
         setVoteDirection(null)
       }
@@ -71,7 +142,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     const isSwipeRight = dragOffset.x > swipeThreshold
     
     if (isSwipeLeft || isSwipeRight) {
-      const vote = isSwipeLeft ? 'B' : 'A'
+      // Swipe LEFT = Option A (left), Swipe RIGHT = Option B (right)
+      const vote = isSwipeLeft ? 'A' : 'B'
       handleVote(vote)
     } else {
       // Reset position if not enough swipe
@@ -82,59 +154,113 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     setIsDragging(false)
   }
 
-  // Mouse event handlers for desktop
+  // Mouse event handlers (for tablets with mouse support)
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!canVote) return
+    if (!canVote) {
+      console.log(`Mouse down blocked on "${poll.title}": canVote=${canVote}`)
+      return
+    }
+    console.log(`Mouse down on "${poll.title}"`)
     startPos.current = { x: e.clientX, y: e.clientY }
     setIsDragging(true)
     e.preventDefault()
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!canVote || !isDragging) return
-    const deltaX = e.clientX - startPos.current.x
-    const deltaY = e.clientY - startPos.current.y
-    
-    setDragOffset({ x: deltaX, y: deltaY })
-    
-    if (Math.abs(deltaX) > 50) {
-      setVoteDirection(deltaX > 0 ? 'A' : 'B')
-    } else {
-      setVoteDirection(null)
-    }
-  }
+  // Use document-level mouse events for better tracking
+  useEffect(() => {
+    if (!isDragging || !canVote) return
 
-  const handleMouseUp = () => {
-    if (!canVote || !isDragging) return
-    
-    const swipeThreshold = 100
-    const isSwipeLeft = dragOffset.x < -swipeThreshold
-    const isSwipeRight = dragOffset.x > swipeThreshold
-    
-    if (isSwipeLeft || isSwipeRight) {
-      const vote = isSwipeLeft ? 'B' : 'A'
-      handleVote(vote)
-    } else {
-      setDragOffset({ x: 0, y: 0 })
-      setVoteDirection(null)
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startPos.current.x
+      const deltaY = e.clientY - startPos.current.y
+      
+      setDragOffset({ x: deltaX, y: deltaY })
+      
+      // Swipe LEFT (negative) = Option A (left), Swipe RIGHT (positive) = Option B (right)
+      if (Math.abs(deltaX) > 50) {
+        setVoteDirection(deltaX > 0 ? 'B' : 'A')
+      } else {
+        setVoteDirection(null)
+      }
     }
-    
-    setIsDragging(false)
-  }
+
+    const handleMouseUp = () => {
+      const currentOffset = { x: 0, y: 0 }
+      setDragOffset(prev => {
+        currentOffset.x = prev.x
+        currentOffset.y = prev.y
+        return prev
+      })
+      
+      const swipeThreshold = 100
+      const isSwipeLeft = currentOffset.x < -swipeThreshold
+      const isSwipeRight = currentOffset.x > swipeThreshold
+      
+      if (isSwipeLeft || isSwipeRight) {
+        // Swipe LEFT = Option A (left), Swipe RIGHT = Option B (right)
+        const vote = isSwipeLeft ? 'A' : 'B'
+        console.log(`Mouse vote on "${poll.title}": ${vote}`)
+        handleVote(vote)
+      } else {
+        setDragOffset({ x: 0, y: 0 })
+        setVoteDirection(null)
+      }
+      
+      setIsDragging(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, canVote])
 
   const handleVote = async (option: 'A' | 'B') => {
     if (hasVoted) return
     
-    setHasVoted(true)
-    setShowResults(true)
+    console.log(`✅ Voting on "${poll.title}": Option ${option}`)
     
-    // Call the vote function
-    onVote(poll.id, option)
+    // Step 1: Card disappears (50ms) - 4x faster
+    setIsDisappearing(true)
+    setDragOffset({ x: 0, y: 0 })
+    setVoteDirection(null)
+    setIsDragging(false)
     
-    // Trigger completion callback after animation
     setTimeout(() => {
-      onVoteComplete?.()
-    }, 1500)
+      // Step 2: Card reappears with results (25ms delay) - 4x faster
+      setIsDisappearing(false)
+      setJustVoted(true)
+      setHasVoted(true)
+      setShowResults(true)
+      
+      // Call the vote function
+      onVote(poll.id, option)
+      
+      // Step 3: Animate gauges filling (300ms) - 4x faster
+      let progress = 0
+      const gaugeInterval = setInterval(() => {
+        progress += 5
+        setGaugeProgress(progress)
+        if (progress >= 100) {
+          clearInterval(gaugeInterval)
+        }
+      }, 3) // 3ms * 100 steps = 300ms total
+      
+      // Step 4: Remove animation class after gauges fill
+      setTimeout(() => {
+        setJustVoted(false)
+      }, 300)
+      
+      // Step 5: Auto-scroll to next poll after showing results (800ms total) - 4x faster
+      setTimeout(() => {
+        console.log(`🔄 Auto-scrolling after vote on "${poll.title}"`)
+        onVoteComplete?.()
+        // Keep gauge at 100% to show results
+      }, 800)
+    }, 50)
   }
 
   // Click handlers for direct voting
@@ -144,7 +270,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     }
   }
 
-  // Keyboard navigation for desktop
+  // Keyboard navigation (for tablets with keyboard support)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!canVote) return
@@ -170,6 +296,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
   }
 
   const getCardOpacity = () => {
+    if (isDisappearing) return 0 // Disappear for vote animation
     if (isDragging) {
       const opacity = 1 - Math.abs(dragOffset.x) / 300
       return Math.max(0.7, opacity)
@@ -178,19 +305,58 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
   }
 
   return (
-    <div 
-      ref={cardRef}
-      className="swipe-poll-card"
-      data-poll-index={dataPollIndex}
+    <>
+      <style>{`
+        @keyframes voteSuccess {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.02); }
+          100% { transform: scale(1); }
+        }
+        
+        @keyframes gaugeFill {
+          0% { width: 0%; }
+          100% { width: var(--gauge-width, 100%); }
+        }
+        
+        .gauge-fill-animation {
+          animation: gaugeFill 0.3s ease-out forwards;
+        }
+        
+        /* Animation for poll cards when voted - slide out to the right */
+        .poll-voted-animation {
+          animation: voteSlideOut 0.8s ease-out forwards;
+        }
+
+        @keyframes voteSlideOut {
+          0% {
+            transform: translateX(0) scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: translateX(20px) scale(0.95);
+            opacity: 0.7;
+          }
+          100% {
+            transform: translateX(100vw) scale(0.8);
+            opacity: 0;
+          }
+        }
+      `}</style>
+      <div 
+        ref={cardRef}
+        className="swipe-poll-card"
+        data-poll-index={dataPollIndex}
+        data-poll-id={poll.id}
       style={{
         transform: getCardTransform(),
-        opacity: getCardOpacity(),
+        opacity: hasVoted ? 0.85 : getCardOpacity(), // Slightly transparent for voted polls
         transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         position: 'relative',
-        margin: '8px auto',
-        padding: '24px',
-        background: '#ffffff',
-        border: '3px solid #000000',
+        zIndex: isDragging ? 100 : 1, // Bring to front when dragging
+        margin: '4px auto',
+        padding: '12px',
+        background: hasVoted ? '#f5f5f5' : ((isHovered || isFocused) ? '#000000' : '#ffffff'), // Black background for focused/hovered
+        border: `3px solid ${hasVoted ? '#cccccc' : ((isHovered || isFocused) ? '#ffffff' : '#000000')}`, // White border for focused
         borderRadius: '0',
         cursor: canVote ? (isDragging ? 'grabbing' : 'grab') : 'default',
         userSelect: 'none',
@@ -198,34 +364,72 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         maxWidth: '600px',
         width: '100%',
         boxSizing: 'border-box',
+        isolation: 'isolate', // Create new stacking context for each card
+        color: hasVoted ? '#999999' : ((isHovered || isFocused) ? '#ffffff' : '#000000'), // Grey text for voted/focused
+        boxShadow: (isHovered || isFocused) ? '0 8px 16px rgba(0, 0, 0, 0.3)' : 'none',
+        // Removed grayscale filter to keep gauges colored
+        animation: justVoted ? 'voteSuccess 0.6s ease-out' : 'none', // Pulse animation on vote
         ...style
       }}
-      onTouchStart={handleTouchStart}
+      onTouchStart={(e) => {
+        setIsHovered(true)
+        handleTouchStart(e)
+      }}
       onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onTouchEnd={(e) => {
+        setIsHovered(false)
+        handleTouchEnd()
+      }}
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={(e) => {
+        setIsHovered(false)
+        if (isDragging) {
+          setIsDragging(false)
+          setDragOffset({ x: 0, y: 0 })
+          setVoteDirection(null)
+        }
+      }}
+      onMouseEnter={() => setIsHovered(true)}
     >
       {/* Vote direction indicators */}
       {isDragging && voteDirection && (
-        <div 
-          className={`vote-indicator ${voteDirection}`}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            [voteDirection === 'A' ? 'right' : 'left']: '20px',
-            transform: 'translateY(-50%)',
-            fontSize: '48px',
-            fontWeight: '700',
-            color: voteDirection === 'A' ? '#0066ff' : '#ff0000',
-            opacity: Math.min(1, Math.abs(dragOffset.x) / 100),
-            zIndex: 10
-          }}
-        >
-          {voteDirection === 'A' ? '👍' : '👎'}
-        </div>
+        <>
+          {/* Thumbs UP for chosen option */}
+          <div 
+            className={`vote-indicator chosen`}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              [voteDirection === 'A' ? 'left' : 'right']: '20px',
+              transform: 'translateY(-50%)',
+              fontSize: '48px',
+              fontWeight: '700',
+              color: '#00ff00',
+              opacity: Math.min(1, Math.abs(dragOffset.x) / 100),
+              zIndex: 10
+            }}
+          >
+            👍
+          </div>
+          
+          {/* Thumbs DOWN for rejected option */}
+          <div 
+            className={`vote-indicator rejected`}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              [voteDirection === 'A' ? 'right' : 'left']: '20px',
+              transform: 'translateY(-50%)',
+              fontSize: '48px',
+              fontWeight: '700',
+              color: '#ff0000',
+              opacity: Math.min(0.5, Math.abs(dragOffset.x) / 150),
+              zIndex: 10
+            }}
+          >
+            👎
+          </div>
+        </>
       )}
 
       {/* Header */}
@@ -233,28 +437,91 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        marginBottom: '16px'
+        marginBottom: '8px',
+        gap: '8px'
       }}>
-        <IonChip 
-          color="primary" 
-          style={{ 
-            fontSize: '10px',
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}
-        >
-          {poll.category}
-        </IonChip>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <IonChip 
+            style={{ 
+              fontSize: '10px',
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: (isHovered || isFocused) ? '#ffffff' : '#f0f0f0',
+              border: (isHovered || isFocused) ? '2px solid #ffffff' : '2px solid #e0e0e0',
+              color: (isHovered || isFocused) ? '#000000' : '#333333'
+            }}
+          >
+            <CategoryIcon category={poll.category} size={20} />
+            <span>{poll.category.toUpperCase()}</span>
+          </IonChip>
+          
+          {/* HOT badge for close polls with low time */}
+          {isHot && (
+            <IonChip 
+              style={{ 
+                fontSize: '10px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                background: '#ff0000',
+                color: '#ffffff',
+                animation: 'pulse 1.5s ease-in-out infinite'
+              }}
+            >
+              🔥 HOT
+            </IonChip>
+          )}
+          
+          {/* EXPIRED badge */}
+          {poll.isExpired && (
+            <IonChip 
+              style={{ 
+                fontSize: '10px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                background: '#666666',
+                color: '#ffffff'
+              }}
+            >
+              EXPIRED
+            </IonChip>
+          )}
+          
+          {/* Validation status badge - only show for user's own polls */}
+          {isCreator && poll.validationStatus && poll.validationStatus !== 'approved' && (
+            <ValidationStatusBadge poll={poll} showReason={poll.validationStatus === 'rejected'} />
+          )}
+        </div>
+        
+        {/* Time remaining with icon */}
         <IonBadge 
           color="light" 
-          style={{ 
+          style={{
+            background: (isHovered || isFocused) ? '#ffffff' : undefined,
+            color: (isHovered || isFocused) ? '#000000' : undefined, 
             fontSize: '10px',
             fontWeight: '700',
             textTransform: 'uppercase',
-            letterSpacing: '1px'
+            letterSpacing: '1px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '6px 10px'
           }}
         >
+          <IonIcon 
+            icon={poll.isExpired ? timeOutline : hourglassOutline} 
+            style={{ 
+              fontSize: '14px',
+              color: (isHovered || isFocused) ? '#000000' : undefined
+            }}
+          />
           {poll.timeLeft}
         </IonBadge>
       </div>
@@ -268,8 +535,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           fontSize: '18px',
           textTransform: 'uppercase',
           letterSpacing: '2px',
-          color: '#000000',
-          marginBottom: '24px',
+          color: (isHovered || isFocused) ? '#ffffff' : '#000000',
+          marginBottom: '12px',
           lineHeight: '1.2',
           textAlign: 'center'
         }}
@@ -283,8 +550,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           style={{
             fontFamily: 'Courier New, Courier, monospace',
             fontSize: '12px',
-            color: '#666666',
-            marginBottom: '24px',
+            color: (isHovered || isFocused) ? '#cccccc' : '#666666',
+            marginBottom: '12px',
             textAlign: 'center',
             fontStyle: 'italic'
           }}
@@ -298,8 +565,8 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         className="poll-options"
         style={{
           display: 'flex',
-          gap: '12px',
-          marginBottom: '20px'
+          gap: '8px',
+          marginBottom: '12px'
         }}
       >
         {/* Option A */}
@@ -307,9 +574,9 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           className={`option-container ${voteDirection === 'A' ? 'highlight' : ''} ${hasVoted && poll.votesOptionA > poll.votesOptionB ? 'winning' : ''}`}
           style={{
             flex: 1,
-            padding: '20px',
-            background: voteDirection === 'A' ? '#0066ff' : '#ffffff',
-            border: '3px solid #000000',
+            padding: '12px',
+            background: voteDirection === 'A' ? '#0066ff' : ((isHovered || isFocused) ? '#333333' : '#ffffff'),
+            border: (isHovered || isFocused) ? '3px solid #ffffff' : '3px solid #000000',
             cursor: canVote ? 'pointer' : 'default',
             transition: 'all 0.2s ease',
             position: 'relative',
@@ -336,24 +603,71 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               fontWeight: '700',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: voteDirection === 'A' ? '#ffffff' : '#000000',
+              color: voteDirection === 'A' ? '#ffffff' : ((isHovered || isFocused) ? '#ffffff' : '#000000'),
               marginBottom: '8px'
             }}
           >
             {poll.arguments?.optionA || 'Option A'}
           </div>
           
+          {/* Deathmatch username placeholder for Option A */}
+          {poll.isDeathmatch && (
+            <div style={{
+              fontSize: '9px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: voteDirection === 'A' ? '#ffffff' : ((isHovered || isFocused) ? '#cccccc' : '#666666'),
+              marginTop: '-4px',
+              marginBottom: '4px',
+              fontFamily: 'Courier New, Courier, monospace'
+            }}>
+              {poll.isShadowDeathmatch && !poll.isExpired 
+                ? '@??????'
+                : (poll.optionAOwner?.username || '@unknown')
+              }
+            </div>
+          )}
+          
           {showResults && (
-            <div 
-              style={{
-                fontSize: '16px',
+            <div style={{ width: '100%', marginTop: '12px' }}>
+              {/* Animated Gauge */}
+              <div style={{
+                width: '100%',
+                height: '24px',
+                background: '#e0e0e0',
+                borderRadius: '4px',
+                overflow: 'hidden',
+                position: 'relative',
+                marginBottom: '8px'
+              }}>
+                <div style={{
+                  width: `${Math.round((poll.votesOptionA / poll.votes) * gaugeProgress)}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #0066ff 0%, #0099ff 100%)',
+                  transition: 'width 0.05s linear',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {gaugeProgress > 20 && (
+                    <span style={{
+                      color: '#ffffff',
+                      fontWeight: '700',
+                      fontSize: '14px'
+                    }}>
+                      {Math.round((poll.votesOptionA / poll.votes) * 100)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={{ 
+                fontSize: '11px', 
                 fontWeight: '700',
-                color: voteDirection === 'A' ? '#ffffff' : '#000000'
-              }}
-            >
-              {Math.round((poll.votesOptionA / poll.votes) * 100)}%
-              <div style={{ fontSize: '10px', opacity: 0.8 }}>
-                {poll.votesOptionA} votes
+                color: voteDirection === 'A' ? '#ffffff' : '#666666',
+                textAlign: 'center'
+              }}>
+                {poll.votesOptionA} VOTES
               </div>
             </div>
           )}
@@ -382,9 +696,9 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           className={`option-container ${voteDirection === 'B' ? 'highlight' : ''} ${hasVoted && poll.votesOptionB > poll.votesOptionA ? 'winning' : ''}`}
           style={{
             flex: 1,
-            padding: '20px',
-            background: voteDirection === 'B' ? '#ff0000' : '#ffffff',
-            border: '3px solid #000000',
+            padding: '12px',
+            background: voteDirection === 'B' ? '#ff0000' : ((isHovered || isFocused) ? '#333333' : '#ffffff'),
+            border: (isHovered || isFocused) ? '3px solid #ffffff' : '3px solid #000000',
             cursor: canVote ? 'pointer' : 'default',
             transition: 'all 0.2s ease',
             position: 'relative',
@@ -411,24 +725,71 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
               fontWeight: '700',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: voteDirection === 'B' ? '#ffffff' : '#000000',
+              color: voteDirection === 'B' ? '#ffffff' : ((isHovered || isFocused) ? '#ffffff' : '#000000'),
               marginBottom: '8px'
             }}
           >
             {poll.arguments?.optionB || 'Option B'}
           </div>
           
+          {/* Deathmatch username placeholder for Option B */}
+          {poll.isDeathmatch && (
+            <div style={{
+              fontSize: '9px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: voteDirection === 'B' ? '#ffffff' : ((isHovered || isFocused) ? '#cccccc' : '#666666'),
+              marginTop: '-4px',
+              marginBottom: '4px',
+              fontFamily: 'Courier New, Courier, monospace'
+            }}>
+              {poll.isShadowDeathmatch && !poll.isExpired 
+                ? '@??????'
+                : (poll.optionBOwner?.username || '@unknown')
+              }
+            </div>
+          )}
+          
           {showResults && (
-            <div 
-              style={{
-                fontSize: '16px',
+            <div style={{ width: '100%', marginTop: '12px' }}>
+              {/* Animated Gauge */}
+              <div style={{
+                width: '100%',
+                height: '24px',
+                background: '#e0e0e0',
+                borderRadius: '4px',
+                overflow: 'hidden',
+                position: 'relative',
+                marginBottom: '8px'
+              }}>
+                <div style={{
+                  width: `${Math.round((poll.votesOptionB / poll.votes) * gaugeProgress)}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #ff0000 0%, #ff3333 100%)',
+                  transition: 'width 0.05s linear',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {gaugeProgress > 20 && (
+                    <span style={{
+                      color: '#ffffff',
+                      fontWeight: '700',
+                      fontSize: '14px'
+                    }}>
+                      {Math.round((poll.votesOptionB / poll.votes) * 100)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={{ 
+                fontSize: '11px', 
                 fontWeight: '700',
-                color: voteDirection === 'B' ? '#ffffff' : '#000000'
-              }}
-            >
-              {Math.round((poll.votesOptionB / poll.votes) * 100)}%
-              <div style={{ fontSize: '10px', opacity: 0.8 }}>
-                {poll.votesOptionB} votes
+                color: voteDirection === 'B' ? '#ffffff' : '#666666',
+                textAlign: 'center'
+              }}>
+                {poll.votesOptionB} VOTES
               </div>
             </div>
           )}
@@ -440,46 +801,58 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         className="poll-stats"
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: 'column',
+          gap: '8px',
           paddingTop: '16px',
           borderTop: '2px solid #000000',
           fontFamily: 'Courier New, Courier, monospace',
           fontSize: '11px',
           textTransform: 'uppercase',
           letterSpacing: '1px',
-          color: '#000000',
+          color: (isHovered || isFocused) ? '#ffffff' : '#000000',
           fontWeight: '700'
         }}
       >
-        <span>{poll.votes} VOTES</span>
-        <span>by {poll.author}</span>
-      </div>
-
-      {/* Instruction overlay */}
-      {canVote && !isDragging && (
-        <div 
-          style={{
-            position: 'absolute',
-            bottom: '-50px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: '10px',
-            color: '#666666',
-            textAlign: 'center',
-            fontFamily: 'Courier New, Courier, monospace',
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}
-        >
-          <div>SWIPE LEFT OR RIGHT TO VOTE</div>
-          <div style={{ fontSize: '8px', marginTop: '4px', opacity: 0.7 }}>
-            DESKTOP: CLICK, DRAG, OR USE ARROW KEYS
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{poll.votes} VOTES</span>
+          {/* Show author username or placeholder */}
+          <span>
+            by {poll.authorUsername || poll.author || 'ANONYMOUS'}
+          </span>
         </div>
-      )}
+        
+        {/* Deathmatch usernames */}
+        {poll.isDeathmatch && (poll.optionAOwner || poll.optionBOwner) && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '9px',
+            letterSpacing: '0.5px',
+            opacity: 0.8,
+            marginTop: '4px'
+          }}>
+            {/* Show usernames only if not shadow deathmatch or if poll is expired */}
+            {poll.isShadowDeathmatch && !poll.isExpired ? (
+              <>
+                <span>OPTION A: @??????</span>
+                <span>OPTION B: @??????</span>
+              </>
+            ) : (
+              <>
+                <span>
+                  OPTION A: {poll.optionAOwner?.username || '@unknown'}
+                </span>
+                <span>
+                  OPTION B: {poll.optionBOwner?.username || '@unknown'}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
+    </>
   )
 }
 

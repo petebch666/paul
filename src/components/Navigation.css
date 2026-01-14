@@ -1,16 +1,6 @@
-/* Navigation Styles */
+/* Navigation Styles - Removed desktop sidebar (mobile/tablet only app) */
 .navigation {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 250px;
-  height: 100vh;
-  background: #ffffff;
-  border-right: 2px solid #000000;
-  display: flex;
-  flex-direction: column;
-  z-index: 1000;
-  font-family: 'JetBrains Mono', monospace;
+  display: none; /* Navigation sidebar removed - using only Ionic tab bar */
 }
 
 .nav-brand {
@@ -21,15 +11,8 @@
 .nav-logo {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 1rem;
-}
-
-.nav-logo .red-dot {
-  width: 20px;
-  height: 20px;
-  background: #ff0000;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
 }
 
 .brand-text {
@@ -106,81 +89,137 @@
   font-weight: 500;
 }
 
-.nav-footer {
-  padding: 1.5rem;
-  border-top: 2px solid #000000;
+/* Mobile/Tablet only - sidebar navigation removed */
+
+/* Development Reset Button */
+.dev-reset-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
   display: flex;
-  justify-content: center;
-}
-
-.nav-footer .red-dot-large {
-  width: 30px;
-  height: 30px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
   background: #ff0000;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
+  color: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 4px 4px 0 #000000;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .navigation {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    width: 100%;
-    height: auto;
-    flex-direction: row;
-    border-right: none;
-    border-top: 2px solid #000000;
-    padding: 0.5rem 0;
-  }
+.dev-reset-button:hover:not(:disabled) {
+  background: #cc0000;
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000000;
+}
 
-  .nav-brand {
-    display: none;
-  }
+.dev-reset-button:active:not(:disabled) {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 #000000;
+}
 
-  .nav-items {
-    flex-direction: row;
-    justify-content: space-around;
-    padding: 0;
-    flex: 1;
-  }
+.dev-reset-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-  .nav-item {
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.5rem;
-    min-width: 60px;
-  }
+.dev-reset-button .spinning {
+  animation: spin 1s linear infinite;
+}
 
-  .nav-label {
-    font-size: 0.7rem;
-  }
+/* Development Generate Polls Button */
+.dev-generate-button {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #00aa00;
+  color: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 4px 4px 0 #000000;
+}
 
-  .nav-icon {
-    width: 18px;
-    height: 18px;
-  }
+.dev-generate-button:hover:not(:disabled) {
+  background: #008800;
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000000;
+}
 
-  .nav-footer {
-    display: none;
+.dev-generate-button:active:not(:disabled) {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 #000000;
+}
+
+.dev-generate-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dev-generate-button .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@media (max-width: 480px) {
-  .nav-item {
-    padding: 0.25rem;
+/* On mobile, make buttons more prominent and visible */
+@media (max-width: 1024px) {
+  .dev-reset-button {
+    top: 12px;
+    right: 12px;
+    padding: 12px 16px;
+    font-size: 11px;
+    border-radius: 8px;
+    box-shadow: 3px 3px 0 #000000, 
+                0 0 15px rgba(255, 0, 0, 0.5);
+  }
+  
+  .dev-reset-button:hover:not(:disabled) {
+    box-shadow: 2px 2px 0 #000000,
+                0 0 15px rgba(255, 0, 0, 0.7);
   }
 
-  .nav-label {
-    font-size: 0.6rem;
+  .dev-generate-button {
+    top: 70px;
+    right: 12px;
+    padding: 12px 16px;
+    font-size: 11px;
+    border-radius: 8px;
+    box-shadow: 3px 3px 0 #000000, 
+                0 0 15px rgba(0, 170, 0, 0.5);
   }
-
-  .nav-icon {
-    width: 16px;
-    height: 16px;
+  
+  .dev-generate-button:hover:not(:disabled) {
+    box-shadow: 2px 2px 0 #000000,
+                0 0 15px rgba(0, 170, 0, 0.7);
   }
 }
+
+/* Mobile/Tablet only app - no desktop sidebar */
 

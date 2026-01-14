@@ -3,24 +3,37 @@ import { IonApp, IonRouterOutlet, IonTabs, IonTabBar, IonTabButton, IonIcon, Ion
 import { useIonRouter } from '@ionic/react'
 import { IonReactRouter } from '@ionic/react-router'
 import { Route, Redirect } from 'react-router-dom'
-import { home, add, trendingUp, person } from 'ionicons/icons'
+import { home, add, person, shield } from 'ionicons/icons'
 import { useAppState } from './hooks/useAppState'
 import HomePage from './pages/HomePage'
-import SwipeHomePage from './pages/SwipeHomePage'
-import DesktopHomePage from './pages/DesktopHomePage'
 import CreatePage from './pages/CreatePage'
-import TrendingPage from './pages/TrendingPage'
 import ProfilePage from './pages/ProfilePage'
 import NotificationsPage from './pages/NotificationsPage'
 import PollHistoryPage from './pages/PollHistoryPage'
+import AdminDashboard from './pages/AdminDashboard'
+import MigrationPage from './pages/MigrationPage'
 import AuthenticationWrapper from './components/AuthenticationWrapper'
+import SecurityBadge from './components/SecurityBadge'
 import { useAuth } from './hooks/useAuth'
+// Import validation worker to ensure it starts
+import './services/validation-worker'
 import './App.css'
 
-// Import test utility for development
-if (process.env.NODE_ENV === 'development') {
-  import('./utils/test-api')
-  import('./utils/populate-humorous-polls')
+// Import utilities for development (DISABLED - Using real data only)
+if (import.meta.env.DEV) {
+  // Removed auto-population scripts - we're using real data now!
+  // Migration to Supabase complete
+  
+  // Make functions available in console for manual testing only
+  import('./database/unified-api').then(module => {
+    (window as any).PollzAPI = module.default
+    console.log('💡 PollzAPI available in console for testing')
+  })
+  
+  // Import validation test utilities
+  import('./utils/test-validation').then(() => {
+    console.log('💡 Validation test utilities available - use testValidation.* in console')
+  })
 }
 
 // Mock data (kept for reference, but no longer used)
@@ -247,21 +260,22 @@ const mockPolls = [
   }
 ]
 
-function App() {
-  const [isDesktop, setIsDesktop] = useState(false)
+// Inner component that has access to router context
+function AppContent() {
   const [currentPage, setCurrentPage] = useState<'home' | 'notifications' | 'history'>('home')
+  const [currentTab, setCurrentTab] = useState<'home' | 'create' | 'profile' | 'admin'>('home')
+  const { logout: authLogout } = useAuth()
   const router = useIonRouter()
-  const { logout } = useAuth()
 
-    const {
+  const {
     polls,
+    allPolls,
     user,
     loading,
     loadingMore,
     error,
     hasMorePolls,
     totalPolls,
-    currentPage: currentPollPage,
     notifications,
     pollHistory,
     handleVote,
@@ -275,16 +289,13 @@ function App() {
     updatePollTimers
   } = useAppState()
 
-  // Detect screen size
+  // Debug: Log user role when it changes
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsDesktop(window.innerWidth > 1024)
+    if (user) {
+      console.log('👤 User loaded:', user.name, 'Role:', user.role)
+      console.log('🔐 Show Admin Tab:', user.role === 'admin')
     }
-    
-    checkScreenSize()
-    window.addEventListener('resize', checkScreenSize)
-    return () => window.removeEventListener('resize', checkScreenSize)
-  }, [])
+  }, [user])
 
   // Navigation functions
   const navigateToNotifications = () => {
@@ -299,71 +310,72 @@ function App() {
     setCurrentPage('home')
   }
 
-  // Navigation handler
+  // Navigation handler - will be used inside IonReactRouter context
   const handleNavigate = (path: string) => {
-    router.push(path)
+    // Navigation will be handled by child components with access to router
+    console.log('Navigate to:', path)
+  }
+
+  // Handle tab click - scroll to top if already on that tab
+  const handleTabClick = (tab: 'home' | 'create' | 'profile' | 'admin') => {
+    if (!router.routeInfo) return
+    
+    const currentPath = router.routeInfo.pathname
+    const tabPath = `/${tab}`
+    
+    if (currentPath === tabPath) {
+      // Already on this tab, scroll to top
+      const content = document.querySelector('ion-content')
+      if (content) {
+        content.scrollToTop(500)
+        console.log(`📍 Scrolled to top of ${tab}`)
+      }
+    } else {
+      // Navigate to new tab
+      setCurrentTab(tab)
+    }
   }
 
   return (
-    <IonReactRouter>
-      <IonApp>
-        <AuthenticationWrapper>
-          {currentPage === 'notifications' ? (
-            <NotificationsPage
-              notifications={notifications}
-              loading={loading}
-              onRefresh={loadNotifications}
-              onMarkAsRead={markNotificationAsRead}
-            />
-          ) : currentPage === 'history' ? (
-            <PollHistoryPage
-              pollHistory={pollHistory}
-              loading={loading}
-              onRefresh={loadPollHistory}
-            />
-          ) : (
-            <IonTabs>
+    <>
+            {currentPage === 'notifications' ? (
+              <div className="main-content">
+                <NotificationsPage
+                  notifications={notifications}
+                  loading={loading}
+                  onRefresh={loadNotifications}
+                  onMarkAsRead={markNotificationAsRead}
+                />
+              </div>
+            ) : currentPage === 'history' ? (
+              <div className="main-content">
+                <PollHistoryPage
+                  pollHistory={pollHistory}
+                  loading={loading}
+                  onRefresh={loadPollHistory}
+                />
+              </div>
+            ) : (
+              <IonTabs>
               <IonRouterOutlet>
             <Route exact path="/home">
-              {isDesktop ? (
-                <DesktopHomePage
-                  polls={polls}
-                  user={user}
-                  onVote={handleVote}
-                  onLike={handleLike}
-                  loadPolls={loadPolls}
-                  loadMorePolls={loadMorePolls}
-                  loading={loading}
-                  loadingMore={loadingMore}
-                  hasMorePolls={hasMorePolls}
-                  totalPolls={totalPolls}
-                  currentPage={currentPollPage}
-                  error={error}
-                  onNavigate={handleNavigate}
-                />
-              ) : (
-                <HomePage
-                  polls={polls}
-                  user={user}
-                  onVote={handleVote}
-                  onLike={handleLike}
-                  loadPolls={loadPolls}
-                  loading={loading}
-                  error={error}
-                />
-              )}
+              <HomePage
+                polls={polls}
+                allPolls={allPolls}
+                user={user}
+                onVote={handleVote}
+                onLike={handleLike}
+                loadPolls={loadPolls}
+                loadMorePolls={loadMorePolls}
+                loading={loading}
+                loadingMore={loadingMore}
+                hasMorePolls={hasMorePolls}
+                error={error}
+              />
             </Route>
             <Route exact path="/create">
               <CreatePage
                 onCreatePoll={createPoll}
-              />
-            </Route>
-            <Route exact path="/trending">
-              <TrendingPage
-                polls={polls}
-                user={user}
-                onVote={handleVote}
-                onLike={handleLike}
               />
             </Route>
             <Route exact path="/profile">
@@ -374,8 +386,14 @@ function App() {
                 onLike={handleLike}
                 onNavigateToNotifications={navigateToNotifications}
                 onNavigateToHistory={navigateToHistory}
-                onLogout={logout}
+                onLogout={authLogout}
               />
+            </Route>
+            <Route exact path="/admin">
+              <AdminDashboard />
+            </Route>
+            <Route exact path="/migrate">
+              <MigrationPage />
             </Route>
             <Route exact path="/">
               <Redirect to="/home" />
@@ -383,38 +401,67 @@ function App() {
           </IonRouterOutlet>
           
           <IonTabBar slot="bottom">
-            <IonTabButton tab="home" href="/home">
+            <IonTabButton 
+              tab="home" 
+              href="/home"
+              onClick={() => handleTabClick('home')}
+            >
               <IonIcon icon={home} />
               <IonLabel>Home</IonLabel>
             </IonTabButton>
-            <IonTabButton tab="create" href="/create">
+            <IonTabButton 
+              tab="create" 
+              href="/create"
+              onClick={() => handleTabClick('create')}
+            >
               <IonIcon icon={add} />
               <IonLabel>Create</IonLabel>
             </IonTabButton>
-            <IonTabButton tab="trending" href="/trending">
-              <IonIcon icon={trendingUp} />
-              <IonLabel>Trending</IonLabel>
-            </IonTabButton>
-            <IonTabButton tab="profile" href="/profile">
+            <IonTabButton 
+              tab="profile" 
+              href="/profile"
+              onClick={() => handleTabClick('profile')}
+            >
               <IonIcon icon={person} />
               <IonLabel>Profile</IonLabel>
             </IonTabButton>
+            {user?.role === 'admin' && (
+              <IonTabButton 
+                tab="admin" 
+                href="/admin"
+                onClick={() => handleTabClick('admin' as any)}
+              >
+                <IonIcon icon={shield} />
+                <IonLabel>Admin</IonLabel>
+              </IonTabButton>
+            )}
               </IonTabBar>
             </IonTabs>
-          )}
-          
-          {error && (
-            <div className="error-banner">
-              <p>⚠️ {error}</p>
-              <button onClick={() => window.location.reload()}>Retry</button>
-            </div>
-          )}
-          
-          {loading && (
-            <div className="loading-overlay">
-              <div className="loading-spinner">Loading...</div>
-            </div>
-          )}
+            )}
+            
+            {error && (
+              <div className="error-banner">
+                <p>⚠️ {error}</p>
+                <button onClick={() => window.location.reload()}>Retry</button>
+              </div>
+            )}
+            
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner">Loading...</div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// Main App wrapper that provides router context
+function App() {
+  return (
+    <IonReactRouter>
+      <IonApp>
+        <AuthenticationWrapper>
+          <AppContent />
         </AuthenticationWrapper>
       </IonApp>
     </IonReactRouter>

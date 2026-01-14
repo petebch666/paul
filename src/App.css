@@ -1,4 +1,4 @@
-/* Pollz - Minimalistic Dark Theme */
+/* PAUL - Minimalistic Dark Theme */
 * {
   margin: 0;
   padding: 0;
@@ -6,7 +6,7 @@
 }
 
 body {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   background: #ffffff;
   color: #000000;
   line-height: 1.2;
@@ -26,9 +26,10 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-left: 250px;
+  margin-left: 0;
   position: relative;
   background: #ffffff;
+  min-height: 100vh;
 }
 
 /* Loading and Error States */
@@ -46,7 +47,7 @@ body {
 }
 
 .loading-spinner {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 3px;
@@ -63,8 +64,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-left: 250px;
-  font-family: 'Courier New', 'Courier', monospace;
+  margin-left: 0;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 400;
   font-size: 12px;
   text-transform: uppercase;
@@ -76,7 +77,7 @@ body {
   color: #ffffff;
   border: none;
   padding: 6px 12px;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
@@ -92,7 +93,7 @@ body {
 
 /* Typography */
 .pixelated {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -135,7 +136,7 @@ ion-toolbar {
 }
 
 ion-title {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 400;
   font-size: 16px;
   text-transform: uppercase;
@@ -144,16 +145,45 @@ ion-title {
 
 ion-tab-bar {
   --background: #ffffff;
-  --border: 1px solid #e0e0e0;
+  --border: 3px solid #000000;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000 !important;
+  height: auto;
+  min-height: 80px;
+  padding-top: 12px;
+  /* Enhanced padding for Android navigation bar */
+  padding-bottom: max(30px, env(safe-area-inset-bottom, 30px));
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  border-top: 3px solid #000000;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 ion-tab-button {
   --color: #666666;
-  --color-selected: #ff0000;
-  font-family: 'Courier New', 'Courier', monospace;
-  font-size: 10px;
+  --color-selected: #000000;
+  --color-focused: #000000;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
+  min-height: 70px;
+  pointer-events: auto !important;
+  padding-bottom: 8px;
+}
+
+ion-tab-button ion-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+ion-tab-button ion-label {
+  font-size: 11px;
+  font-weight: 700;
 }
 
 ion-card {
@@ -169,7 +199,7 @@ ion-card-header {
 }
 
 ion-card-title {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 16px;
   text-transform: uppercase;
@@ -185,7 +215,7 @@ ion-button {
   --border-color: #000000;
   --border-width: 3px;
   --border-style: solid;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 12px;
   text-transform: uppercase;
@@ -211,7 +241,7 @@ ion-chip {
   --color: #000000;
   border: 3px solid #000000;
   border-radius: 0;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 10px;
   text-transform: uppercase;
@@ -233,7 +263,7 @@ ion-chip[color="warning"] {
 ion-badge {
   --background: #e0e0e0;
   --color: #000000;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -259,7 +289,7 @@ ion-item {
 }
 
 ion-label {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -271,7 +301,7 @@ ion-input {
   --color: #000000;
   --placeholder-color: #666666;
   --border-color: #000000;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-size: 12px;
   border: 2px solid #000000;
   border-radius: 0;
@@ -282,7 +312,7 @@ ion-textarea {
   --color: #000000;
   --placeholder-color: #666666;
   --border-color: #000000;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-size: 12px;
   border: 2px solid #000000;
   border-radius: 0;
@@ -291,7 +321,7 @@ ion-textarea {
 ion-select {
   --background: #ffffff;
   --color: #000000;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-size: 12px;
 }
 
@@ -306,7 +336,7 @@ ion-segment-button {
   --background-checked: #ff0000;
   --color: #666666;
   --color-checked: #ffffff;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -343,7 +373,7 @@ ion-refresher-content ion-spinner {
 }
 
 .poll-card-minimal .poll-title {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 16px;
   text-transform: uppercase;
@@ -365,7 +395,7 @@ ion-refresher-content ion-spinner {
   color: #000000;
   border: 3px solid #000000;
   padding: 16px;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 12px;
   text-transform: uppercase;
@@ -396,7 +426,7 @@ ion-refresher-content ion-spinner {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 14px;
   color: #000000;
@@ -411,7 +441,7 @@ ion-refresher-content ion-spinner {
   margin-top: 20px;
   padding-top: 20px;
   border-top: 3px solid #000000;
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 11px;
   text-transform: uppercase;
@@ -428,6 +458,21 @@ ion-refresher-content ion-spinner {
   50% { 
     opacity: 0.6; 
     transform: scale(1.05); 
+  }
+}
+
+@keyframes voteSuccess {
+  0% { 
+    transform: scale(1); 
+    boxShadow: 0 0 0 0 rgba(0, 255, 0, 0.7);
+  }
+  50% { 
+    transform: scale(1.05); 
+    boxShadow: 0 0 20px 10px rgba(0, 255, 0, 0.3);
+  }
+  100% { 
+    transform: scale(1); 
+    boxShadow: 0 0 0 0 rgba(0, 255, 0, 0);
   }
 }
 
@@ -466,7 +511,7 @@ ion-refresher-content ion-spinner {
 }
 
 .page-header-minimal h1 {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 24px;
   text-transform: uppercase;
@@ -477,7 +522,7 @@ ion-refresher-content ion-spinner {
 }
 
 .page-header-minimal p {
-  font-family: 'Courier New', 'Courier', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
   font-weight: 700;
   font-size: 12px;
   text-transform: uppercase;
@@ -495,70 +540,22 @@ ion-refresher-content ion-spinner {
   display: block;
 }
 
-/* Desktop container styling */
-@media (min-width: 1025px) {
-  ion-content {
-    --padding-start: 0;
-    --padding-end: 0;
-    --padding-top: 0;
-    --padding-bottom: 0;
-  }
-  
-  .poll-stack-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-  }
-
-  /* Hide tabs on desktop when using sidebar */
-  ion-tab-bar {
-    display: none;
-  }
+/* Mobile/Tablet only - tabs always visible */
+ion-tab-bar {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
-/* Sidebar styles */
-.sidebar {
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+ion-tab-button {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-.sidebar-open {
-  left: 0 !important;
-}
-
-/* Desktop grid layout */
-@media (min-width: 1025px) {
-  .desktop-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 40px;
-    padding: 40px;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  
-  .desktop-poll-card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-}
-
-/* High resolution desktop */
-@media (min-width: 1440px) {
-  .desktop-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 50px;
-    padding: 50px;
-  }
-}
-
-/* Ultra-wide displays */
-@media (min-width: 1920px) {
-  .desktop-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 60px;
-    padding: 60px;
-  }
+ion-page {
+  margin-left: 0 !important;
 }
 
 .swipe-poll-card:active {
@@ -621,59 +618,7 @@ ion-refresher-content ion-spinner {
   }
 }
 
-/* Desktop optimizations */
-@media (min-width: 1025px) {
-  .swipe-poll-card {
-    margin: 0;
-    padding: 32px;
-    max-width: 100%;
-    width: 100%;
-  }
-  
-  .swipe-poll-card:hover {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-  }
-  
-  .poll-title {
-    font-size: 22px !important;
-    letter-spacing: 3px !important;
-  }
-  
-  .option-container {
-    padding: 24px !important;
-  }
-  
-  .option-container div {
-    font-size: 14px !important;
-  }
-  
-  .vs-divider {
-    font-size: 16px !important;
-    letter-spacing: 4px !important;
-  }
-}
-
-/* High resolution displays */
-@media (min-width: 1440px) {
-  .swipe-poll-card {
-    max-width: 900px;
-    padding: 40px;
-  }
-  
-  .poll-title {
-    font-size: 26px !important;
-    letter-spacing: 4px !important;
-  }
-  
-  .option-container {
-    padding: 28px !important;
-  }
-  
-  .option-container div {
-    font-size: 16px !important;
-  }
-}
+/* Mobile and tablet only - no desktop optimizations needed */
 
 /* Touch feedback */
 @media (hover: none) and (pointer: coarse) {
@@ -690,6 +635,18 @@ ion-refresher-content ion-spinner {
 ion-content {
   --overflow: auto;
   --background: #ffffff;
+}
+
+/* Ensure content doesn't overlap with tab bar */
+ion-content {
+  --padding-bottom: 100px;
+}
+
+/* Add extra padding on mobile for tab bar */
+@media (max-width: 768px) {
+  ion-content {
+    --padding-bottom: 120px;
+  }
 }
 
 /* Progress dots */
@@ -711,7 +668,7 @@ ion-content {
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0;
-    margin-bottom: 80px;
+    padding-bottom: 0;
   }
   
   .error-banner {
@@ -729,7 +686,7 @@ ion-content {
 
 @media (max-width: 480px) {
   .main-content {
-    margin-bottom: 70px;
+    padding-bottom: 0;
   }
   
   body {

@@ -1,7 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import { User } from '../types'
-import { PollzAPI } from '../database/api'
+import UnifiedPollzAPI from '../database/unified-api'
+
+const PollzAPI = UnifiedPollzAPI
 import { oauthService, OAuthUser } from '../services/oauth'
+import { 
+  hashPassword, 
+  comparePassword, 
+  validatePassword,
+  validateEmail,
+  validateUsername,
+  validateName,
+  checkRateLimit,
+  resetRateLimit,
+  sanitizeInput
+} from '../utils/security'
 
 interface AuthState {
   user: User | null
@@ -17,19 +30,87 @@ export function useAuth() {
     isLoading: true,
     error: null
   })
+  
+  const [initialized, setInitialized] = useState(false)
 
-  // Initialize authentication on mount
+  // Initialize authentication on mount (only once)
   useEffect(() => {
-    initializeAuth()
-    initializeOAuth()
-  }, [])
+    if (initialized) {
+      console.log('⏭️ Skipping init - already initialized')
+      return
+    }
+    
+    console.log('🔄 Running auth initialization...')
+    
+    const init = async () => {
+      try {
+        setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
+        
+        // Check if user is stored in localStorage
+        const storedUser = localStorage.getItem('paul-user')
+        console.log('📦 Stored user:', storedUser ? 'Found' : 'Not found')
+        
+        if (storedUser) {
+          try {
+            const user = JSON.parse(storedUser)
+            console.log('👤 Parsed user:', user.name, user.email)
+            
+            // Verify user still exists in database
+            const dbUser = await PollzAPI.getUserById(user.id)
+            
+            if (dbUser) {
+              console.log('✅ User verified in database')
+              setAuthState({
+                user: dbUser,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null
+              })
+              console.log('✅ User authenticated from storage:', dbUser.name)
+              setInitialized(true)
+              return
+            } else {
+              // User no longer exists in database, clear storage
+              localStorage.removeItem('paul-user')
+              console.log('⚠️ User not found in database, cleared storage')
+            }
+          } catch (error) {
+            console.error('❌ Error parsing stored user:', error)
+            localStorage.removeItem('paul-user')
+          }
+        }
+
+        // No valid user found
+        console.log('ℹ️ No authenticated user found, showing login')
+        setAuthState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null
+        })
+        setInitialized(true)
+        
+      } catch (error) {
+        console.error('❌ Authentication initialization failed:', error)
+        setAuthState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: 'Failed to initialize authentication'
+        })
+        setInitialized(true)
+      }
+    }
+
+    init()
+  }, [initialized])
 
   // Initialize OAuth services
   const initializeOAuth = useCallback(async () => {
     try {
       // Set client IDs from environment variables (if available)
-      const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-      const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID
+      const googleClientId = (import.meta as any).supaenv?.VITE_GOOGLE_CLIENT_ID
+      const appleClientId = (import.meta as any).supaenv?.VITE_APPLE_CLIENT_ID
 
       if (googleClientId) {
         oauthService.setGoogleClientId(googleClientId)
@@ -45,90 +126,73 @@ export function useAuth() {
     }
   }, [])
 
-  const initializeAuth = useCallback(async () => {
-    try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
-      
-      // Check if user is stored in localStorage
-      const storedUser = localStorage.getItem('pollz-user')
-      
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser)
-          
-          // Verify user still exists in database
-          const dbUser = await PollzAPI.getUserById(user.id)
-          
-          if (dbUser) {
-            setAuthState({
-              user: dbUser,
-              isAuthenticated: true,
-              isLoading: false,
-              error: null
-            })
-            console.log('✅ User authenticated from storage:', dbUser)
-            return
-          } else {
-            // User no longer exists in database, clear storage
-            localStorage.removeItem('pollz-user')
-            console.log('⚠️ User not found in database, cleared storage')
-          }
-        } catch (error) {
-          console.error('❌ Error parsing stored user:', error)
-          localStorage.removeItem('pollz-user')
-        }
-      }
-
-      // No valid user found
-      setAuthState({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null
-      })
-      console.log('ℹ️ No authenticated user found')
-      
-    } catch (error) {
-      console.error('❌ Authentication initialization failed:', error)
-      setAuthState({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: 'Failed to initialize authentication'
-      })
-    }
-  }, [])
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
 
-      // Find user by email
-      const user = await PollzAPI.getUserByEmail(email)
+      // Validate and sanitize email
+      const emailValidation = validateEmail(email)
+      if (!emailValidation.isValid) {
+        throw new Error(emailValidation.error || 'Invalid email')
+      }
+
+      // Check rate limiting (5 attempts per 15 minutes)
+      const rateLimit = checkRateLimit(emailValidation.sanitized, 5, 15 * 60 * 1000)
+      if (rateLimit.isLimited) {
+        const minutesLeft = Math.ceil((rateLimit.resetIn || 0) / 60000)
+        throw new Error(`Too many login attempts. Please try again in ${minutesLeft} minutes.`)
+      }
+
+      // Find user by sanitized email
+      const user = await PollzAPI.getUserByEmail(emailValidation.sanitized)
       
       if (!user) {
         throw new Error('User not found. Please check your email or sign up.')
       }
 
-      // Simple password check (in real app, use proper hashing)
-      if (user.password !== password) {
+      // Validate password with hash comparison
+      if (!user.password) {
+        throw new Error('Account error. Please contact support.')
+      }
+
+      const isPasswordValid = await comparePassword(password, user.password)
+      if (!isPasswordValid) {
         throw new Error('Invalid password. Please try again.')
       }
+
+      // Reset rate limit on successful login
+      resetRateLimit(emailValidation.sanitized)
 
       // Remove password from user object before storing
       const { password: _, ...userWithoutPassword } = user
       
+      console.log('💾 Storing user in localStorage...')
       // Store user in localStorage
-      localStorage.setItem('pollz-user', JSON.stringify(userWithoutPassword))
+      localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
+      // Verify storage
+      const stored = localStorage.getItem('paul-user')
+      console.log('✅ User stored:', stored ? 'Success' : 'Failed')
+      
+      console.log('🔐 Setting auth state...')
+      // Use React state update with callback to ensure state is set properly
       setAuthState({
         user: userWithoutPassword,
         isAuthenticated: true,
         isLoading: false,
         error: null
       })
+      
+      // Mark as initialized
+      setInitialized(true)
 
-      console.log('✅ Login successful:', userWithoutPassword)
+      console.log('✅ Login successful:', userWithoutPassword.name, userWithoutPassword.email)
+      console.log('🎉 Auth state updated - isAuthenticated: true, user:', userWithoutPassword.name)
+      
+      // Small delay to ensure state propagates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       return true
       
     } catch (error) {
@@ -151,8 +215,29 @@ export function useAuth() {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
 
+      // Validate and sanitize all inputs
+      const nameValidation = validateName(userData.name)
+      if (!nameValidation.isValid) {
+        throw new Error(nameValidation.error || 'Invalid name')
+      }
+
+      const usernameValidation = validateUsername(userData.username)
+      if (!usernameValidation.isValid) {
+        throw new Error(usernameValidation.error || 'Invalid username')
+      }
+
+      const emailValidation = validateEmail(userData.email)
+      if (!emailValidation.isValid) {
+        throw new Error(emailValidation.error || 'Invalid email')
+      }
+
+      const passwordValidation = validatePassword(userData.password)
+      if (!passwordValidation.isValid) {
+        throw new Error(passwordValidation.error || 'Invalid password')
+      }
+
       // Check if user already exists
-      const existingUser = await PollzAPI.getUserByEmail(userData.email)
+      const existingUser = await PollzAPI.getUserByEmail(emailValidation.sanitized)
       if (existingUser) {
         throw new Error('User with this email already exists. Please login instead.')
       }
@@ -160,14 +245,18 @@ export function useAuth() {
       // Generate unique ID
       const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-      // Create new user
+      // Hash password
+      const hashedPassword = await hashPassword(userData.password)
+
+      // Create new user with sanitized data
       const newUser = {
         id: userId,
-        name: userData.name,
-        username: userData.username.startsWith('@') ? userData.username : `@${userData.username}`,
-        email: userData.email,
-        password: userData.password, // In real app, hash this
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=000000&color=ffffff&size=150`,
+        name: nameValidation.sanitized,
+        username: usernameValidation.sanitized.startsWith('@') ? usernameValidation.sanitized : `@${usernameValidation.sanitized}`,
+        email: emailValidation.sanitized,
+        password: hashedPassword,
+        role: 'user' as const, // Default role
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(nameValidation.sanitized)}&background=000000&color=ffffff&size=150`,
         followers: 0,
         following: 0,
         reputation: 0,
@@ -183,17 +272,31 @@ export function useAuth() {
       // Remove password from user object before storing
       const { password, ...userWithoutPassword } = newUser
       
+      console.log('💾 Storing new user in localStorage...')
       // Store user in localStorage
-      localStorage.setItem('pollz-user', JSON.stringify(userWithoutPassword))
+      localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
+      // Verify storage
+      const stored = localStorage.getItem('paul-user')
+      console.log('✅ User stored:', stored ? 'Success' : 'Failed')
+      
+      console.log('🔐 Setting auth state for new user...')
       setAuthState({
         user: userWithoutPassword,
         isAuthenticated: true,
         isLoading: false,
         error: null
       })
+      
+      // Mark as initialized
+      setInitialized(true)
 
-      console.log('✅ Sign up successful:', userWithoutPassword)
+      console.log('✅ Sign up successful:', userWithoutPassword.name, userWithoutPassword.email)
+      console.log('🎉 Auth state updated - isAuthenticated: true, user:', userWithoutPassword.name)
+      
+      // Small delay to ensure state propagates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       return true
       
     } catch (error) {
@@ -209,7 +312,7 @@ export function useAuth() {
 
   const logout = useCallback(() => {
     // Clear user from localStorage
-    localStorage.removeItem('pollz-user')
+    localStorage.removeItem('paul-user')
     
     setAuthState({
       user: null,
@@ -223,7 +326,7 @@ export function useAuth() {
 
   const updateUser = useCallback((updatedUser: User) => {
     // Update user in localStorage
-    localStorage.setItem('pollz-user', JSON.stringify(updatedUser))
+    localStorage.setItem('paul-user', JSON.stringify(updatedUser))
     
     setAuthState(prev => ({
       ...prev,
@@ -270,7 +373,7 @@ export function useAuth() {
       const { password: _, ...userWithoutPassword } = user
       
       // Store user in localStorage
-      localStorage.setItem('pollz-user', JSON.stringify(userWithoutPassword))
+      localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
       setAuthState({
         user: userWithoutPassword,
@@ -330,7 +433,7 @@ export function useAuth() {
       const { password: _, ...userWithoutPassword } = user
       
       // Store user in localStorage
-      localStorage.setItem('pollz-user', JSON.stringify(userWithoutPassword))
+      localStorage.setItem('paul-user', JSON.stringify(userWithoutPassword))
       
       setAuthState({
         user: userWithoutPassword,
@@ -364,7 +467,6 @@ export function useAuth() {
     logout,
     updateUser,
     clearError,
-    initializeAuth,
     signInWithGoogle,
     signInWithApple,
     isGoogleAvailable: oauthService.isGoogleAvailable(),

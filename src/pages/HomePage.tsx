@@ -1,80 +1,159 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { 
   IonPage, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
   IonContent, 
+  IonSegment,
+  IonSegmentButton,
+  IonLabel,
   IonButton,
   IonIcon,
-  IonSpinner
+  IonSpinner,
+  IonRefresher,
+  IonRefresherContent,
+  IonChip,
+  IonSelect,
+  IonSelectOption
 } from '@ionic/react'
-import { chevronForward } from 'ionicons/icons'
-import SwipePollCard from '../components/SwipePollCard'
+import { chevronDownCircleOutline, time } from 'ionicons/icons'
+import PollCarousel from '../components/PollCarousel'
+import PixelIcon from '../components/PixelIcon'
 import { Poll, User } from '../types'
+import './HomePage.css'
 
 interface HomePageProps {
-  polls: Poll[]
-  user: User
+  polls: Poll[] // Displayed polls (limited to 20 at a time)
+  allPolls: Poll[] // All polls for accurate counts
+  user: User | null
   onVote: (pollId: string, option: 'A' | 'B') => Promise<void>
   onLike: (pollId: string) => void
   loadPolls: (reset?: boolean) => Promise<void>
+  loadMorePolls: () => Promise<void>
   loading: boolean
+  loadingMore: boolean
+  hasMorePolls: boolean
   error: string | null
 }
 
 const HomePage: React.FC<HomePageProps> = ({ 
-  polls, 
+  polls,
+  allPolls,
   user, 
   onVote, 
   onLike, 
-  loadPolls, 
-  loading, 
+  loadPolls,
+  loadMorePolls,
+  loading,
+  loadingMore,
+  hasMorePolls,
   error 
 }) => {
-  const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set())
-  const [currentPollIndex, setCurrentPollIndex] = useState(0)
+  const [activeSection, setActiveSection] = useState<'last' | 'trending' | 'expired' | 'voted'>('last')
+  const [categoryFilter, setCategoryFilter] = useState<string>('')
+  const [expiringSoonFilter, setExpiringSoonFilter] = useState<boolean>(false)
+  const [expiredSortBy, setExpiredSortBy] = useState<'category' | 'votes' | 'closest' | 'furthest'>('votes')
   const contentRef = useRef<HTMLIonContentElement>(null)
 
-  // Filter polls that haven't been voted on
-  const availablePolls = polls.filter(poll => !votedPolls.has(poll.id))
+  // Get unique categories from polls
+  const categories = ['all', ...Array.from(new Set(polls.map(poll => poll.category)))]
 
-  // Handle vote completion and scroll to next poll
-  const handleVoteComplete = async (pollId: string) => {
-    setVotedPolls(prev => new Set([...prev, pollId]))
-    
-    // Scroll to next poll after a short delay
-    setTimeout(() => {
-      setCurrentPollIndex(prev => prev + 1)
-      scrollToNextPoll()
-    }, 500)
-  }
+  // Filter and sort polls based on active section
+  const getFilteredPolls = () => {
+    let filteredPolls = [...polls]
 
-  // Scroll to next poll
-  const scrollToNextPoll = async () => {
-    if (contentRef.current) {
-      const nextPollElement = document.querySelector(`[data-poll-index="${currentPollIndex + 1}"]`)
-      if (nextPollElement) {
-        nextPollElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        })
-      }
+    switch (activeSection) {
+      case 'last':
+        // Active polls sorted by date (most recent first) - exclude voted polls
+        filteredPolls = polls
+          .filter(poll => !poll.isExpired && !poll.isVoted)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        break
+
+      case 'trending':
+        // Highly voted polls, optionally filtered by expiring soon - exclude voted polls
+        filteredPolls = polls
+          .filter(poll => !poll.isExpired && !poll.isVoted)
+          .sort((a, b) => b.votes - a.votes)
+        
+        if (expiringSoonFilter) {
+          const now = new Date()
+          const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+          filteredPolls = filteredPolls.filter(poll => 
+            new Date(poll.expiresAt) <= oneDayFromNow
+          )
+        }
+        break
+
+      case 'voted':
+        // Polls the user has voted on (sorted by most recent)
+        filteredPolls = polls
+          .filter(poll => poll.isVoted)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        break
+
+      case 'expired':
+        // Expired polls with various sorting options
+        filteredPolls = polls.filter(poll => poll.isExpired)
+        
+        switch (expiredSortBy) {
+          case 'category':
+            filteredPolls.sort((a, b) => a.category.localeCompare(b.category))
+            break
+          case 'votes':
+            filteredPolls.sort((a, b) => b.votes - a.votes)
+            break
+          case 'closest':
+            filteredPolls.sort((a, b) => {
+              const aRatio = Math.abs(a.votesOptionA - a.votesOptionB) / Math.max(a.votes, 1)
+              const bRatio = Math.abs(b.votesOptionA - b.votesOptionB) / Math.max(b.votes, 1)
+              return aRatio - bRatio // Lower ratio = closer fight
+            })
+            break
+          case 'furthest':
+            filteredPolls.sort((a, b) => {
+              const aRatio = Math.abs(a.votesOptionA - a.votesOptionB) / Math.max(a.votes, 1)
+              const bRatio = Math.abs(b.votesOptionA - b.votesOptionB) / Math.max(b.votes, 1)
+              return bRatio - aRatio // Higher ratio = further apart
+            })
+            break
+        }
+        break
     }
+
+    // Apply category filter (empty string means show all)
+    if (categoryFilter && categoryFilter !== '') {
+      filteredPolls = filteredPolls.filter(poll => poll.category === categoryFilter)
+    }
+
+    return filteredPolls
   }
 
-  // Reset voted polls when polls change
-  useEffect(() => {
-    setVotedPolls(new Set())
-    setCurrentPollIndex(0)
-  }, [polls])
+  const filteredPolls = getFilteredPolls()
+
+  // Calculate poll counts for each category using ALL polls for accurate counts
+  const pollCounts = {
+    last: allPolls.filter(poll => !poll.isExpired && !poll.isVoted).length,
+    trending: allPolls.filter(poll => !poll.isExpired && !poll.isVoted).length, // Same as last, but with different sorting
+    voted: allPolls.filter(poll => poll.isVoted).length,
+    expired: allPolls.filter(poll => poll.isExpired).length,
+    total: allPolls.length
+  }
+
+  // Handle pull-to-refresh
+  const handleRefresh = async (event: CustomEvent) => {
+    console.log('🔄 Refreshing polls...')
+    await loadPolls(true)
+    event.detail.complete()
+  }
 
   if (loading && polls.length === 0) {
     return (
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>Pollz</IonTitle>
+            <IonTitle>PAUL</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent>
@@ -108,7 +187,7 @@ const HomePage: React.FC<HomePageProps> = ({
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>Pollz</IonTitle>
+            <IonTitle>PAUL</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent>
@@ -147,21 +226,184 @@ const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>Pollz</IonTitle>
+      <IonHeader className="ion-no-border">
+        <IonToolbar style={{ 
+          '--border-width': '0',
+          '--border-style': 'none'
+        }}>
+          <IonTitle style={{
+            fontFamily: 'Courier New, monospace',
+            fontSize: '32px',
+            fontWeight: '900',
+            letterSpacing: '4px',
+            textAlign: 'center'
+          }}>
+            PAUL
+          </IonTitle>
+          <div slot="end" style={{ 
+            padding: '0 16px', 
+            fontSize: '10px', 
+            color: '#666',
+            fontFamily: 'Courier New, monospace',
+            fontWeight: 'bold'
+          }}>
+            📊 {pollCounts.total}
+          </div>
         </IonToolbar>
       </IonHeader>
       
-      <IonContent ref={contentRef} scrollEvents={true}>
-        {/* Header */}
-        <div className="page-header-minimal">
-          <h1>SWIPE TO VOTE</h1>
-          <p>DISCOVER POLLS AND SETTLE ARGUMENTS</p>
+      <IonContent 
+        ref={contentRef} 
+        scrollEvents={true}
+        className="carousel-scroll"
+      >
+        {/* Pull to Refresh */}
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent
+            pullingIcon={chevronDownCircleOutline}
+            pullingText="Pull to refresh"
+            refreshingSpinner="circles"
+            refreshingText="Refreshing..."
+          />
+        </IonRefresher>
+
+        {/* Section Selector - Poll Status (Minimalist) */}
+        <div className="ribbon-container poll-status-ribbon">
+          <button
+            onClick={() => setActiveSection('last')}
+            className={`ribbon-item ${activeSection === 'last' ? 'active' : ''}`}
+          >
+            <PixelIcon type="last" size={20} active={activeSection === 'last'} />
+            <span className="ribbon-label">LAST</span>
+            <span className="ribbon-count">{pollCounts.last}</span>
+          </button>
+          <button
+            onClick={() => setActiveSection('trending')}
+            className={`ribbon-item ${activeSection === 'trending' ? 'active' : ''}`}
+          >
+            <PixelIcon type="trending" size={20} active={activeSection === 'trending'} />
+            <span className="ribbon-label">TRENDING</span>
+            <span className="ribbon-count">{pollCounts.trending}</span>
+          </button>
+          <button
+            onClick={() => setActiveSection('voted')}
+            className={`ribbon-item ${activeSection === 'voted' ? 'active' : ''}`}
+          >
+            <PixelIcon type="voted" size={20} active={activeSection === 'voted'} />
+            <span className="ribbon-label">MY VOTES</span>
+            <span className="ribbon-count">{pollCounts.voted}</span>
+          </button>
+          <button
+            onClick={() => setActiveSection('expired')}
+            className={`ribbon-item ${activeSection === 'expired' ? 'active' : ''}`}
+          >
+            <PixelIcon type="expired" size={20} active={activeSection === 'expired'} />
+            <span className="ribbon-label">EXPIRED</span>
+            <span className="ribbon-count">{pollCounts.expired}</span>
+          </button>
         </div>
 
-        {/* Polls Stack */}
-        {availablePolls.length === 0 ? (
+        {/* Visual Separator */}
+        <div className="ribbon-separator"></div>
+
+        <style>{`
+          @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+          }
+          
+          @keyframes flicker {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            25% { opacity: 0.8; transform: scale(1.05); }
+            50% { opacity: 1; transform: scale(1); }
+            75% { opacity: 0.9; transform: scale(1.02); }
+          }
+          
+          @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+          }
+
+          /* Carousel scroll behavior - smooth scrolling only */
+          .carousel-scroll {
+            scroll-behavior: smooth;
+          }
+
+          /* Hide scrollbar for category filters */
+          .category-filter-container {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+
+          .category-filter-container::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+
+        {/* Category Filters - Minimalist */}
+        <div className="ribbon-container category-ribbon">
+          {categories.filter(c => c !== 'all').map(category => (
+            <button
+              key={category}
+              onClick={() => setCategoryFilter(categoryFilter === category ? '' : category)}
+              className={`ribbon-item category-item ${categoryFilter === category ? 'active' : ''}`}
+            >
+              <span className="ribbon-label">{category}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Additional Filters (below category grid) */}
+        {(activeSection === 'trending' || activeSection === 'expired') && (
+          <div style={{
+            padding: '0 16px 16px',
+            display: 'flex',
+            gap: '8px',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            {/* Trending-specific filter */}
+            {activeSection === 'trending' && (
+              <IonButton
+                fill={expiringSoonFilter ? 'solid' : 'outline'}
+                color={expiringSoonFilter ? 'warning' : 'medium'}
+                onClick={() => setExpiringSoonFilter(!expiringSoonFilter)}
+                style={{ 
+                  fontFamily: 'Courier New, Courier, monospace',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}
+              >
+                <IonIcon icon={time} style={{ marginRight: '8px' }} />
+                {expiringSoonFilter ? 'EXPIRING SOON' : 'ALL TIME'}
+              </IonButton>
+            )}
+
+            {/* Expired-specific sort */}
+            {activeSection === 'expired' && (
+              <IonSelect
+                value={expiredSortBy}
+                placeholder="Sort by"
+                onIonChange={e => setExpiredSortBy(e.detail.value)}
+                style={{ 
+                  minWidth: '140px',
+                  maxWidth: '200px'
+                }}
+              >
+                <IonSelectOption value="votes">Most Votes</IonSelectOption>
+                <IonSelectOption value="category">Category</IonSelectOption>
+                <IonSelectOption value="closest">Closest Fight</IonSelectOption>
+                <IonSelectOption value="furthest">Furthest Fight</IonSelectOption>
+              </IonSelect>
+            )}
+          </div>
+        )}
+
+        {/* Polls List */}
+        {filteredPolls.length === 0 ? (
           <div style={{
             textAlign: 'center',
             padding: '60px 20px',
@@ -172,33 +414,53 @@ const HomePage: React.FC<HomePageProps> = ({
             letterSpacing: '2px',
             color: '#666666'
           }}>
-            ALL CAUGHT UP!
+            {activeSection === 'last' && 'NO ACTIVE POLLS'}
+            {activeSection === 'trending' && 'NO TRENDING POLLS'}
+            {activeSection === 'expired' && 'NO EXPIRED POLLS'}
           </div>
         ) : (
-          <div style={{ 
-            padding: '20px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px'
-          }}>
-            {availablePolls.map((poll, index) => (
-              <SwipePollCard
-                key={poll.id}
-                poll={poll}
-                user={user}
-                onVote={(pollId, option) => {
-                  onVote(pollId, option)
-                  handleVoteComplete(pollId)
-                }}
-                onLike={onLike}
-                data-poll-index={index}
-                style={{
-                  touchAction: 'pan-y pinch-zoom', // Allow vertical scroll, prevent horizontal interference
-                  userSelect: 'none'
-                }}
-              />
-            ))}
-          </div>
+          <>
+            <PollCarousel
+              polls={filteredPolls}
+              user={user}
+              onVote={onVote}
+              onLike={onLike}
+              contentRef={contentRef}
+            />
+            
+            {/* Load More Button */}
+            {hasMorePolls && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                padding: '20px 16px 40px',
+                marginTop: '20px'
+              }}>
+                <IonButton
+                  onClick={loadMorePolls}
+                  disabled={loadingMore}
+                  fill="outline"
+                  style={{
+                    fontFamily: 'Courier New, Courier, monospace',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '2px',
+                    minWidth: '200px'
+                  }}
+                >
+                  {loadingMore ? (
+                    <>
+                      <IonSpinner name="crescent" style={{ marginRight: '8px' }} />
+                      LOADING...
+                    </>
+                  ) : (
+                    `LOAD MORE (${allPolls.length - polls.length} remaining)`
+                  )}
+                </IonButton>
+              </div>
+            )}
+          </>
         )}
       </IonContent>
     </IonPage>

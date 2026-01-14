@@ -41,8 +41,8 @@ export async function testApiIntegration() {
     
     // Test voting
     console.log('5. Testing voteOnPoll...')
-    const voteResult = await PollzAPI.voteOnPoll(newPoll.id, 'user-1', 'A')
-    console.log(`✅ Vote result: ${voteResult.success ? 'Success' : 'Failed'}`)
+    await PollzAPI.voteOnPoll(newPoll.id, 'user-1', 'A')
+    console.log(`✅ Vote recorded successfully`)
     
     console.log('🎉 All API tests passed!')
     return true
@@ -53,7 +53,7 @@ export async function testApiIntegration() {
 }
 
 // Auto-run test in development
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   // Run test after a short delay to ensure everything is loaded
   setTimeout(() => {
     testApiIntegration()

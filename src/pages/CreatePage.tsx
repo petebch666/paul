@@ -1,33 +1,42 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { 
   IonPage, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
   IonContent,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
-  IonItem,
-  IonLabel,
-  IonInput,
-  IonTextarea,
-  IonSelect,
-  IonSelectOption,
-  IonButton,
-  IonChip,
-  IonBadge,
-  IonAlert
+  IonIcon,
+  IonSpinner,
+  IonRefresher,
+  IonRefresherContent
 } from '@ionic/react'
-import { CreatePollFormData } from '../types'
-import { PollzAPI } from '../database/api'
+import { useIonRouter } from '@ionic/react'
+import { 
+  chevronDownCircleOutline,
+  createOutline,
+  flame,
+  timeOutline,
+  notificationsOutline,
+  checkmarkCircleOutline,
+  shieldOutline
+} from 'ionicons/icons'
+import { CreatePollFormData, User } from '../types'
+import UnifiedPollzAPI from '../database/unified-api'
+import UserSearchInput from '../components/UserSearchInput'
+import { useAuth } from '../hooks/useAuth'
+import './CreatePage.css'
+
+const PollzAPI = UnifiedPollzAPI
 
 interface CreatePageProps {
   onCreatePoll: (pollData: CreatePollFormData) => Promise<any>
 }
 
 const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
+  const contentRef = useRef<HTMLIonContentElement>(null)
+  const { user } = useAuth()
+  const router = useIonRouter()
+  
   const [formData, setFormData] = useState<CreatePollFormData>({
     title: '',
     description: '',
@@ -40,8 +49,62 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
     pollType: 'question',
     timerEnabled: true,
     timerDuration: 24, // hours
-    notificationEnabled: true
+    notificationEnabled: true,
+    // Deathmatch options
+    isDeathmatch: false,
+    isShadowDeathmatch: false,
+    optionAUserId: undefined,
+    optionBUserId: undefined
   })
+  
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [opponentA, setOpponentA] = useState<User | null>(null)
+  const [opponentB, setOpponentB] = useState<User | null>(null)
+
+  // Load opponent data when user IDs are set
+  useEffect(() => {
+    const loadOpponents = async () => {
+      if (formData.optionAUserId) {
+        const user = await PollzAPI.getUserById(formData.optionAUserId)
+        setOpponentA(user || null)
+      } else {
+        setOpponentA(null)
+      }
+
+      if (formData.optionBUserId) {
+        const user = await PollzAPI.getUserById(formData.optionBUserId)
+        setOpponentB(user || null)
+      } else {
+        setOpponentB(null)
+      }
+    }
+    loadOpponents()
+  }, [formData.optionAUserId, formData.optionBUserId])
+
+  // Handle pull-to-refresh
+  const handleRefresh = async (event: CustomEvent) => {
+    console.log('🔄 Refreshing form...')
+    // Reset form
+    setFormData({
+      title: '',
+      description: '',
+      category: '',
+      optionA: '',
+      optionB: '',
+      timeLimit: 24,
+      context: '',
+      pollType: 'question',
+      timerEnabled: true,
+      timerDuration: 24,
+      notificationEnabled: true,
+      isDeathmatch: false,
+      optionAUserId: undefined,
+      optionBUserId: undefined
+    })
+    setCategorySuggestions([])
+    setDuplicateCheck({ hasDuplicates: false, similarPolls: [] })
+    event.detail.complete()
+  }
 
   const [categorySuggestions, setCategorySuggestions] = useState<Array<{
     category: string
@@ -61,7 +124,7 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
 
   const categories = ['Food', 'Animals', 'Lifestyle', 'Technology', 'Social', 'Work', 'Entertainment', 'Sports']
 
-  const handleInputChange = (field: keyof CreatePollFormData, value: string | number) => {
+  const handleInputChange = (field: keyof CreatePollFormData, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     
     // Auto-categorization when question changes
@@ -98,7 +161,21 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (formData.title && formData.optionA && formData.optionB && formData.category) {
+    
+    // Validation: For deathmatch, both users must be assigned
+    if (formData.isDeathmatch && (!formData.optionAUserId || !formData.optionBUserId)) {
+      alert('⚠️ DEATHMATCH POLL REQUIRES BOTH OPTIONS TO HAVE ASSIGNED USERS!\n\nPlease assign a user to both Option A and Option B.')
+      return
+    }
+    
+    // Validation: Prevent same user on both options
+    if (formData.isDeathmatch && formData.optionAUserId && formData.optionBUserId && formData.optionAUserId === formData.optionBUserId) {
+      alert('⚠️ INVALID ASSIGNMENT!\n\nA user cannot be assigned to both options. Please choose different users.')
+      return
+    }
+    
+    if (formData.title && formData.optionA && formData.optionB && formData.category && !isSubmitting) {
+      setIsSubmitting(true)
       try {
         await onCreatePoll(formData)
         // Reset form only after successful creation
@@ -113,267 +190,456 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
           pollType: 'question',
           timerEnabled: true,
           timerDuration: 24,
-          notificationEnabled: true
+          notificationEnabled: true,
+          isDeathmatch: false,
+          isShadowDeathmatch: false,
+          optionAUserId: undefined,
+          optionBUserId: undefined
         })
+        setOpponentA(null)
+        setOpponentB(null)
         setCategorySuggestions([])
         setDuplicateCheck({ hasDuplicates: false, similarPolls: [] })
+        
+        // Show validation pending message
+        alert('✅ Poll created successfully!\n\n⏳ Your poll is now pending AI validation. It will be reviewed to ensure it meets our content guidelines (humorous polls only, no country battles, no sexist content, no political content).\n\nYou will be notified once validation is complete.')
+        
+        // Navigate to home page after successful poll creation
+        router.push('/home', 'forward', 'replace')
       } catch (error) {
         console.error('Failed to create poll:', error)
         // Error handling is done in useAppState
+      } finally {
+        setIsSubmitting(false)
       }
     }
   }
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>Create Poll</IonTitle>
+      <IonHeader className="ion-no-border">
+        <IonToolbar style={{ 
+          '--border-width': '0',
+          '--border-style': 'none'
+        }}>
+          <IonTitle style={{
+            fontFamily: 'Courier New, monospace',
+            fontSize: '32px',
+            fontWeight: '900',
+            letterSpacing: '4px',
+            textAlign: 'center'
+          }}>
+            CREATE
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       
-      <IonContent fullscreen>
-        <div className="page-header-minimal">
-          <h1>CREATE POLL</h1>
-          <p>SETTLE THE ARGUMENT ONCE AND FOR ALL</p>
+      <IonContent ref={contentRef} fullscreen className="create-page">
+        {/* Pull to Refresh */}
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent
+            pullingIcon={chevronDownCircleOutline}
+            pullingText="Pull to reset form"
+            refreshingSpinner="circles"
+            refreshingText="Resetting form..."
+          />
+        </IonRefresher>
+
+        {/* Modern Form Container */}
+        <div className="create-page-container">
+          {/* Mode Selector - At the Top */}
+          <div className="mode-selector-section">
+            <div className="mode-selector">
+              <button
+                type="button"
+                className={`mode-button ${!formData.isDeathmatch ? 'active' : ''}`}
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    isDeathmatch: false,
+                    optionAUserId: undefined,
+                    optionBUserId: undefined
+                  }))
+                  setOpponentA(null)
+                  setOpponentB(null)
+                }}
+              >
+                <IonIcon icon={createOutline} />
+                <span>NORMAL POLL</span>
+              </button>
+              <button
+                type="button"
+                className={`mode-button ${formData.isDeathmatch ? 'active' : ''}`}
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    isDeathmatch: true
+                  }))
+                }}
+              >
+                <IonIcon icon={shieldOutline} />
+                <span>🥊 DEATHMATCH</span>
+              </button>
+            </div>
+            {formData.isDeathmatch && (
+              <>
+                <div className="deathmatch-info-top">
+                  Choose your opponent first, then create the poll question and options
+                </div>
+                {/* Shadow Deathmatch Toggle */}
+                <div className="form-section" style={{ marginTop: '12px' }}>
+                  <button
+                    type="button"
+                    className={`shadow-deathmatch-toggle ${formData.isShadowDeathmatch ? 'active' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, isShadowDeathmatch: !prev.isShadowDeathmatch }))}
+                  >
+                    <IonIcon icon={shieldOutline} className="toggle-icon" />
+                    <span>{formData.isShadowDeathmatch ? '🔒 SHADOW MODE ON' : '🔓 REVEAL MODE'}</span>
+                  </button>
+                  {formData.isShadowDeathmatch && (
+                    <div className="shadow-deathmatch-info">
+                      Usernames will be hidden until the poll expires. Perfect for anonymous debates!
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="modern-form">
+            {/* Deathmatch: Opponent Selection FIRST */}
+            {formData.isDeathmatch && (
+              <>
+                <div className="vs-divider-modern">
+                  <span>STEP 1: CHOOSE OPPONENTS</span>
+                </div>
+
+                <div className="opponent-selection-grid">
+                  {/* Opponent A */}
+                  <div className="opponent-card">
+                    <div className="opponent-label">OPPONENT A</div>
+                    <UserSearchInput
+                      label="SEARCH USER"
+                      value={formData.optionAUserId}
+                      onChange={async (userId) => {
+                        setFormData(prev => ({ ...prev, optionAUserId: userId }))
+                        if (userId) {
+                          const user = await PollzAPI.getUserById(userId)
+                          setOpponentA(user || null)
+                        } else {
+                          setOpponentA(null)
+                        }
+                      }}
+                      placeholder="@username or name"
+                      excludeUserId={formData.optionBUserId}
+                    />
+                    {formData.optionAUserId && (
+                      <div className="option-preview">
+                        Will defend: <strong>Option A</strong>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* VS Divider for Opponents */}
+                  <div className="opponent-vs">
+                    <span>VS</span>
+                  </div>
+
+                  {/* Opponent B */}
+                  <div className="opponent-card">
+                    <div className="opponent-label">OPPONENT B</div>
+                    <UserSearchInput
+                      label="SEARCH USER"
+                      value={formData.optionBUserId}
+                      onChange={async (userId) => {
+                        setFormData(prev => ({ ...prev, optionBUserId: userId }))
+                        if (userId) {
+                          const user = await PollzAPI.getUserById(userId)
+                          setOpponentB(user || null)
+                        } else {
+                          setOpponentB(null)
+                        }
+                      }}
+                      placeholder="@username or name"
+                      excludeUserId={formData.optionAUserId}
+                    />
+                    {formData.optionBUserId && (
+                      <div className="option-preview">
+                        Will defend: <strong>Option B</strong>
+                      </div>
+                    )}
+                  </div>
         </div>
 
-        <IonCard style={{ margin: '16px' }}>
-          <IonCardContent>
-            <form onSubmit={handleSubmit}>
-              <IonItem>
-                <IonLabel position="stacked">POLL QUESTION</IonLabel>
-                <IonInput
+                {/* Only show question/options if both opponents selected */}
+                {formData.optionAUserId && formData.optionBUserId && (
+                  <>
+                    <div className="vs-divider-modern">
+                      <span>STEP 2: CREATE THE POLL</span>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Question Input */}
+            <div className="form-section">
+              <div className="form-label">
+                <IonIcon icon={createOutline} className="label-icon" />
+                <span>POLL QUESTION</span>
+              </div>
+              <input
+                type="text"
+                className="modern-input"
                   value={formData.title}
-                  onIonInput={(e) => handleInputChange('title', e.detail.value!)}
-                  placeholder="What's the burning question?"
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                placeholder={formData.isDeathmatch ? "What will they debate?" : "What's the burning question?"}
                   required
-                />
-              </IonItem>
+                disabled={formData.isDeathmatch && (!formData.optionAUserId || !formData.optionBUserId)}
+              />
+              {formData.isDeathmatch && (!formData.optionAUserId || !formData.optionBUserId) && (
+                <div className="field-hint">⏳ Select both opponents first</div>
+              )}
+            </div>
 
-              <IonItem>
-                <IonLabel position="stacked">DESCRIPTION (OPTIONAL)</IonLabel>
-                <IonTextarea
+            {/* Description Input */}
+            <div className="form-section">
+              <div className="form-label">
+                <IonIcon icon={createOutline} className="label-icon" />
+                <span>DESCRIPTION (OPTIONAL)</span>
+              </div>
+              <textarea
+                className="modern-textarea"
                   value={formData.description}
-                  onIonInput={(e) => handleInputChange('description', e.detail.value!)}
+                onChange={(e) => handleInputChange('description', e.target.value)}
                   placeholder="Add some context..."
-                  rows={3}
-                />
-              </IonItem>
+                rows={2}
+                disabled={formData.isDeathmatch && (!formData.optionAUserId || !formData.optionBUserId)}
+              />
+            </div>
 
-              <div style={{ margin: '16px 0', padding: '12px 0', borderTop: '1px solid #e0e0e0', borderBottom: '1px solid #e0e0e0' }}>
-                <h3 style={{ 
-                  fontFamily: 'Courier New, Courier, monospace',
-                  fontWeight: '700',
-                  textAlign: 'center',
-                  marginBottom: '16px',
-                  fontSize: '12px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '2px',
-                  color: '#000000'
-                }}>
-                  OPTIONS
-                </h3>
-                
-                <IonItem>
-                  <IonLabel position="stacked">OPTION A</IonLabel>
-                  <IonInput
+            {/* VS Divider */}
+            {!formData.isDeathmatch && (
+              <div className="vs-divider-modern">
+                <span>OPTIONS</span>
+              </div>
+            )}
+
+            {/* Smart Option Assignment for Deathmatch */}
+            {formData.isDeathmatch && formData.optionAUserId && formData.optionBUserId ? (
+              <div className="deathmatch-options-container">
+                <div className="deathmatch-options-grid">
+                  {/* Option A Card with Opponent */}
+                  <div className="option-card-with-opponent">
+                    {opponentA && (
+                      <div className="opponent-badge">
+                        <img 
+                          src={opponentA.avatar} 
+                          alt={opponentA.name} 
+                          className="opponent-avatar-small"
+                        />
+                        <span className="opponent-name-small">{opponentA.name}</span>
+                        <span className="defends-label">defends</span>
+                      </div>
+                    )}
+                    <div className="form-section-small">
+                      <div className="form-label-small">OPTION A</div>
+                      <input
+                        type="text"
+                        className="modern-input"
+                        value={formData.optionA}
+                        onChange={(e) => handleInputChange('optionA', e.target.value)}
+                        placeholder={opponentA ? `${opponentA.name}'s position` : "First choice"}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* VS Divider */}
+                  <div className="vs-divider-compact">
+                    <span>VS</span>
+                  </div>
+
+                  {/* Option B Card with Opponent */}
+                  <div className="option-card-with-opponent">
+                    {opponentB && (
+                      <div className="opponent-badge">
+                        <img 
+                          src={opponentB.avatar} 
+                          alt={opponentB.name} 
+                          className="opponent-avatar-small"
+                        />
+                        <span className="opponent-name-small">{opponentB.name}</span>
+                        <span className="defends-label">defends</span>
+                      </div>
+                    )}
+                    <div className="form-section-small">
+                      <div className="form-label-small">OPTION B</div>
+                      <input
+                        type="text"
+                        className="modern-input"
+                        value={formData.optionB}
+                        onChange={(e) => handleInputChange('optionB', e.target.value)}
+                        placeholder={opponentB ? `${opponentB.name}'s position` : "Second choice"}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Normal Mode Options */}
+                {!formData.isDeathmatch && (
+                  <>
+                    {/* Option A */}
+                    <div className="form-section">
+                      <div className="form-label-small">OPTION A</div>
+                      <input
+                        type="text"
+                        className="modern-input"
                     value={formData.optionA}
-                    onIonInput={(e) => handleInputChange('optionA', e.detail.value!)}
+                        onChange={(e) => handleInputChange('optionA', e.target.value)}
                     placeholder="First choice"
                     required
                   />
-                </IonItem>
+                    </div>
 
-                <div style={{ 
-                  textAlign: 'center',
-                  fontFamily: 'Courier New, Courier, monospace',
-                  fontWeight: '700',
-                  color: '#000000',
-                  margin: '16px 0',
-                  fontSize: '16px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '4px'
-                }}>
-                  VS
+                    {/* VS Text */}
+                    <div className="vs-text">
+                      <span>VS</span>
                 </div>
 
-                <IonItem>
-                  <IonLabel position="stacked">OPTION B</IonLabel>
-                  <IonInput
+                    {/* Option B */}
+                    <div className="form-section">
+                      <div className="form-label-small">OPTION B</div>
+                      <input
+                        type="text"
+                        className="modern-input"
                     value={formData.optionB}
-                    onIonInput={(e) => handleInputChange('optionB', e.detail.value!)}
+                        onChange={(e) => handleInputChange('optionB', e.target.value)}
                     placeholder="Second choice"
                     required
                   />
-                </IonItem>
               </div>
+                  </>
+                )}
+              </>
+            )}
 
-              <IonItem>
-                <IonLabel position="stacked">CONTEXT (OPTIONAL)</IonLabel>
-                <IonTextarea
+            {/* Context Input */}
+            <div className="form-section">
+              <div className="form-label-small">CONTEXT (OPTIONAL)</div>
+              <textarea
+                className="modern-textarea"
                   value={formData.context}
-                  onIonInput={(e) => handleInputChange('context', e.detail.value!)}
+                onChange={(e) => handleInputChange('context', e.target.value)}
                   placeholder="Why is this important to you?"
                   rows={2}
                 />
-              </IonItem>
-
-              {/* Enhanced Poll Creation Features */}
-              <IonItem>
-                <IonLabel position="stacked">POLL TYPE</IonLabel>
-                <IonSelect
-                  value={formData.pollType}
-                  onIonChange={(e) => handleInputChange('pollType', e.detail.value)}
-                  placeholder="Select poll type"
-                >
-                  <IonSelectOption value="question">Question with Options</IonSelectOption>
-                  <IonSelectOption value="options-only">Just Two Options</IonSelectOption>
-                </IonSelect>
-              </IonItem>
-
-              <IonItem>
-                <IonLabel position="stacked">TIMER SETTINGS</IonLabel>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-                  <IonButton
-                    fill={formData.timerEnabled ? 'solid' : 'outline'}
-                    color={formData.timerEnabled ? 'primary' : 'medium'}
-                    onClick={() => handleInputChange('timerEnabled', !formData.timerEnabled)}
-                    style={{ minWidth: '80px' }}
-                  >
-                    {formData.timerEnabled ? 'ON' : 'OFF'}
-                  </IonButton>
-                  {formData.timerEnabled && (
-                    <IonSelect
-                      value={formData.timerDuration}
-                      onIonChange={(e) => handleInputChange('timerDuration', e.detail.value)}
-                      placeholder="Duration"
-                      style={{ flex: 1 }}
-                    >
-                      <IonSelectOption value={1}>1 Hour</IonSelectOption>
-                      <IonSelectOption value={6}>6 Hours</IonSelectOption>
-                      <IonSelectOption value={12}>12 Hours</IonSelectOption>
-                      <IonSelectOption value={24}>1 Day</IonSelectOption>
-                      <IonSelectOption value={72}>3 Days</IonSelectOption>
-                      <IonSelectOption value={168}>1 Week</IonSelectOption>
-                    </IonSelect>
-                  )}
                 </div>
-              </IonItem>
 
-              <IonItem>
-                <IonLabel position="stacked">NOTIFICATIONS</IonLabel>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-                  <IonButton
-                    fill={formData.notificationEnabled ? 'solid' : 'outline'}
-                    color={formData.notificationEnabled ? 'primary' : 'medium'}
-                    onClick={() => handleInputChange('notificationEnabled', !formData.notificationEnabled)}
-                    style={{ minWidth: '80px' }}
-                  >
-                    {formData.notificationEnabled ? 'ON' : 'OFF'}
-                  </IonButton>
-                  <span style={{ 
-                    fontFamily: 'Courier New, Courier, monospace',
-                    fontSize: '12px',
-                    color: '#666666',
-                    flex: 1
-                  }}>
-                    Get notified when poll expires
-                  </span>
-                </div>
-              </IonItem>
-
-              <IonItem>
-                <IonLabel position="stacked">CATEGORY</IonLabel>
-                <IonSelect
+            {/* Settings Grid */}
+            <div className="settings-grid">
+              {/* Category */}
+              <div className="form-section-small">
+                <div className="form-label-small">CATEGORY</div>
+                <select
+                  className="modern-select"
                   value={formData.category}
-                  onIonChange={(e) => handleInputChange('category', e.detail.value)}
-                  placeholder="Select Category"
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  required
                 >
+                  <option value="">Select Category</option>
                   {categories.map(category => (
-                    <IonSelectOption key={category} value={category}>
+                    <option key={category} value={category}>
                       {category}
-                    </IonSelectOption>
+                    </option>
                   ))}
-                </IonSelect>
-              </IonItem>
+                </select>
+              </div>
 
-              <IonItem>
-                <IonLabel position="stacked">TIME LIMIT</IonLabel>
-                <IonSelect
+              {/* Time Limit */}
+              <div className="form-section-small">
+                <div className="form-label-small">TIME LIMIT</div>
+                <select
+                  className="modern-select"
                   value={formData.timeLimit}
-                  onIonChange={(e) => handleInputChange('timeLimit', parseInt(e.detail.value))}
+                  onChange={(e) => handleInputChange('timeLimit', parseInt(e.target.value))}
                 >
-                  <IonSelectOption value={1}>1 Hour</IonSelectOption>
-                  <IonSelectOption value={6}>6 Hours</IonSelectOption>
-                  <IonSelectOption value={24}>24 Hours</IonSelectOption>
-                  <IonSelectOption value={72}>3 Days</IonSelectOption>
-                  <IonSelectOption value={168}>1 Week</IonSelectOption>
-                </IonSelect>
-              </IonItem>
+                  <option value={1}>1 Hour</option>
+                  <option value={6}>6 Hours</option>
+                  <option value={24}>24 Hours</option>
+                  <option value={72}>3 Days</option>
+                  <option value={168}>1 Week</option>
+                </select>
+              </div>
+            </div>
 
-              <div style={{ marginTop: '24px' }}>
-                <IonButton 
-                  expand="block" 
-                  fill="outline" 
+            {/* Action Buttons */}
+            <div className="form-actions-modern">
+              <button
+                type="button"
+                className="btn-secondary"
                   onClick={handlePollCheck}
-                  style={{ marginBottom: '8px' }}
                 >
                   CHECK DUPLICATES
-                </IonButton>
-                <IonButton 
-                  expand="block" 
+              </button>
+              <button
                   type="submit"
-                  color="primary"
-                  disabled={!formData.title || !formData.optionA || !formData.optionB || !formData.category}
-                >
+                className="btn-primary"
+                disabled={
+                  !formData.title || 
+                  !formData.optionA || 
+                  !formData.optionB || 
+                  !formData.category || 
+                  isSubmitting ||
+                  (formData.isDeathmatch && (!formData.optionAUserId || !formData.optionBUserId))
+                }
+              >
+                {isSubmitting ? (
+                  <>
+                    <IonSpinner name="circular" style={{ marginRight: '8px' }} />
+                    CREATING...
+                  </>
+                ) : (
+                  <>
+                    <IonIcon icon={checkmarkCircleOutline} style={{ marginRight: '8px' }} />
                   CREATE POLL
-                </IonButton>
+                  </>
+                )}
+              </button>
               </div>
             </form>
-          </IonCardContent>
-        </IonCard>
+        </div>
 
+        {/* Category Suggestions */}
         {categorySuggestions.length > 0 && (
-          <IonCard style={{ margin: '16px' }}>
-            <IonCardHeader>
-              <IonCardTitle>Category Suggestions</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <div className="suggestions-card">
+            <h3>Category Suggestions</h3>
+            <div className="suggestions-list">
                 {categorySuggestions.map((suggestion, index) => (
-                  <IonChip key={index} color="primary">
-                    <IonLabel>
+                <div key={index} className="suggestion-chip">
                       {suggestion.category} ({Math.round(suggestion.confidence)}%)
-                    </IonLabel>
-                  </IonChip>
+                </div>
                 ))}
               </div>
-            </IonCardContent>
-          </IonCard>
+          </div>
         )}
 
+        {/* Duplicate Warning */}
         {duplicateCheck.hasDuplicates && (
-          <IonCard style={{ margin: '16px' }}>
-            <IonCardHeader>
-              <IonCardTitle color="warning">⚠️ Similar Polls Found</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
+          <div className="warning-card">
+            <h3>⚠️ Similar Polls Found</h3>
+            <div className="similar-polls-list">
               {duplicateCheck.similarPolls.map((poll, index) => (
-                <div key={index} style={{ 
-                  padding: '8px',
-                  border: '1px solid #eee',
-                  borderRadius: '4px',
-                  marginBottom: '8px'
-                }}>
-                  <div style={{ fontWeight: 'bold' }}>{poll.title}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    by {poll.author} • {poll.similarity}% similar
-                  </div>
+                <div key={index} className="similar-poll-item">
+                  <div className="similar-title">{poll.title}</div>
+                  <div className="similar-author">by {poll.author} • {poll.similarity}% similar</div>
                 </div>
               ))}
-            </IonCardContent>
-          </IonCard>
+            </div>
+          </div>
         )}
       </IonContent>
     </IonPage>
