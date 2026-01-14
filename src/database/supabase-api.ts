@@ -10,16 +10,34 @@ export class SupabasePollzAPI {
   // POLL OPERATIONS
   // ============================================
 
-  static async getAllPolls(): Promise<Poll[]> {
+  static async getAllPolls(userId?: string): Promise<Poll[]> {
     try {
-      const { data, error } = await supabase
+      // Get all polls, but filter by validation status
+      // Only show approved polls to everyone, but allow authors to see their own pending/rejected polls
+      let query = supabase
         .from('polls')
         .select('*')
         .order('created_at', { ascending: false })
 
+      // If userId is provided, we'll filter in the application layer to allow authors to see their own polls
+      // Otherwise, RLS policy will handle filtering
+      const { data, error } = await query
+
       if (error) throw error
 
-      const polls = (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
+      let polls = (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
+
+      // Filter: only show approved polls, or pending/rejected polls if user is the author
+      // TEMPORARILY DISABLED until validation_status column is added
+      // if (userId) {
+      //   polls = polls.filter(poll =>
+      //     poll.validationStatus === 'approved' ||
+      //     (poll.authorId === userId && poll.validationStatus !== 'approved')
+      //   )
+      // } else {
+      //   // If no userId, only show approved polls
+      //   polls = polls.filter(poll => poll.validationStatus === 'approved')
+      // }
       
       // Load author usernames for polls that don't have them stored (backward compatibility)
       for (const poll of polls) {
@@ -59,11 +77,20 @@ export class SupabasePollzAPI {
       const votedPollIds = new Set(votes?.map(v => v.poll_id) || [])
 
       // Filter out pending deathmatch polls that user is not involved in
+      // Also filter by validation status: only show approved polls, or pending/rejected if user is author
       const filteredPolls = (pollsData || []).filter(poll => {
+        // Validation status filter: TEMPORARILY DISABLED until validation_status column is added
+        // const isAuthor = poll.author_id === userId
+        // const isApproved = poll.validation_status === 'approved'
+        // if (!isApproved && !isAuthor) {
+        //   return false
+        // }
+
         // If it's a pending deathmatch, only show if user is the creator, option A owner, or option B owner
         if (poll.is_deathmatch && poll.deathmatch_status === 'pending') {
-          return poll.author_id === userId || 
-                 poll.option_a_owner_id === userId || 
+          const isAuthor = poll.author_id === userId
+          return isAuthor ||
+                 poll.option_a_owner_id === userId ||
                  poll.option_b_owner_id === userId
         }
         return true
@@ -236,7 +263,8 @@ export class SupabasePollzAPI {
           option_a_owner_id: pollData.optionAUserId || null,
           option_b_owner_id: pollData.optionBUserId || null,
           deathmatch_status: isDeathmatch ? 'pending' : 'accepted',  // Deathmatch polls start as pending
-          author_username: pollData.authorUsername || null  // Store author username
+          author_username: pollData.authorUsername || null,  // Store author username
+          validation_status: 'pending'  // All polls start as pending until validated
         })
         .select()
         .single()
@@ -268,6 +296,57 @@ export class SupabasePollzAPI {
     } catch (error) {
       console.error('Error creating poll:', error)
       throw new Error('Failed to create poll')
+    }
+  }
+
+  /**
+   * Update poll validation status
+   */
+  static async updatePollValidationStatus(
+    pollId: string,
+    status: 'approved' | 'rejected',
+    reason?: string
+  ): Promise<void> {
+    try {
+      const updateData: any = {
+        validation_status: status,
+        validated_at: new Date().toISOString()
+      }
+
+      if (reason) {
+        updateData.validation_reason = reason
+      }
+
+      const { error } = await supabase
+        .from('polls')
+        .update(updateData)
+        .eq('id', pollId)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating poll validation status:', error)
+      throw new Error('Failed to update poll validation status')
+    }
+  }
+
+  /**
+   * Get all pending polls for validation
+   */
+  static async getPendingPolls(limit: number = 10): Promise<Poll[]> {
+    try {
+      const { data, error } = await supabase
+        .from('polls')
+        .select('*')
+        .eq('validation_status', 'pending')
+        .order('created_at', { ascending: true }) // Process oldest first
+        .limit(limit)
+
+      if (error) throw error
+
+      return (data || []).map(poll => SupabasePollzAPI.transformPollFromDB(poll))
+    } catch (error) {
+      console.error('Error fetching pending polls:', error)
+      throw new Error('Failed to fetch pending polls')
     }
   }
 
@@ -756,7 +835,11 @@ export class SupabasePollzAPI {
       isShadowDeathmatch: dbPoll.is_shadow_deathmatch || false,
       optionAOwnerId: dbPoll.option_a_owner_id || undefined,
       optionBOwnerId: dbPoll.option_b_owner_id || undefined,
-      deathmatchStatus: dbPoll.deathmatch_status || 'accepted'
+      deathmatchStatus: dbPoll.deathmatch_status || 'accepted',
+      // AI Validation fields
+      validationStatus: dbPoll.validation_status || 'pending',
+      validationReason: dbPoll.validation_reason || undefined,
+      validatedAt: dbPoll.validated_at ? new Date(dbPoll.validated_at) : undefined
     }
   }
 

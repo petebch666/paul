@@ -47,6 +47,10 @@ export interface Poll {
   optionBOwnerId?: string
   optionBOwner?: User  // Populated when fetching poll
   deathmatchStatus?: 'pending' | 'accepted' | 'rejected'  // Pending until user B accepts
+  // AI Validation Features
+  validationStatus?: 'pending' | 'approved' | 'rejected'
+  validationReason?: string
+  validatedAt?: Date
 }
 
 export interface Evidence {

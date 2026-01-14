@@ -201,6 +201,9 @@ const CreatePage: React.FC<CreatePageProps> = ({ onCreatePoll }) => {
         setCategorySuggestions([])
         setDuplicateCheck({ hasDuplicates: false, similarPolls: [] })
         
+        // Show validation pending message
+        alert('✅ Poll created successfully!\n\n⏳ Your poll is now pending AI validation. It will be reviewed to ensure it meets our content guidelines (humorous polls only, no country battles, no sexist content, no political content).\n\nYou will be notified once validation is complete.')
+        
         // Navigate to home page after successful poll creation
         router.push('/home', 'forward', 'replace')
       } catch (error) {

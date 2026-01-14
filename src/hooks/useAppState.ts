@@ -388,6 +388,29 @@ export function useAppState() {
     }
   }, [user])
 
+  // Poll for validation status updates on user's pending polls
+  useEffect(() => {
+    if (!authUser) return
+
+    // Check for validation status updates every 30 seconds
+    const intervalId = setInterval(async () => {
+      try {
+        // Get user's pending polls
+        const userPolls = await PollzAPI.getUserPolls(authUser.id)
+        const pendingPolls = userPolls.filter(p => p.validationStatus === 'pending')
+        
+        if (pendingPolls.length > 0) {
+          // Refresh polls to get updated validation status
+          await loadPolls(false)
+        }
+      } catch (error) {
+        console.error('Error checking validation status:', error)
+      }
+    }, 30000) // Check every 30 seconds
+
+    return () => clearInterval(intervalId)
+  }, [authUser, loadPolls])
+
   // Mark notification as read
   const markNotificationAsRead = useCallback(async (notificationId: string) => {
     try {

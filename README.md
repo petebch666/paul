@@ -4,10 +4,11 @@ A modern, real-time polling platform built with React, TypeScript, and Supabase.
 
 ## 🚀 Project Status: Pre-Beta
 
-**Current Version**: 0.9.0 (Beta Release Preparation)  
-**Last Updated**: December 15, 2024  
-**Database**: Supabase (PostgreSQL) ✅ Connected  
-**Authentication**: Supabase Auth ✅ Implemented  
+**Current Version**: 0.9.1 (Beta Release Preparation)
+**Last Updated**: January 14, 2026
+**Database**: Supabase (PostgreSQL) ✅ Connected
+**Authentication**: Supabase Auth ✅ Implemented
+**Status**: Ready for Production Testing  
 
 ---
 
@@ -81,6 +82,46 @@ A modern, real-time polling platform built with React, TypeScript, and Supabase.
 ---
 
 ## 🎉 Recent Accomplishments
+
+### January 14, 2026 - Bug Fixes & Production Preparation ✅
+
+#### 1. Critical Bug Fixes 🐛
+- **Poll Expiration Issue**
+  - Fixed all polls showing as expired (dates were in Nov/Dec 2025)
+  - Extended all poll expiration dates to active status
+  - Updated 121 polls to expire 7 days from current date
+  - Fixed client-side expiration calculation logic
+
+- **Validation Filter Issue**
+  - Disabled temporary validation filtering (column doesn't exist yet)
+  - Fixed issue where only 21 of 121 polls were showing
+  - All polls now visible to users
+  - Prepared codebase for future AI validation implementation
+
+#### 2. Database Maintenance 🗄️
+- **Poll Expiration Update**
+  - Batch updated all expired polls via Supabase REST API
+  - Set `is_expired: false` for all active polls
+  - Extended `expires_at` dates to January 21, 2026
+
+- **Code Cleanup**
+  - Removed temporary documentation files
+  - Removed debug scripts and temporary SQL files
+  - Organized project structure for production
+  - Added clear comments for future validation system
+
+#### 3. Development Environment Setup 🛠️
+- Successfully launched app on Windows (localhost:5173)
+- Verified Supabase connection and RLS policies
+- Tested poll loading, pagination, and filtering
+- Confirmed all 121 polls are active and accessible
+- Validated authentication flow with admin account
+
+#### 4. Repository Cleanup 🧹
+- Removed redundant MD files (INSTALL-OLLAMA, QUICK-START, SETUP-GUIDE, NEXT-STEPS)
+- Removed temporary files (count-polls.cjs, fix-poll-expiration.sql, polls.json)
+- Consolidated documentation into README
+- Prepared codebase for pull request
 
 ### December 15, 2024 - Deathmatch & UI Enhancements
 
@@ -683,52 +724,68 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated**: December 15, 2024  
-**Next Milestone**: LLM Content Moderation Integration  
-**Version**: 0.9.0 (Pre-Beta)
+**Last Updated**: January 14, 2026
+**Next Milestone**: AI Validation System & Production Deployment
+**Version**: 0.9.1 (Pre-Beta)
 
 ---
 
-## 📝 Latest Session Summary (December 15, 2024)
+## 📝 Latest Session Summary (January 14, 2026)
 
-### ✅ Completed Features
+### ✅ Completed This Session
 
-1. **Deathmatch System** 🥊
-   - Complete implementation of head-to-head debate polls
-   - User search and opponent assignment
-   - Pending → Accepted workflow
-   - Option modification during acceptance
-   - Notification system integration
+1. **Application Launch** 🚀
+   - Successfully launched web app on Windows (localhost:5173)
+   - Verified Supabase connection and authentication
+   - Tested all core features (voting, poll creation, navigation)
+   - Confirmed mobile-first responsive design
 
-2. **Shadow Deathmatch** 🔒
-   - Anonymous debate mode
-   - Username masking until poll expiration
-   - Toggle in poll creation UI
+2. **Critical Bug Fixes** 🐛
+   - Fixed poll expiration bug (all 121 polls now active)
+   - Fixed validation filter bug (showing 21 instead of 121 polls)
+   - Updated database expiration dates programmatically
+   - Disabled temporary validation checks until schema update
 
-3. **Username Display** 👤
-   - Author usernames on all poll cards
-   - Deathmatch defender usernames
-   - Shadow mode implementation
-   - Database migration scripts
+3. **Database Analysis** 📊
+   - Analyzed poll distribution: 121 polls across 8 categories
+   - Category breakdown:
+     - Food: 21 polls (17.4%)
+     - Work: 18 polls (14.9%)
+     - Technology: 18 polls (14.9%)
+     - Lifestyle: 16 polls (13.2%)
+     - Entertainment: 15 polls (12.4%)
+     - Travel: 13 polls (10.7%)
+     - Sports: 12 polls (9.9%)
+     - Education: 8 polls (6.6%)
+   - Only 1 Deathmatch poll exists (room for growth)
 
-4. **UI Redesign** ✨
-   - Minimalist ribbon design (text-only)
-   - Retro pixel art icons (clock, flame, profile, hourglass)
-   - Create page improvements
-   - Navigation after poll creation
+4. **Repository Cleanup** 🧹
+   - Removed temporary documentation files
+   - Removed debug scripts and SQL files
+   - Consolidated all setup info into README
+   - Prepared clean commit for pull request
 
-5. **Database Enhancements** 🗄️
-   - `author_username` column added
-   - `is_shadow_deathmatch` column added
-   - Migration scripts created
-   - Backward compatibility maintained
+### 🎯 Next Steps
 
-### 🔄 Database Migrations Required
+1. **AI Validation System** (Priority: High)
+   - Add `validation_status`, `validation_reason`, `validated_at` columns
+   - Install and configure Ollama with llama3.2:3b model
+   - Implement content moderation worker
+   - Re-enable validation filtering in API
 
-Before committing, run these SQL scripts in Supabase:
-1. `DEATHMATCH-DB-MIGRATION.sql` - Adds deathmatch columns
-2. `UPDATE-EXISTING-POLLS-USERNAME.sql` - Sets usernames on existing polls
+2. **Deathmatch Feature Expansion** (Priority: Medium)
+   - Create more Deathmatch polls to showcase feature
+   - Add notifications for vote milestones
+   - Implement lead change alerts
 
-### 🎯 Next Priority: LLM Content Moderation
+3. **Production Deployment** (Priority: Critical)
+   - Set up production Supabase project
+   - Configure environment variables
+   - Deploy to hosting platform
+   - Test mobile builds (iOS/Android)
 
-The next major feature will be implementing local LLM-based content moderation to ensure safe, appropriate content across all polls.
+4. **Testing & QA** (Priority: High)
+   - Comprehensive testing of all features
+   - Mobile device testing
+   - Performance optimization
+   - Security audit

@@ -10,6 +10,7 @@ import {
 } from 'ionicons/icons'
 import { Poll, User } from '../types'
 import CategoryIcon from './CategoryIcon'
+import ValidationStatusBadge from './ValidationStatusBadge'
 
 interface SwipePollCardProps {
   poll: Poll
@@ -490,6 +491,11 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
             >
               EXPIRED
             </IonChip>
+          )}
+          
+          {/* Validation status badge - only show for user's own polls */}
+          {isCreator && poll.validationStatus && poll.validationStatus !== 'approved' && (
+            <ValidationStatusBadge poll={poll} showReason={poll.validationStatus === 'rejected'} />
           )}
         </div>
         

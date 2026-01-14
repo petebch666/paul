@@ -51,7 +51,10 @@ CREATE TABLE IF NOT EXISTS polls (
   trending_score DECIMAL DEFAULT 0,
   poll_type TEXT DEFAULT 'question',
   timer_enabled BOOLEAN DEFAULT TRUE,
-  notification_enabled BOOLEAN DEFAULT FALSE
+  notification_enabled BOOLEAN DEFAULT FALSE,
+  validation_status TEXT DEFAULT 'pending' CHECK (validation_status IN ('pending', 'approved', 'rejected')),
+  validation_reason TEXT,
+  validated_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Index for faster queries
@@ -59,6 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_polls_author_id ON polls(author_id);
 CREATE INDEX IF NOT EXISTS idx_polls_category ON polls(category);
 CREATE INDEX IF NOT EXISTS idx_polls_created_at ON polls(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_polls_trending_score ON polls(trending_score DESC);
+CREATE INDEX IF NOT EXISTS idx_polls_validation_status ON polls(validation_status);
 
 -- ============================================
 -- VOTES TABLE
@@ -132,8 +136,12 @@ CREATE POLICY "Users can update their own data" ON users
   FOR UPDATE USING (true);
 
 -- Polls policies
+-- Public polls: only show approved polls to everyone, but allow authors to see their own pending/rejected polls
 CREATE POLICY "Polls are viewable by everyone" ON polls
-  FOR SELECT USING (true);
+  FOR SELECT USING (
+    validation_status = 'approved' 
+    OR auth.uid() = author_id
+  );
 
 CREATE POLICY "Authenticated users can create polls" ON polls
   FOR INSERT WITH CHECK (true);

@@ -15,6 +15,8 @@ import MigrationPage from './pages/MigrationPage'
 import AuthenticationWrapper from './components/AuthenticationWrapper'
 import SecurityBadge from './components/SecurityBadge'
 import { useAuth } from './hooks/useAuth'
+// Import validation worker to ensure it starts
+import './services/validation-worker'
 import './App.css'
 
 // Import utilities for development (DISABLED - Using real data only)
@@ -26,6 +28,11 @@ if (import.meta.env.DEV) {
   import('./database/unified-api').then(module => {
     (window as any).PollzAPI = module.default
     console.log('💡 PollzAPI available in console for testing')
+  })
+  
+  // Import validation test utilities
+  import('./utils/test-validation').then(() => {
+    console.log('💡 Validation test utilities available - use testValidation.* in console')
   })
 }
 
