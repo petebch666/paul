@@ -1,0 +1,93 @@
+.confirm-action-modal {
+  --height: auto;
+  --width: 90%;
+  --max-width: 500px;
+  --border-radius: 12px;
+}
+
+.confirm-action-content {
+  --background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.confirm-action-container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.confirm-action-header h2 {
+  color: #00d4ff;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.confirm-action-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.confirm-action-body p {
+  margin: 0;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.reason-input-container {
+  margin-top: 8px;
+}
+
+.reason-textarea {
+  --background: rgba(255, 255, 255, 0.05);
+  --color: #e0e0e0;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.reason-textarea:focus-within {
+  border-color: #00d4ff;
+}
+
+.error-text {
+  margin: 8px 0 0 0;
+  font-size: 12px;
+}
+
+.confirm-action-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.cancel-button {
+  --border-color: rgba(255, 255, 255, 0.3);
+  --color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.confirm-button {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+@media (max-width: 576px) {
+  .confirm-action-modal {
+    --width: 95%;
+  }
+
+  .confirm-action-container {
+    padding: 20px;
+  }
+
+  .confirm-action-footer {
+    flex-direction: column;
+  }
+}

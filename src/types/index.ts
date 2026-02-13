@@ -90,6 +90,11 @@ export interface User {
   winRate: number
   joinDate: Date
   isFollowing?: boolean
+  // Phase 2: User status management
+  status?: 'active' | 'suspended' | 'banned'
+  statusReason?: string
+  statusChangedAt?: Date
+  statusChangedBy?: string
 }
 
 export interface Badge {
@@ -198,5 +203,19 @@ export interface PollHistory {
   timestamp: Date
   pollTitle: string
   pollCategory: string
+}
+
+export interface AdminAuditLog {
+  id: string
+  adminId: string
+  adminUsername: string
+  actionType: 'user_role_changed' | 'user_suspended' | 'user_banned' | 'user_unsuspended' | 'poll_deleted' | 'poll_approved' | 'poll_rejected'
+  targetId: string
+  targetType: 'user' | 'poll'
+  details?: Record<string, any>
+  reason?: string
+  previousValue?: string
+  newValue?: string
+  createdAt: Date
 }
 

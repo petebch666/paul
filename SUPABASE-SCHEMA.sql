@@ -254,6 +254,90 @@ ON CONFLICT (email) DO NOTHING;
 -- SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public';
 
 -- ============================================
+-- PHASE 2: ADMIN PANEL ENHANCEMENTS
+-- ============================================
+
+-- 1. Add user status management
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'
+  CHECK (status IN ('active', 'suspended', 'banned'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status_reason TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status_changed_by UUID REFERENCES users(id);
+
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
+
+-- 2. Add missing deathmatch columns to polls
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS is_deathmatch BOOLEAN DEFAULT FALSE;
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS is_shadow_deathmatch BOOLEAN DEFAULT FALSE;
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS option_a_owner_id UUID REFERENCES users(id);
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS option_b_owner_id UUID REFERENCES users(id);
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS deathmatch_status TEXT DEFAULT 'accepted'
+  CHECK (deathmatch_status IN ('pending', 'accepted', 'rejected'));
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS author_username TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_polls_is_deathmatch ON polls(is_deathmatch);
+CREATE INDEX IF NOT EXISTS idx_polls_deathmatch_status ON polls(deathmatch_status);
+
+-- 3. Create admin audit log table
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  admin_id UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  admin_username TEXT NOT NULL,
+  action_type TEXT NOT NULL CHECK (action_type IN (
+    'user_role_changed', 'user_suspended', 'user_banned', 'user_unsuspended',
+    'poll_deleted', 'poll_approved', 'poll_rejected'
+  )),
+  target_id UUID NOT NULL,
+  target_type TEXT NOT NULL CHECK (target_type IN ('user', 'poll')),
+  details JSONB,
+  reason TEXT,
+  previous_value TEXT,
+  new_value TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_admin_id ON admin_audit_log(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created_at ON admin_audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_target ON admin_audit_log(target_type, target_id);
+
+ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can view audit log" ON admin_audit_log
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
+
+-- 4. Update RLS policies for admin privileges
+DROP POLICY IF EXISTS "Users can update their own data" ON users;
+DROP POLICY IF EXISTS "Users can delete their own polls" ON polls;
+DROP POLICY IF EXISTS "Users can update their own polls" ON polls;
+DROP POLICY IF EXISTS "Authenticated users can create polls" ON polls;
+
+CREATE POLICY "Users can update their own data or admins can update anyone" ON users
+  FOR UPDATE USING (
+    auth.uid() = id OR
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
+
+CREATE POLICY "Users can delete their own polls or admins can delete any poll" ON polls
+  FOR DELETE USING (
+    auth.uid() = author_id OR
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
+
+CREATE POLICY "Users can update their own polls or admins can update any poll" ON polls
+  FOR UPDATE USING (
+    auth.uid() = author_id OR
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
+
+-- Prevent suspended/banned users from creating polls
+CREATE POLICY "Active users can create polls" ON polls
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.status = 'active')
+  );
+
+-- ============================================
 -- SUCCESS!
 -- ============================================
 -- ✅ Your database is ready!

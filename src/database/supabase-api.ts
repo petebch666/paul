@@ -1110,6 +1110,259 @@ export class SupabasePollzAPI {
       throw error
     }
   }
+
+  // ============================================
+  // PHASE 2: ADMIN OPERATIONS
+  // ============================================
+
+  /**
+   * Update user role (user <-> admin)
+   */
+  static async updateUserRole(
+    userId: string,
+    newRole: 'user' | 'admin',
+    adminId: string,
+    reason: string
+  ): Promise<void> {
+    try {
+      // Get current user data
+      const { data: currentUser, error: getUserError } = await supabase
+        .from('users')
+        .select('role, username')
+        .eq('id', userId)
+        .single()
+
+      if (getUserError) throw getUserError
+
+      // Update user role
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', userId)
+
+      if (updateError) throw updateError
+
+      // Log the action
+      await SupabasePollzAPI.logAdminAction({
+        adminId,
+        actionType: 'user_role_changed',
+        targetId: userId,
+        targetType: 'user',
+        reason,
+        previousValue: currentUser.role || 'user',
+        newValue: newRole,
+        details: { username: currentUser.username }
+      })
+    } catch (error) {
+      console.error('Error updating user role:', error)
+      throw new Error('Failed to update user role')
+    }
+  }
+
+  /**
+   * Update user status (active/suspended/banned)
+   */
+  static async updateUserStatus(
+    userId: string,
+    status: 'active' | 'suspended' | 'banned',
+    adminId: string,
+    reason: string
+  ): Promise<void> {
+    try {
+      // Get current user data
+      const { data: currentUser, error: getUserError } = await supabase
+        .from('users')
+        .select('status, username')
+        .eq('id', userId)
+        .single()
+
+      if (getUserError) throw getUserError
+
+      // Update user status
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          status,
+          status_reason: reason,
+          status_changed_at: new Date().toISOString(),
+          status_changed_by: adminId
+        })
+        .eq('id', userId)
+
+      if (updateError) throw updateError
+
+      // Determine action type
+      let actionType: 'user_suspended' | 'user_banned' | 'user_unsuspended'
+      if (status === 'suspended') {
+        actionType = 'user_suspended'
+      } else if (status === 'banned') {
+        actionType = 'user_banned'
+      } else {
+        actionType = 'user_unsuspended'
+      }
+
+      // Log the action
+      await SupabasePollzAPI.logAdminAction({
+        adminId,
+        actionType,
+        targetId: userId,
+        targetType: 'user',
+        reason,
+        previousValue: currentUser.status || 'active',
+        newValue: status,
+        details: { username: currentUser.username }
+      })
+    } catch (error) {
+      console.error('Error updating user status:', error)
+      throw new Error('Failed to update user status')
+    }
+  }
+
+  /**
+   * Delete a poll (admin override)
+   */
+  static async deletePoll(
+    pollId: string,
+    adminId: string,
+    reason: string
+  ): Promise<void> {
+    try {
+      // Get poll data before deletion
+      const { data: poll, error: getPollError } = await supabase
+        .from('polls')
+        .select('title, author_id')
+        .eq('id', pollId)
+        .single()
+
+      if (getPollError) throw getPollError
+
+      // Delete the poll (cascades to votes, notifications, history)
+      const { error: deleteError } = await supabase
+        .from('polls')
+        .delete()
+        .eq('id', pollId)
+
+      if (deleteError) throw deleteError
+
+      // Log the action
+      await SupabasePollzAPI.logAdminAction({
+        adminId,
+        actionType: 'poll_deleted',
+        targetId: pollId,
+        targetType: 'poll',
+        reason,
+        details: {
+          title: poll.title,
+          authorId: poll.author_id
+        }
+      })
+    } catch (error) {
+      console.error('Error deleting poll:', error)
+      throw new Error('Failed to delete poll')
+    }
+  }
+
+  /**
+   * Moderate a poll (approve/reject)
+   */
+  static async moderatePoll(
+    pollId: string,
+    status: 'approved' | 'rejected',
+    adminId: string,
+    reason?: string
+  ): Promise<void> {
+    try {
+      // Update poll validation status
+      const { error: updateError } = await supabase
+        .from('polls')
+        .update({
+          validation_status: status,
+          validation_reason: reason || null,
+          validated_at: new Date().toISOString()
+        })
+        .eq('id', pollId)
+
+      if (updateError) throw updateError
+
+      // Log the action
+      await SupabasePollzAPI.logAdminAction({
+        adminId,
+        actionType: status === 'approved' ? 'poll_approved' : 'poll_rejected',
+        targetId: pollId,
+        targetType: 'poll',
+        reason,
+        newValue: status
+      })
+    } catch (error) {
+      console.error('Error moderating poll:', error)
+      throw new Error('Failed to moderate poll')
+    }
+  }
+
+  /**
+   * Log an admin action to audit trail
+   */
+  static async logAdminAction(action: {
+    adminId: string
+    actionType: 'user_role_changed' | 'user_suspended' | 'user_banned' | 'user_unsuspended' | 'poll_deleted' | 'poll_approved' | 'poll_rejected'
+    targetId: string
+    targetType: 'user' | 'poll'
+    reason?: string
+    previousValue?: string
+    newValue?: string
+    details?: Record<string, any>
+  }): Promise<void> {
+    try {
+      // Get admin username
+      const { data: admin, error: getAdminError } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', action.adminId)
+        .single()
+
+      if (getAdminError) throw getAdminError
+
+      // Insert audit log entry
+      const { error: insertError } = await supabase
+        .from('admin_audit_log')
+        .insert({
+          admin_id: action.adminId,
+          admin_username: admin.username,
+          action_type: action.actionType,
+          target_id: action.targetId,
+          target_type: action.targetType,
+          reason: action.reason,
+          previous_value: action.previousValue,
+          new_value: action.newValue,
+          details: action.details || {}
+        })
+
+      if (insertError) throw insertError
+    } catch (error) {
+      console.error('Error logging admin action:', error)
+      // Don't throw - audit logging shouldn't block the main operation
+    }
+  }
+
+  /**
+   * Get audit log entries
+   */
+  static async getAuditLog(limit: number = 100): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('admin_audit_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (error) throw error
+
+      return data || []
+    } catch (error) {
+      console.error('Error fetching audit log:', error)
+      throw new Error('Failed to fetch audit log')
+    }
+  }
 }
 
 export default SupabasePollzAPI

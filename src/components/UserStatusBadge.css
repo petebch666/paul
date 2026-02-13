@@ -1,0 +1,39 @@
+.user-status-badge {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 12px;
+  padding: 4px 12px;
+}
+
+.user-status-badge-small {
+  font-size: 10px;
+  padding: 2px 8px;
+  gap: 2px;
+}
+
+.user-status-badge-medium {
+  font-size: 12px;
+  padding: 4px 12px;
+  gap: 4px;
+}
+
+.user-status-badge-large {
+  font-size: 14px;
+  padding: 6px 16px;
+  gap: 6px;
+}
+
+.status-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.status-text {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}

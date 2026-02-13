@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  IonPage, 
-  IonHeader, 
-  IonToolbar, 
-  IonTitle, 
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
   IonContent,
   IonCard,
   IonCardHeader,
@@ -17,7 +17,7 @@ import {
   IonLabel,
   IonSpinner
 } from '@ionic/react'
-import { 
+import {
   people,
   statsChart,
   code,
@@ -34,11 +34,19 @@ import {
   checkmarkCircle,
   hourglassOutline,
   trendingUp,
-  personAdd
+  personAdd,
+  trashOutline,
+  lockClosedOutline,
+  unlockOutline,
+  swapHorizontalOutline,
+  checkmarkOutline,
+  closeOutline
 } from 'ionicons/icons'
 import { SupabasePollzAPI } from '../database/supabase-api'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../database/supabase'
+import ConfirmActionModal from '../components/ConfirmActionModal'
+import UserStatusBadge from '../components/UserStatusBadge'
 import './AdminDashboard.css'
 
 const AdminDashboard: React.FC = () => {
@@ -65,6 +73,16 @@ const AdminDashboard: React.FC = () => {
   const [allPolls, setAllPolls] = useState<any[]>([])
   const [selectedUser, setSelectedUser] = useState<any>(null)
   const [selectedPoll, setSelectedPoll] = useState<any>(null)
+
+  // Phase 2: Modal state for admin actions
+  const [showModal, setShowModal] = useState(false)
+  const [modalConfig, setModalConfig] = useState<{
+    title: string
+    message: string
+    actionType: 'danger' | 'warning' | 'primary'
+    confirmText: string
+    onConfirm: (reason: string) => void
+  } | null>(null)
 
   // Check if user is admin
   const isAdmin = user?.role === 'admin'
@@ -180,6 +198,173 @@ const AdminDashboard: React.FC = () => {
     }
   }
 
+  // ============================================
+  // PHASE 2: ADMIN ACTION HANDLERS
+  // ============================================
+
+  const handleChangeUserRole = (targetUser: any) => {
+    const newRole = targetUser.role === 'admin' ? 'user' : 'admin'
+    setModalConfig({
+      title: `Change User Role`,
+      message: `Change ${targetUser.username}'s role from ${targetUser.role || 'user'} to ${newRole}?`,
+      actionType: 'warning',
+      confirmText: 'Change Role',
+      onConfirm: async (reason: string) => {
+        try {
+          setLoading(true)
+          await SupabasePollzAPI.updateUserRole(targetUser.id, newRole, user!.id, reason)
+          await loadUsers()
+          console.log(`✅ User role changed successfully`)
+        } catch (error) {
+          console.error('Error changing user role:', error)
+          alert('Failed to change user role')
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+    setShowModal(true)
+  }
+
+  const handleSuspendUser = (targetUser: any) => {
+    setModalConfig({
+      title: 'Suspend User',
+      message: `Suspend ${targetUser.username}? They will not be able to create new polls.`,
+      actionType: 'warning',
+      confirmText: 'Suspend User',
+      onConfirm: async (reason: string) => {
+        try {
+          setLoading(true)
+          await SupabasePollzAPI.updateUserStatus(targetUser.id, 'suspended', user!.id, reason)
+          await loadUsers()
+          console.log(`✅ User suspended successfully`)
+        } catch (error) {
+          console.error('Error suspending user:', error)
+          alert('Failed to suspend user')
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+    setShowModal(true)
+  }
+
+  const handleBanUser = (targetUser: any) => {
+    setModalConfig({
+      title: 'Ban User',
+      message: `Ban ${targetUser.username}? This is a severe action that will prevent all activity.`,
+      actionType: 'danger',
+      confirmText: 'Ban User',
+      onConfirm: async (reason: string) => {
+        try {
+          setLoading(true)
+          await SupabasePollzAPI.updateUserStatus(targetUser.id, 'banned', user!.id, reason)
+          await loadUsers()
+          console.log(`✅ User banned successfully`)
+        } catch (error) {
+          console.error('Error banning user:', error)
+          alert('Failed to ban user')
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+    setShowModal(true)
+  }
+
+  const handleUnsuspendUser = (targetUser: any) => {
+    setModalConfig({
+      title: 'Reactivate User',
+      message: `Reactivate ${targetUser.username}? They will regain full access.`,
+      actionType: 'primary',
+      confirmText: 'Reactivate User',
+      onConfirm: async (reason: string) => {
+        try {
+          setLoading(true)
+          await SupabasePollzAPI.updateUserStatus(targetUser.id, 'active', user!.id, reason)
+          await loadUsers()
+          console.log(`✅ User reactivated successfully`)
+        } catch (error) {
+          console.error('Error reactivating user:', error)
+          alert('Failed to reactivate user')
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+    setShowModal(true)
+  }
+
+  const handleDeletePoll = (poll: any) => {
+    setModalConfig({
+      title: 'Delete Poll',
+      message: `Permanently delete "${poll.title}"? This action cannot be undone.`,
+      actionType: 'danger',
+      confirmText: 'Delete Poll',
+      onConfirm: async (reason: string) => {
+        try {
+          setLoading(true)
+          await SupabasePollzAPI.deletePoll(poll.id, user!.id, reason)
+          await loadPollsForManagement()
+          await loadData() // Refresh stats
+          console.log(`✅ Poll deleted successfully`)
+        } catch (error) {
+          console.error('Error deleting poll:', error)
+          alert('Failed to delete poll')
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+    setShowModal(true)
+  }
+
+  const handleApprovePoll = (poll: any) => {
+    setModalConfig({
+      title: 'Approve Poll',
+      message: `Approve "${poll.title}" for public display?`,
+      actionType: 'primary',
+      confirmText: 'Approve',
+      onConfirm: async (reason: string) => {
+        try {
+          setLoading(true)
+          await SupabasePollzAPI.moderatePoll(poll.id, 'approved', user!.id, reason)
+          await loadPollsForManagement()
+          console.log(`✅ Poll approved successfully`)
+        } catch (error) {
+          console.error('Error approving poll:', error)
+          alert('Failed to approve poll')
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+    setShowModal(true)
+  }
+
+  const handleRejectPoll = (poll: any) => {
+    setModalConfig({
+      title: 'Reject Poll',
+      message: `Reject "${poll.title}"? The poll will be hidden from public view.`,
+      actionType: 'warning',
+      confirmText: 'Reject',
+      onConfirm: async (reason: string) => {
+        try {
+          setLoading(true)
+          await SupabasePollzAPI.moderatePoll(poll.id, 'rejected', user!.id, reason)
+          await loadPollsForManagement()
+          console.log(`✅ Poll rejected successfully`)
+        } catch (error) {
+          console.error('Error rejecting poll:', error)
+          alert('Failed to reject poll')
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+    setShowModal(true)
+  }
+
   useEffect(() => {
     if (activeTab === 'users' && users.length === 0) {
       loadUsers()
@@ -256,44 +441,108 @@ const AdminDashboard: React.FC = () => {
               }}
               onClick={() => setSelectedUser(user)}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <img
-                  src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`}
-                  alt={user.name}
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    border: '2px solid #e9ecef'
-                  }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontFamily: 'Courier New, monospace',
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    marginBottom: '4px'
-                  }}>
-                    {user.name}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <img
+                    src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`}
+                    alt={user.name}
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      border: '2px solid #e9ecef'
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontFamily: 'Courier New, monospace',
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      {user.name}
+                      {user.role === 'admin' && (
+                        <IonBadge color="danger" style={{ fontSize: '10px' }}>
+                          ADMIN
+                        </IonBadge>
+                      )}
+                      <UserStatusBadge status={user.status || 'active'} size="small" />
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>
+                      {user.username} • {user.email}
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999' }}>
+                      <span>📊 {user.poll_count || 0} polls</span>
+                      <span>👥 {user.followers || 0} followers</span>
+                      <span>⭐ {user.reputation || 0} rep</span>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>
-                    {user.username} • {user.email}
-                  </div>
-                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999' }}>
-                    <span>📊 {user.poll_count || 0} polls</span>
-                    <span>👥 {user.followers || 0} followers</span>
-                    <span>⭐ {user.reputation || 0} rep</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  {user.role === 'admin' && (
-                    <IonBadge color="danger" style={{ fontSize: '10px', marginBottom: '8px' }}>
-                      ADMIN
-                    </IonBadge>
-                  )}
                   <div style={{ fontSize: '11px', color: '#999' }}>
                     {user.join_date ? new Date(user.join_date).toLocaleDateString() : 'N/A'}
                   </div>
+                </div>
+
+                {/* Phase 2: Admin Action Buttons */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <IonButton
+                    size="small"
+                    fill="outline"
+                    color="warning"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleChangeUserRole(user)
+                    }}
+                  >
+                    <IonIcon icon={swapHorizontalOutline} slot="start" />
+                    {user.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
+                  </IonButton>
+
+                  {(user.status === 'active' || !user.status) && (
+                    <>
+                      <IonButton
+                        size="small"
+                        fill="outline"
+                        color="warning"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSuspendUser(user)
+                        }}
+                      >
+                        <IonIcon icon={lockClosedOutline} slot="start" />
+                        Suspend
+                      </IonButton>
+                      <IonButton
+                        size="small"
+                        fill="outline"
+                        color="danger"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleBanUser(user)
+                        }}
+                      >
+                        <IonIcon icon={closeOutline} slot="start" />
+                        Ban
+                      </IonButton>
+                    </>
+                  )}
+
+                  {(user.status === 'suspended' || user.status === 'banned') && (
+                    <IonButton
+                      size="small"
+                      fill="outline"
+                      color="success"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleUnsuspendUser(user)
+                      }}
+                    >
+                      <IonIcon icon={unlockOutline} slot="start" />
+                      Reactivate
+                    </IonButton>
+                  )}
                 </div>
               </div>
             </div>
@@ -370,42 +619,98 @@ const AdminDashboard: React.FC = () => {
               }}
               onClick={() => setSelectedPoll(poll)}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontFamily: 'Courier New, monospace',
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    marginBottom: '8px'
-                  }}>
-                    {poll.title}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '16px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontFamily: 'Courier New, monospace',
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      marginBottom: '8px'
+                    }}>
+                      {poll.title}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
+                      {poll.description || 'No description'}
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999', marginBottom: '8px' }}>
+                      <span>📊 {poll.votes || 0} votes</span>
+                      <span>🗳️ A: {poll.votes_option_a || 0} B: {poll.votes_option_b || 0}</span>
+                      <span>🔖 {poll.category}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#999' }}>
+                      by {poll.author_name} • {new Date(poll.created_at).toLocaleDateString()}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
-                    {poll.description || 'No description'}
-                  </div>
-                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999', marginBottom: '8px' }}>
-                    <span>📊 {poll.votes || 0} votes</span>
-                    <span>🗳️ A: {poll.votes_option_a || 0} B: {poll.votes_option_b || 0}</span>
-                    <span>🔖 {poll.category}</span>
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#999' }}>
-                    by {poll.author_name} • {new Date(poll.created_at).toLocaleDateString()}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                    {poll.is_expired && (
+                      <IonBadge color="warning" style={{ fontSize: '10px' }}>
+                        EXPIRED
+                      </IonBadge>
+                    )}
+                    {!poll.is_expired && (
+                      <IonBadge color="success" style={{ fontSize: '10px' }}>
+                        ACTIVE
+                      </IonBadge>
+                    )}
+                    {poll.validation_status && (
+                      <IonBadge
+                        color={poll.validation_status === 'approved' ? 'success' : poll.validation_status === 'rejected' ? 'danger' : 'warning'}
+                        style={{ fontSize: '10px' }}
+                      >
+                        {poll.validation_status.toUpperCase()}
+                      </IonBadge>
+                    )}
+                    <div style={{ fontSize: '11px', color: '#999' }}>
+                      {Math.round(((poll.votes_option_a + poll.votes_option_b) / Math.max(poll.votes, 1)) * 100)}% engaged
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                  {poll.is_expired && (
-                    <IonBadge color="warning" style={{ fontSize: '10px' }}>
-                      EXPIRED
-                    </IonBadge>
+
+                {/* Phase 2: Admin Action Buttons */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {poll.validation_status !== 'approved' && (
+                    <IonButton
+                      size="small"
+                      fill="outline"
+                      color="success"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleApprovePoll(poll)
+                      }}
+                    >
+                      <IonIcon icon={checkmarkOutline} slot="start" />
+                      Approve
+                    </IonButton>
                   )}
-                  {!poll.is_expired && (
-                    <IonBadge color="success" style={{ fontSize: '10px' }}>
-                      ACTIVE
-                    </IonBadge>
+
+                  {poll.validation_status !== 'rejected' && (
+                    <IonButton
+                      size="small"
+                      fill="outline"
+                      color="warning"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRejectPoll(poll)
+                      }}
+                    >
+                      <IonIcon icon={closeOutline} slot="start" />
+                      Reject
+                    </IonButton>
                   )}
-                  <div style={{ fontSize: '11px', color: '#999' }}>
-                    {Math.round(((poll.votes_option_a + poll.votes_option_b) / Math.max(poll.votes, 1)) * 100)}% engaged
-                  </div>
+
+                  <IonButton
+                    size="small"
+                    fill="outline"
+                    color="danger"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeletePoll(poll)
+                    }}
+                  >
+                    <IonIcon icon={trashOutline} slot="start" />
+                    Delete
+                  </IonButton>
                 </div>
               </div>
             </div>
@@ -1154,6 +1459,22 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'api' && renderAPITab()}
         </div>
       </IonContent>
+
+      {/* Phase 2: Admin Action Confirmation Modal */}
+      {modalConfig && (
+        <ConfirmActionModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false)
+            setModalConfig(null)
+          }}
+          onConfirm={modalConfig.onConfirm}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          actionType={modalConfig.actionType}
+          confirmText={modalConfig.confirmText}
+        />
+      )}
     </IonPage>
   )
 }
