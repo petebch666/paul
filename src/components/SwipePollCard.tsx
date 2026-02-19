@@ -1,16 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { IonCard, IonChip, IonBadge, IonIcon } from '@ionic/react'
-import { 
-  thumbsUp, 
-  thumbsDown, 
-  checkmark, 
-  close, 
-  timeOutline, 
-  hourglassOutline
+import {
+  thumbsUp,
+  thumbsDown,
+  checkmark,
+  close,
+  timeOutline,
+  hourglassOutline,
+  shareOutline
 } from 'ionicons/icons'
 import { Poll, User } from '../types'
 import CategoryIcon from './CategoryIcon'
 import ValidationStatusBadge from './ValidationStatusBadge'
+import { useLiveVotes } from '../hooks/useLiveVotes'
+import { SupabasePollzAPI } from '../database/supabase-api'
 
 interface SwipePollCardProps {
   poll: Poll
@@ -44,8 +47,35 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
   const [justVoted, setJustVoted] = useState(false)
   const [isDisappearing, setIsDisappearing] = useState(false)
   const [gaugeProgress, setGaugeProgress] = useState(poll.isVoted || poll.isExpired ? 100 : 0) // Start at 100 if already voted
+  const [shareTooltip, setShareTooltip] = useState(false)
+  const [prediction, setPrediction] = useState<number>(50)
+  const [hasPredicted, setHasPredicted] = useState(false)
+  const [predictionAccuracy, setPredictionAccuracy] = useState<number | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const startPos = useRef({ x: 0, y: 0 })
+
+  // Load existing prediction
+  useEffect(() => {
+    if (user && !poll.isExpired && !poll.isVoted) {
+      SupabasePollzAPI.getUserPrediction(poll.id, user.id).then(pred => {
+        if (pred) {
+          setPrediction(pred.predictedPercentA)
+          setHasPredicted(true)
+          if (pred.accuracyScore !== null) {
+            setPredictionAccuracy(pred.accuracyScore)
+          }
+        }
+      })
+    }
+  }, [poll.id, user?.id])
+
+  // Live vote subscription
+  const liveVotes = useLiveVotes(poll.id, poll.votes, poll.votesOptionA, poll.votesOptionB)
+
+  // Use live vote data for display
+  const displayVotes = liveVotes.votes
+  const displayVotesA = liveVotes.votesOptionA
+  const displayVotesB = liveVotes.votesOptionB
 
   // Update hasVoted and showResults when poll changes
   useEffect(() => {
@@ -73,11 +103,11 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
     const isLowTime = (unit === 'm') || (unit === 'h' && value < 1)
     
     // Calculate vote difference percentage
-    const totalVotes = poll.votesOptionA + poll.votesOptionB
+    const totalVotes = displayVotesA + displayVotesB
     if (totalVotes === 0) return false
-    
-    const percentageA = (poll.votesOptionA / totalVotes) * 100
-    const percentageB = (poll.votesOptionB / totalVotes) * 100
+
+    const percentageA = (displayVotesA / totalVotes) * 100
+    const percentageB = (displayVotesB / totalVotes) * 100
     const difference = Math.abs(percentageA - percentageB)
     
     // Check if difference is less than 10 percentage points
@@ -220,7 +250,13 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
 
   const handleVote = async (option: 'A' | 'B') => {
     if (hasVoted) return
-    
+
+    // Save prediction if user moved the slider
+    if (user && !hasPredicted) {
+      SupabasePollzAPI.submitPrediction(poll.id, user.id, prediction).catch(() => {})
+      setHasPredicted(true)
+    }
+
     console.log(`✅ Voting on "${poll.title}": Option ${option}`)
     
     // Step 1: Card disappears (50ms) - 4x faster
@@ -477,6 +513,22 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
             </IonChip>
           )}
           
+          {/* CONFESSION badge */}
+          {poll.isConfession && (
+            <IonChip
+              style={{
+                fontSize: '10px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                background: '#8b00ff',
+                color: '#ffffff'
+              }}
+            >
+              CONFESSION
+            </IonChip>
+          )}
+
           {/* EXPIRED badge */}
           {poll.isExpired && (
             <IonChip 
@@ -560,8 +612,68 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         </div>
       )}
 
+      {/* Prediction Slider - shown before voting */}
+      {canVote && !hasVoted && (
+        <div
+          style={{
+            marginBottom: '10px',
+            padding: '8px 12px',
+            background: (isHovered || isFocused) ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.03)',
+            borderRadius: '6px',
+            fontFamily: 'Courier New, monospace'
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          <div style={{
+            fontSize: '9px',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            marginBottom: '6px',
+            textAlign: 'center',
+            fontWeight: '700',
+            color: (isHovered || isFocused) ? '#aaa' : '#888'
+          }}>
+            Predict: {prediction}% A vs {100 - prediction}% B
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={prediction}
+            onChange={(e) => setPrediction(parseInt(e.target.value))}
+            style={{
+              width: '100%',
+              height: '4px',
+              appearance: 'auto',
+              cursor: 'pointer',
+              accentColor: '#0066ff'
+            }}
+          />
+        </div>
+      )}
+
+      {/* Prediction result - shown after voting */}
+      {hasPredicted && showResults && predictionAccuracy !== null && (
+        <div style={{
+          marginBottom: '8px',
+          padding: '6px 12px',
+          background: predictionAccuracy >= 90 ? 'rgba(0,200,0,0.1)' : predictionAccuracy >= 70 ? 'rgba(255,165,0,0.1)' : 'rgba(255,0,0,0.1)',
+          borderRadius: '6px',
+          fontFamily: 'Courier New, monospace',
+          fontSize: '10px',
+          textAlign: 'center',
+          fontWeight: '700',
+          letterSpacing: '1px',
+          color: predictionAccuracy >= 90 ? '#00aa00' : predictionAccuracy >= 70 ? '#cc8800' : '#cc0000'
+        }}>
+          PREDICTION ACCURACY: {Math.round(predictionAccuracy)}%
+        </div>
+      )}
+
       {/* Options */}
-      <div 
+      <div
         className="poll-options"
         style={{
           display: 'flex',
@@ -571,7 +683,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
       >
         {/* Option A */}
         <div 
-          className={`option-container ${voteDirection === 'A' ? 'highlight' : ''} ${hasVoted && poll.votesOptionA > poll.votesOptionB ? 'winning' : ''}`}
+          className={`option-container ${voteDirection === 'A' ? 'highlight' : ''} ${hasVoted && displayVotesA > displayVotesB ? 'winning' : ''}`}
           style={{
             flex: 1,
             padding: '12px',
@@ -584,7 +696,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           }}
           onClick={() => handleOptionClick('A')}
         >
-          {hasVoted && poll.votesOptionA > poll.votesOptionB && (
+          {hasVoted && displayVotesA > displayVotesB && (
             <IonIcon 
               icon={checkmark} 
               style={{ 
@@ -642,7 +754,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
                 marginBottom: '8px'
               }}>
                 <div style={{
-                  width: `${Math.round((poll.votesOptionA / poll.votes) * gaugeProgress)}%`,
+                  width: `${Math.round((displayVotesA / Math.max(displayVotes, 1)) * gaugeProgress)}%`,
                   height: '100%',
                   background: 'linear-gradient(90deg, #0066ff 0%, #0099ff 100%)',
                   transition: 'width 0.05s linear',
@@ -656,7 +768,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
                       fontWeight: '700',
                       fontSize: '14px'
                     }}>
-                      {Math.round((poll.votesOptionA / poll.votes) * 100)}%
+                      {Math.round((displayVotesA / Math.max(displayVotes, 1)) * 100)}%
                     </span>
                   )}
                 </div>
@@ -667,7 +779,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
                 color: voteDirection === 'A' ? '#ffffff' : '#666666',
                 textAlign: 'center'
               }}>
-                {poll.votesOptionA} VOTES
+                {displayVotesA} VOTES
               </div>
             </div>
           )}
@@ -693,7 +805,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
 
         {/* Option B */}
         <div 
-          className={`option-container ${voteDirection === 'B' ? 'highlight' : ''} ${hasVoted && poll.votesOptionB > poll.votesOptionA ? 'winning' : ''}`}
+          className={`option-container ${voteDirection === 'B' ? 'highlight' : ''} ${hasVoted && displayVotesB > displayVotesA ? 'winning' : ''}`}
           style={{
             flex: 1,
             padding: '12px',
@@ -706,7 +818,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
           }}
           onClick={() => handleOptionClick('B')}
         >
-          {hasVoted && poll.votesOptionB > poll.votesOptionA && (
+          {hasVoted && displayVotesB > displayVotesA && (
             <IonIcon 
               icon={checkmark} 
               style={{ 
@@ -764,7 +876,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
                 marginBottom: '8px'
               }}>
                 <div style={{
-                  width: `${Math.round((poll.votesOptionB / poll.votes) * gaugeProgress)}%`,
+                  width: `${Math.round((displayVotesB / Math.max(displayVotes, 1)) * gaugeProgress)}%`,
                   height: '100%',
                   background: 'linear-gradient(90deg, #ff0000 0%, #ff3333 100%)',
                   transition: 'width 0.05s linear',
@@ -778,7 +890,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
                       fontWeight: '700',
                       fontSize: '14px'
                     }}>
-                      {Math.round((poll.votesOptionB / poll.votes) * 100)}%
+                      {Math.round((displayVotesB / Math.max(displayVotes, 1)) * 100)}%
                     </span>
                   )}
                 </div>
@@ -789,7 +901,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
                 color: voteDirection === 'B' ? '#ffffff' : '#666666',
                 textAlign: 'center'
               }}>
-                {poll.votesOptionB} VOTES
+                {displayVotesB} VOTES
               </div>
             </div>
           )}
@@ -797,7 +909,7 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
       </div>
 
       {/* Footer */}
-      <div 
+      <div
         className="poll-stats"
         style={{
           display: 'flex',
@@ -814,11 +926,63 @@ const SwipePollCard: React.FC<SwipePollCardProps> = ({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>{poll.votes} VOTES</span>
-          {/* Show author username or placeholder */}
-          <span>
-            by {poll.authorUsername || poll.author || 'ANONYMOUS'}
-          </span>
+          <span style={{
+            transition: 'transform 0.3s ease',
+            display: 'inline-block',
+            transform: liveVotes.isAnimating ? 'scale(1.2)' : 'scale(1)'
+          }}>{displayVotes} VOTES</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Share button - visible after voting or on expired polls */}
+            {(hasVoted || poll.isExpired) && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const text = `${poll.title} - ${poll.arguments?.optionA || 'A'} vs ${poll.arguments?.optionB || 'B'} | Vote now on Pollz!`
+                  if (navigator.share) {
+                    navigator.share({ title: poll.title, text, url: `${window.location.origin}/poll/${poll.id}` }).catch(() => {})
+                  } else {
+                    navigator.clipboard.writeText(text)
+                    setShareTooltip(true)
+                    setTimeout(() => setShareTooltip(false), 2000)
+                  }
+                }}
+                style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: 0.8,
+                  transition: 'opacity 0.2s',
+                  position: 'relative'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
+              >
+                <IonIcon icon={shareOutline} style={{ fontSize: '16px' }} />
+                <span style={{ fontSize: '10px' }}>SHARE</span>
+                {shareTooltip && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-24px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: '#333',
+                    color: '#fff',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '9px',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    Copied!
+                  </span>
+                )}
+              </span>
+            )}
+            {/* Show author username or placeholder */}
+            <span>
+              by {poll.isConfession ? 'ANONYMOUS' : (poll.authorUsername || poll.author || 'ANONYMOUS')}
+            </span>
+          </div>
         </div>
         
         {/* Deathmatch usernames */}

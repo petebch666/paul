@@ -37,7 +37,7 @@ import {
   personAdd,
   trashOutline,
   lockClosedOutline,
-  unlockOutline,
+  lockOpenOutline,
   swapHorizontalOutline,
   checkmarkOutline,
   closeOutline
@@ -539,7 +539,7 @@ const AdminDashboard: React.FC = () => {
                         handleUnsuspendUser(user)
                       }}
                     >
-                      <IonIcon icon={unlockOutline} slot="start" />
+                      <IonIcon icon={lockOpenOutline} slot="start" />
                       Reactivate
                     </IonButton>
                   )}

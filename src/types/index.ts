@@ -51,6 +51,8 @@ export interface Poll {
   validationStatus?: 'pending' | 'approved' | 'rejected'
   validationReason?: string
   validatedAt?: Date
+  // Confession Poll Features
+  isConfession?: boolean
 }
 
 export interface Evidence {
@@ -183,6 +185,8 @@ export interface CreatePollFormData {
   isShadowDeathmatch?: boolean  // Hide usernames until poll expires
   optionAUserId?: string  // User to assign to Option A
   optionBUserId?: string  // User to assign to Option B
+  // Confession Poll Options
+  isConfession?: boolean
 }
 
 export interface PollNotification {
@@ -217,5 +221,22 @@ export interface AdminAuditLog {
   previousValue?: string
   newValue?: string
   createdAt: Date
+}
+
+export interface UserStreak {
+  userId: string
+  currentStreak: number
+  longestStreak: number
+  lastVoteDate: string | null
+  streakStartedAt: string | null
+  totalVotingDays: number
+}
+
+export interface StreakLeaderboardEntry {
+  userId: string
+  username: string
+  avatar: string
+  currentStreak: number
+  longestStreak: number
 }
 

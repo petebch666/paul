@@ -839,7 +839,9 @@ export class SupabasePollzAPI {
       // AI Validation fields
       validationStatus: dbPoll.validation_status || 'pending',
       validationReason: dbPoll.validation_reason || undefined,
-      validatedAt: dbPoll.validated_at ? new Date(dbPoll.validated_at) : undefined
+      validatedAt: dbPoll.validated_at ? new Date(dbPoll.validated_at) : undefined,
+      // Confession poll
+      isConfession: dbPoll.is_confession || false
     }
   }
 
@@ -859,7 +861,11 @@ export class SupabasePollzAPI {
       pollCount: dbUser.poll_count || 0,
       winRate: dbUser.win_rate || 0,
       joinDate: new Date(dbUser.join_date),
-      isFollowing: false
+      isFollowing: false,
+      status: dbUser.status || 'active',
+      statusReason: dbUser.status_reason || undefined,
+      statusChangedAt: dbUser.status_changed_at ? new Date(dbUser.status_changed_at) : undefined,
+      statusChangedBy: dbUser.status_changed_by || undefined
     }
   }
 
@@ -1361,6 +1367,305 @@ export class SupabasePollzAPI {
     } catch (error) {
       console.error('Error fetching audit log:', error)
       throw new Error('Failed to fetch audit log')
+    }
+  }
+
+  // ============================================
+  // ENGAGEMENT FEATURES: POLL STREAKS
+  // ============================================
+
+  /**
+   * Get user's current streak data
+   */
+  static async getUserStreak(userId: string): Promise<{
+    currentStreak: number
+    longestStreak: number
+    lastVoteDate: string | null
+    streakStartedAt: string | null
+    totalVotingDays: number
+  }> {
+    try {
+      const { data, error } = await supabase
+        .from('user_streaks')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 = no rows found (not an error for us)
+        throw error
+      }
+
+      if (!data) {
+        return {
+          currentStreak: 0,
+          longestStreak: 0,
+          lastVoteDate: null,
+          streakStartedAt: null,
+          totalVotingDays: 0
+        }
+      }
+
+      return {
+        currentStreak: data.current_streak || 0,
+        longestStreak: data.longest_streak || 0,
+        lastVoteDate: data.last_vote_date,
+        streakStartedAt: data.streak_started_at,
+        totalVotingDays: data.total_voting_days || 0
+      }
+    } catch (error) {
+      console.error('Error fetching user streak:', error)
+      return {
+        currentStreak: 0,
+        longestStreak: 0,
+        lastVoteDate: null,
+        streakStartedAt: null,
+        totalVotingDays: 0
+      }
+    }
+  }
+
+  /**
+   * Get streak leaderboard (top streakers)
+   */
+  static async getStreakLeaderboard(limit: number = 10): Promise<Array<{
+    userId: string
+    username: string
+    avatar: string
+    currentStreak: number
+    longestStreak: number
+  }>> {
+    try {
+      const { data, error } = await supabase
+        .from('user_streaks')
+        .select(`
+          user_id,
+          current_streak,
+          longest_streak,
+          users!inner (
+            username,
+            avatar
+          )
+        `)
+        .order('current_streak', { ascending: false })
+        .limit(limit)
+
+      if (error) throw error
+
+      return (data || []).map((item: any) => ({
+        userId: item.user_id,
+        username: item.users?.username || 'Unknown',
+        avatar: item.users?.avatar || '',
+        currentStreak: item.current_streak,
+        longestStreak: item.longest_streak
+      }))
+    } catch (error) {
+      console.error('Error fetching streak leaderboard:', error)
+      return []
+    }
+  }
+
+  /**
+   * Check if user is at risk of losing streak (hasn't voted today)
+   */
+  static async checkStreakStatus(userId: string): Promise<{
+    isAtRisk: boolean
+    hoursRemaining: number
+    currentStreak: number
+  }> {
+    try {
+      const streak = await SupabasePollzAPI.getUserStreak(userId)
+
+      if (!streak.lastVoteDate || streak.currentStreak === 0) {
+        return { isAtRisk: false, hoursRemaining: 24, currentStreak: 0 }
+      }
+
+      const lastVote = new Date(streak.lastVoteDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const lastVoteDay = new Date(lastVote)
+      lastVoteDay.setHours(0, 0, 0, 0)
+
+      // Check if last vote was today
+      if (lastVoteDay.getTime() === today.getTime()) {
+        return { isAtRisk: false, hoursRemaining: 24, currentStreak: streak.currentStreak }
+      }
+
+      // Calculate hours until midnight
+      const midnight = new Date(today)
+      midnight.setDate(midnight.getDate() + 1)
+      const hoursRemaining = Math.max(0, (midnight.getTime() - Date.now()) / (1000 * 60 * 60))
+
+      return {
+        isAtRisk: hoursRemaining < 6, // Consider at risk if less than 6 hours left
+        hoursRemaining: Math.round(hoursRemaining),
+        currentStreak: streak.currentStreak
+      }
+    } catch (error) {
+      console.error('Error checking streak status:', error)
+      return { isAtRisk: false, hoursRemaining: 24, currentStreak: 0 }
+    }
+  }
+
+  // ============================================
+  // ENGAGEMENT FEATURES: VOTE PREDICTIONS
+  // ============================================
+
+  /**
+   * Submit a prediction for a poll's outcome
+   */
+  static async submitPrediction(
+    pollId: string,
+    userId: string,
+    predictedPercentA: number
+  ): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('vote_predictions')
+        .upsert({
+          poll_id: pollId,
+          user_id: userId,
+          predicted_percent_a: Math.round(predictedPercentA)
+        }, { onConflict: 'poll_id,user_id' })
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error submitting prediction:', error)
+      throw new Error('Failed to submit prediction')
+    }
+  }
+
+  /**
+   * Get user's prediction for a poll
+   */
+  static async getUserPrediction(
+    pollId: string,
+    userId: string
+  ): Promise<{ predictedPercentA: number; accuracyScore: number | null } | null> {
+    try {
+      const { data, error } = await supabase
+        .from('vote_predictions')
+        .select('predicted_percent_a, accuracy_score')
+        .eq('poll_id', pollId)
+        .eq('user_id', userId)
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+      if (!data) return null
+
+      return {
+        predictedPercentA: data.predicted_percent_a,
+        accuracyScore: data.accuracy_score
+      }
+    } catch (error) {
+      console.error('Error fetching prediction:', error)
+      return null
+    }
+  }
+
+  /**
+   * Score predictions for an expired poll
+   */
+  static async scorePredictions(pollId: string): Promise<void> {
+    try {
+      // Get poll results
+      const { data: poll, error: pollError } = await supabase
+        .from('polls')
+        .select('votes_option_a, votes_option_b')
+        .eq('id', pollId)
+        .single()
+
+      if (pollError) throw pollError
+
+      const totalVotes = (poll.votes_option_a || 0) + (poll.votes_option_b || 0)
+      if (totalVotes === 0) return
+
+      const actualPercentA = Math.round((poll.votes_option_a / totalVotes) * 100)
+
+      // Get all predictions for this poll
+      const { data: predictions, error: predError } = await supabase
+        .from('vote_predictions')
+        .select('id, predicted_percent_a')
+        .eq('poll_id', pollId)
+        .is('accuracy_score', null)
+
+      if (predError) throw predError
+
+      // Score each prediction
+      for (const pred of (predictions || [])) {
+        const diff = Math.abs(pred.predicted_percent_a - actualPercentA)
+        const accuracy = Math.max(0, 100 - diff) // 100 = perfect, 0 = off by 100%
+
+        await supabase
+          .from('vote_predictions')
+          .update({
+            actual_percent_a: actualPercentA,
+            accuracy_score: accuracy,
+            scored_at: new Date().toISOString()
+          })
+          .eq('id', pred.id)
+      }
+    } catch (error) {
+      console.error('Error scoring predictions:', error)
+    }
+  }
+
+  /**
+   * Get prediction leaderboard (best predictors)
+   */
+  static async getPredictionLeaderboard(limit: number = 10): Promise<Array<{
+    userId: string
+    username: string
+    avgAccuracy: number
+    totalPredictions: number
+  }>> {
+    try {
+      // Use raw query to aggregate
+      const { data, error } = await supabase
+        .rpc('get_prediction_leaderboard', { limit_count: limit })
+
+      if (error) {
+        // Fallback: manual aggregation
+        const { data: predictions, error: predError } = await supabase
+          .from('vote_predictions')
+          .select('user_id, accuracy_score')
+          .not('accuracy_score', 'is', null)
+
+        if (predError) throw predError
+
+        // Group by user and calculate average
+        const userStats = new Map<string, { total: number; sum: number }>()
+        for (const pred of (predictions || [])) {
+          const stats = userStats.get(pred.user_id) || { total: 0, sum: 0 }
+          stats.total++
+          stats.sum += pred.accuracy_score || 0
+          userStats.set(pred.user_id, stats)
+        }
+
+        const leaderboard = Array.from(userStats.entries())
+          .map(([userId, stats]) => ({
+            userId,
+            username: '',
+            avgAccuracy: Math.round(stats.sum / stats.total),
+            totalPredictions: stats.total
+          }))
+          .sort((a, b) => b.avgAccuracy - a.avgAccuracy)
+          .slice(0, limit)
+
+        // Fetch usernames
+        for (const entry of leaderboard) {
+          const user = await SupabasePollzAPI.getUserById(entry.userId)
+          if (user) entry.username = user.username
+        }
+
+        return leaderboard
+      }
+
+      return data || []
+    } catch (error) {
+      console.error('Error fetching prediction leaderboard:', error)
+      return []
     }
   }
 }

@@ -26,9 +26,10 @@ import {
   IonRefresherContent,
   IonModal
 } from '@ionic/react'
-import { medal, flag, trophy, star, add, people, chevronDownCircleOutline, logOut, shieldCheckmark, chatbubbles, ribbonOutline, statsChartOutline, shield, trendingUp, heart, chatbox, checkmarkCircle, closeCircle, eyeOutline, thumbsUp, personAdd } from 'ionicons/icons'
+import { medal, flag, trophy, star, add, people, chevronDownCircleOutline, logOut, shieldCheckmark, chatbubbles, ribbonOutline, statsChartOutline, shield, trendingUp, heart, chatbox, checkmarkCircle, closeCircle, eyeOutline, thumbsUp, personAdd, flame } from 'ionicons/icons'
 import { User, Badge, Poll } from '../types'
 import PollCarousel from '../components/PollCarousel'
+import StreakBadge from '../components/StreakBadge'
 
 interface ProfilePageProps {
   user: User | null
@@ -205,21 +206,27 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           
             <IonGrid>
               <IonRow>
-                <IonCol size="3" style={{ textAlign: 'center' }}>
+                <IonCol size="2.4" style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'Courier New, Courier, monospace', color: '#000000' }}>{user.pollCount}</div>
                   <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Polls</div>
                 </IonCol>
-                <IonCol size="3" style={{ textAlign: 'center' }}>
+                <IonCol size="2.4" style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'Courier New, Courier, monospace', color: '#ff0000' }}>{Math.round(user.winRate * 100)}%</div>
                   <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Win Rate</div>
                 </IonCol>
-                <IonCol size="3" style={{ textAlign: 'center' }}>
+                <IonCol size="2.4" style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'Courier New, Courier, monospace', color: '#000000' }}>{user.reputation}</div>
-                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Reputation</div>
+                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Rep</div>
                 </IonCol>
-                <IonCol size="3" style={{ textAlign: 'center' }}>
+                <IonCol size="2.4" style={{ textAlign: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <StreakBadge userId={user.id} size="small" showLabel={false} />
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>Streak</div>
+                </IonCol>
+                <IonCol size="2.4" style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'Courier New, Courier, monospace', color: '#000000' }}>{user.followers}</div>
-                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Followers</div>
+                  <div style={{ fontSize: '9px', color: '#666666', textTransform: 'uppercase', letterSpacing: '1px' }}>Follows</div>
                 </IonCol>
               </IonRow>
             </IonGrid>

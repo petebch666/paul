@@ -338,6 +338,134 @@ CREATE POLICY "Active users can create polls" ON polls
   );
 
 -- ============================================
+-- ENGAGEMENT FEATURES: POLL STREAKS
+-- ============================================
+
+-- Track user voting streaks
+CREATE TABLE IF NOT EXISTS user_streaks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  current_streak INTEGER DEFAULT 0,
+  longest_streak INTEGER DEFAULT 0,
+  last_vote_date DATE,
+  streak_started_at DATE,
+  total_voting_days INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_streaks_user_id ON user_streaks(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_streaks_current_streak ON user_streaks(current_streak DESC);
+
+ALTER TABLE user_streaks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own streaks" ON user_streaks
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own streaks" ON user_streaks
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own streaks" ON user_streaks
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Leaderboard policy: everyone can see top streakers
+CREATE POLICY "Everyone can view streak leaderboard" ON user_streaks
+  FOR SELECT USING (true);
+
+-- Function to update streak when user votes
+CREATE OR REPLACE FUNCTION update_user_streak()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_last_vote_date DATE;
+  v_current_streak INTEGER;
+  v_longest_streak INTEGER;
+  v_today DATE := CURRENT_DATE;
+BEGIN
+  -- Get or create streak record
+  SELECT last_vote_date, current_streak, longest_streak
+  INTO v_last_vote_date, v_current_streak, v_longest_streak
+  FROM user_streaks
+  WHERE user_id = NEW.user_id;
+
+  IF NOT FOUND THEN
+    -- First vote ever - create record with streak of 1
+    INSERT INTO user_streaks (user_id, current_streak, longest_streak, last_vote_date, streak_started_at, total_voting_days)
+    VALUES (NEW.user_id, 1, 1, v_today, v_today, 1);
+  ELSIF v_last_vote_date = v_today THEN
+    -- Already voted today, no streak update needed
+    NULL;
+  ELSIF v_last_vote_date = v_today - INTERVAL '1 day' THEN
+    -- Voted yesterday - continue streak
+    UPDATE user_streaks
+    SET current_streak = current_streak + 1,
+        longest_streak = GREATEST(longest_streak, current_streak + 1),
+        last_vote_date = v_today,
+        total_voting_days = total_voting_days + 1,
+        updated_at = NOW()
+    WHERE user_id = NEW.user_id;
+  ELSE
+    -- Streak broken - start new streak
+    UPDATE user_streaks
+    SET current_streak = 1,
+        last_vote_date = v_today,
+        streak_started_at = v_today,
+        total_voting_days = total_voting_days + 1,
+        updated_at = NOW()
+    WHERE user_id = NEW.user_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update streak on new vote
+CREATE TRIGGER update_streak_on_vote
+  AFTER INSERT ON votes
+  FOR EACH ROW
+  EXECUTE FUNCTION update_user_streak();
+
+-- ============================================
+-- ENGAGEMENT FEATURES: ANONYMOUS CONFESSION POLLS
+-- ============================================
+
+-- Add confession poll support
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS is_confession BOOLEAN DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_polls_is_confession ON polls(is_confession);
+
+-- ============================================
+-- ENGAGEMENT FEATURES: VOTE PREDICTIONS
+-- ============================================
+
+-- Track user predictions on poll outcomes
+CREATE TABLE IF NOT EXISTS vote_predictions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  poll_id UUID NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  predicted_percent_a INTEGER NOT NULL CHECK (predicted_percent_a >= 0 AND predicted_percent_a <= 100),
+  actual_percent_a INTEGER, -- Filled when poll expires
+  accuracy_score DECIMAL, -- How close the prediction was (0-100, 100=perfect)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  scored_at TIMESTAMP WITH TIME ZONE,
+  UNIQUE(poll_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vote_predictions_user_id ON vote_predictions(user_id);
+CREATE INDEX IF NOT EXISTS idx_vote_predictions_poll_id ON vote_predictions(poll_id);
+CREATE INDEX IF NOT EXISTS idx_vote_predictions_accuracy ON vote_predictions(accuracy_score DESC);
+
+ALTER TABLE vote_predictions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view all predictions" ON vote_predictions
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can create their own predictions" ON vote_predictions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "System can update predictions" ON vote_predictions
+  FOR UPDATE USING (true);
+
+-- ============================================
 -- SUCCESS!
 -- ============================================
 -- ✅ Your database is ready!
