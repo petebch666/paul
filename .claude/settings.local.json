@@ -5,7 +5,11 @@
       "Bash(curl:*)",
       "Bash(node -e:*)",
       "Bash(ls:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npx vite build)"
     ]
   }
 }
