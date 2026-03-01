@@ -1,8 +1,8 @@
-// Main type definitions for the Pollz app
 export interface Poll {
   id: string
   title: string
-  description: string
+  optionA: string
+  optionB: string
   votes: number
   votesOptionA: number
   votesOptionB: number
@@ -10,70 +10,20 @@ export interface Poll {
   timeLeft: string
   author: string
   authorId: string
-  authorUsername?: string  // Username of poll creator
+  authorUsername?: string
   isVoted: boolean
-  isLiked: boolean
+  votedOption?: 'A' | 'B'
   createdAt: Date
   expiresAt: Date
-  // Enhanced Poll Creation Features
-  pollType: 'question' | 'options-only' // New: question with options or just two options
-  timerDuration?: number // Duration in minutes
   timerEnabled: boolean
-  notificationEnabled: boolean
   isExpired: boolean
-  // Enhanced Debate Features
-  context?: string
-  arguments?: {
-    optionA: string
-    optionB: string
-  }
-  evidence?: {
-    optionA: Evidence[]
-    optionB: Evidence[]
-  }
-  comments: Comment[]
-  debateHistory?: {
-    creatorWins: number
-    opponentWins: number
-    totalDebates: number
-  }
-  // Smart Features
   trendingScore?: number
-  // Deathmatch Features
   isDeathmatch: boolean
-  isShadowDeathmatch?: boolean  // Hide usernames until poll expires
   optionAOwnerId?: string
-  optionAOwner?: User  // Populated when fetching poll
   optionBOwnerId?: string
-  optionBOwner?: User  // Populated when fetching poll
-  deathmatchStatus?: 'pending' | 'accepted' | 'rejected'  // Pending until user B accepts
-  // AI Validation Features
+  deathmatchStatus?: 'pending' | 'accepted' | 'rejected'
   validationStatus?: 'pending' | 'approved' | 'rejected'
-  validationReason?: string
-  validatedAt?: Date
-  // Confession Poll Features
   isConfession?: boolean
-}
-
-export interface Evidence {
-  id: string
-  type: 'link' | 'image' | 'text'
-  content: string
-  title: string
-  submittedBy: string
-  submittedAt: Date
-}
-
-export interface Comment {
-  id: string
-  pollId: string
-  userId: string
-  username: string
-  avatar: string
-  content: string
-  timestamp: Date
-  likes: number
-  isLiked: boolean
 }
 
 export interface User {
@@ -83,71 +33,15 @@ export interface User {
   email?: string
   avatar: string
   password?: string
-  role?: 'user' | 'admin' // Role-based access control
+  role?: 'user' | 'admin'
   followers: number
   following: number
   reputation: number
-  badges: Badge[]
   pollCount: number
   winRate: number
   joinDate: Date
-  isFollowing?: boolean
-  // Phase 2: User status management
   status?: 'active' | 'suspended' | 'banned'
   statusReason?: string
-  statusChangedAt?: Date
-  statusChangedBy?: string
-}
-
-export interface Badge {
-  id: string
-  name: string
-  description: string
-  icon: string
-  category: string
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
-  earnedAt: Date
-}
-
-export interface ReputationEvent {
-  id: string
-  userId: string
-  type: 'poll_created' | 'poll_won' | 'evidence_submitted' | 'comment_liked'
-  points: number
-  description: string
-  timestamp: Date
-}
-
-export interface CategorySuggestion {
-  category: string
-  confidence: number
-  keywords: string[]
-}
-
-export interface PollSuggestion {
-  pollId: string
-  reason: string
-  confidence: number
-}
-
-export interface DuplicateCheck {
-  hasDuplicates: boolean
-  similarPolls: Array<{
-    id: string
-    title: string
-    similarity: number
-    author: string
-  }>
-}
-
-export interface TrendingScore {
-  score: number
-  factors: {
-    recentVotes: number
-    voteVelocity: number
-    categoryBoost: number
-    engagementRate: number
-  }
 }
 
 export interface Vote {
@@ -158,55 +52,35 @@ export interface Vote {
   timestamp: Date
 }
 
-// Navigation types
-export type Page = 'home' | 'create' | 'profile'
-
-// Component props types
-export interface NavigationProps {
-  currentPage: Page
-  onNavigate: (page: Page) => void
-}
-
-export interface CreatePollFormData {
-  title: string
-  description: string
-  category: string
-  optionA: string
-  optionB: string
-  timeLimit: number
-  context?: string
-  // Enhanced poll creation
-  pollType: 'question' | 'options-only'
-  timerEnabled: boolean
-  timerDuration?: number // in minutes
-  notificationEnabled: boolean
-  // Deathmatch Options
-  isDeathmatch: boolean
-  isShadowDeathmatch?: boolean  // Hide usernames until poll expires
-  optionAUserId?: string  // User to assign to Option A
-  optionBUserId?: string  // User to assign to Option B
-  // Confession Poll Options
-  isConfession?: boolean
-}
-
 export interface PollNotification {
   id: string
   pollId: string
   userId: string
-  type: 'poll_expired' | 'poll_created' | 'poll_trending' | 'deathmatch_created' | 'deathmatch_awaiting_acceptance' | 'deathmatch_accepted' | 'deathmatch_100_votes' | 'deathmatch_surpassed'
+  type: 'poll_expired' | 'poll_created' | 'poll_trending' | 'deathmatch_created' | 'deathmatch_accepted'
   message: string
   isRead: boolean
   createdAt: Date
 }
 
-export interface PollHistory {
-  id: string
-  pollId: string
-  userId: string
-  action: 'created' | 'voted' | 'liked' | 'shared'
-  timestamp: Date
-  pollTitle: string
-  pollCategory: string
+export interface CreatePollFormData {
+  title: string
+  optionA: string
+  optionB: string
+  category: string
+  timerEnabled: boolean
+  timerDuration?: number
+  isDeathmatch: boolean
+  optionAUserId?: string
+  optionBUserId?: string
+  isConfession?: boolean
+}
+
+export interface AdminStats {
+  totalUsers: number
+  totalPolls: number
+  totalVotes: number
+  activeUsers: number
+  pendingPolls: number
 }
 
 export interface AdminAuditLog {
@@ -216,27 +90,8 @@ export interface AdminAuditLog {
   actionType: 'user_role_changed' | 'user_suspended' | 'user_banned' | 'user_unsuspended' | 'poll_deleted' | 'poll_approved' | 'poll_rejected'
   targetId: string
   targetType: 'user' | 'poll'
-  details?: Record<string, any>
   reason?: string
   previousValue?: string
   newValue?: string
   createdAt: Date
 }
-
-export interface UserStreak {
-  userId: string
-  currentStreak: number
-  longestStreak: number
-  lastVoteDate: string | null
-  streakStartedAt: string | null
-  totalVotingDays: number
-}
-
-export interface StreakLeaderboardEntry {
-  userId: string
-  username: string
-  avatar: string
-  currentStreak: number
-  longestStreak: number
-}
-
