@@ -74,7 +74,7 @@ function UserRow({
         { text: 'CANCEL', style: 'cancel' },
         {
           text: 'CONFIRM',
-          onPress: reason => onStatusChange(user.id, status, reason || ''),
+          onPress: (reason: string | undefined) => onStatusChange(user.id, status, reason || ''),
         },
       ],
       'plain-text'

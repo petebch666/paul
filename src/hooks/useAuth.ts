@@ -41,8 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function restoreSession() {
+    console.log('[PAUL] restoreSession start')
     try {
       const storedId = await SecureStore.getItemAsync(SESSION_KEY)
+      console.log('[PAUL] storedId:', storedId)
       if (storedId) {
         const user = await getUserById(storedId)
         if (user && user.status !== 'banned') {

@@ -123,7 +123,7 @@ export async function castVote(pollId: string, userId: string, option: 'A' | 'B'
     .single()
 
   if (poll) {
-    const current = Number(poll[column] ?? 0)
+    const current = Number((poll as Record<string, unknown>)[column] ?? 0)
     await supabase
       .from('polls')
       .update({ [column]: current + 1 })
