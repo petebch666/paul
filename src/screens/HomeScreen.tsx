@@ -71,16 +71,22 @@ const barStyles = StyleSheet.create({
 function SwipePollCard({
   poll,
   onVote,
+  onAdvance,
   onSkip,
 }: {
   poll: Poll
   onVote: (option: 'A' | 'B') => void
+  onAdvance: () => void
   onSkip: () => void
 }) {
   const pan = useRef(new Animated.ValueXY()).current
   const [voted, setVoted] = useState(poll.isVoted)
   const [localPoll, setLocalPoll] = useState(poll)
   const swipedRef = useRef(false)
+
+  // Always-current callbacks — avoids stale panResponder closure
+  const callbacksRef = useRef({ onVote, onAdvance })
+  callbacksRef.current = { onVote, onAdvance }
 
   // Reset when poll changes
   useEffect(() => {
@@ -90,21 +96,27 @@ function SwipePollCard({
     swipedRef.current = false
   }, [poll.id])
 
-  function swipeOut(direction: 'left' | 'right', option: 'A' | 'B') {
+  // Stable reference — panResponder captures this once, reads callbacks via ref
+  const swipeOut = useCallback((direction: 'left' | 'right', option: 'A' | 'B') => {
     if (swipedRef.current) return
     swipedRef.current = true
-
     const toX = direction === 'right' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5
     Animated.timing(pan, {
       toValue: { x: toX, y: 0 },
       duration: SWIPE_OUT_DURATION,
       useNativeDriver: true,
     }).start(() => {
-      onVote(option)
       pan.setValue({ x: 0, y: 0 })
-      swipedRef.current = false
+      setVoted(true)
+      callbacksRef.current.onVote(option)
+      setTimeout(() => {
+        callbacksRef.current.onAdvance()
+        swipedRef.current = false
+      }, 500)
     })
-  }
+  // pan, swipedRef, setVoted, callbacksRef are all stable refs/constants
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const panResponder = useRef(
     PanResponder.create({
@@ -167,9 +179,6 @@ function SwipePollCard({
             {localPoll.optionB}
           </Text>
         </View>
-        <TouchableOpacity onPress={onSkip} style={cardStyles.nextBtn}>
-          <Text style={cardStyles.nextBtnText}>NEXT &gt;</Text>
-        </TouchableOpacity>
       </View>
     )
   }
@@ -370,19 +379,6 @@ const cardStyles = StyleSheet.create({
     letterSpacing: 2,
     marginTop: theme.spacing.xs,
   },
-  nextBtn: {
-    borderWidth: theme.borderWidth,
-    borderColor: theme.colors.borderMuted,
-    padding: theme.spacing.sm,
-    alignItems: 'center',
-    marginTop: theme.spacing.md,
-  },
-  nextBtnText: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 3,
-  },
 })
 
 // ─────────────────────────────────────────────
@@ -390,7 +386,7 @@ const cardStyles = StyleSheet.create({
 // ─────────────────────────────────────────────
 export default function HomeScreen() {
   const { user } = useAuth()
-  const { polls, isLoading, error, loadPolls, vote } = usePolls(user!.id)
+  const { polls, isLoading, isLoadingMore, error, hasMore, loadPolls, loadMore, vote } = usePolls(user!.id)
   const [index, setIndex] = useState(0)
   const [filter, setFilter] = useState<'ALL' | 'TRENDING' | 'EXPIRED' | 'VOTED'>('ALL')
 
@@ -400,24 +396,28 @@ export default function HomeScreen() {
 
   const filtered = polls.filter(p => {
     if (filter === 'TRENDING') return (p.trendingScore || 0) > 0 && !p.isExpired
-    if (filter === 'EXPIRED') return p.isExpired
-    if (filter === 'VOTED') return p.isVoted
-    return true
+    if (filter === 'EXPIRED')  return p.isExpired
+    if (filter === 'VOTED')    return p.isVoted
+    return true  // ALL: keep voted polls in deck — they show results and auto-advance
   })
+
+  // Trigger load-more when approaching end of batch
+  useEffect(() => {
+    if (filtered.length > 0 && index >= filtered.length - 5 && hasMore) {
+      loadMore()
+    }
+  }, [index, filtered.length, hasMore, loadMore])
 
   const currentPoll = filtered[index]
 
-  const handleVote = useCallback(async (option: 'A' | 'B') => {
-    if (!currentPoll) return
-    if (!currentPoll.isExpired) {
-      try {
-        await vote(currentPoll.id, option)
-      } catch {
-        // continue anyway to next card
-      }
-    }
-    setIndex(i => Math.min(i + 1, filtered.length - 1))
-  }, [currentPoll, vote, filtered.length])
+  const handleVote = useCallback((option: 'A' | 'B') => {
+    if (!currentPoll || currentPoll.isExpired) return
+    vote(currentPoll.id, option).catch(() => {})
+  }, [currentPoll, vote])
+
+  const handleAdvance = useCallback(() => {
+    setIndex(i => i + 1)
+  }, [])
 
   const handleSkip = useCallback(() => {
     setIndex(i => Math.min(i + 1, filtered.length - 1))
@@ -437,7 +437,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Text style={styles.logo}>PAUL</Text>
         <Text style={styles.counter}>
-          {filtered.length > 0 ? `${index + 1}/${filtered.length}` : '0/0'}
+          {filtered.length > 0 ? `${index + 1}/${filtered.length}${hasMore ? '+' : ''}` : '0/0'}
         </Text>
       </View>
 
@@ -484,11 +484,19 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <SwipePollCard
-          poll={filtered[index]}
-          onVote={handleVote}
-          onSkip={handleSkip}
-        />
+        <>
+          <SwipePollCard
+            poll={filtered[index]}
+            onVote={handleVote}
+            onAdvance={handleAdvance}
+            onSkip={handleSkip}
+          />
+          {isLoadingMore && (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator color={theme.colors.textDim} size="small" />
+            </View>
+          )}
+        </>
       )}
     </SafeAreaView>
   )
@@ -572,5 +580,9 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     color: theme.colors.text,
     letterSpacing: 3,
+  },
+  loadingMore: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
   },
 })

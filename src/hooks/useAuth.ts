@@ -1,15 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import * as SecureStore from 'expo-secure-store'
-import bcryptjs from 'bcryptjs'
+import { supabase } from '../database/supabase'
 import { User } from '../types'
 import {
+  getUserByAuthId,
   getUserByEmail,
-  getUserByUsername,
   getUserById,
-  createUser,
+  createUserProfile,
+  linkUserAuthId,
 } from '../database/supabase-api'
-
-const SESSION_KEY = 'paul_user_id'
 
 interface AuthState {
   user: User | null
@@ -19,7 +17,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (emailOrUsername: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
   signup: (name: string, username: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   clearError: () => void
@@ -37,130 +35,135 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   useEffect(() => {
-    restoreSession()
-  }, [])
-
-  async function restoreSession() {
-    console.log('[PAUL] restoreSession start')
-    try {
-      const storedId = await SecureStore.getItemAsync(SESSION_KEY)
-      console.log('[PAUL] storedId:', storedId)
-      if (storedId) {
-        const user = await getUserById(storedId)
-        if (user && user.status !== 'banned') {
-          setState({ user, isAuthenticated: true, isLoading: false, error: null })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!session?.user) {
+          setState({ user: null, isAuthenticated: false, isLoading: false, error: null })
           return
         }
-        await SecureStore.deleteItemAsync(SESSION_KEY)
-      }
-    } catch {
-      // silently fail — show login screen
-    }
-    setState(s => ({ ...s, isLoading: false }))
-  }
 
-  const login = useCallback(async (emailOrUsername: string, password: string) => {
+        let user = await getUserByAuthId(session.user.id)
+
+        // Existing user migrating to Supabase Auth — link by email
+        if (!user && session.user.email) {
+          user = await linkUserAuthId(session.user.email, session.user.id)
+        }
+
+        if (user) {
+          if (user.status === 'banned') {
+            await supabase.auth.signOut()
+            setState({ user: null, isAuthenticated: false, isLoading: false, error: null })
+          } else {
+            setState({ user, isAuthenticated: true, isLoading: false, error: null })
+          }
+        } else {
+          // No profile found — sign out and surface an error
+          await supabase.auth.signOut()
+          setState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: 'ACCOUNT NOT FOUND. PLEASE SIGN UP.',
+          })
+        }
+      }
+    )
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const login = useCallback(async (email: string, password: string) => {
     setState(s => ({ ...s, isLoading: true, error: null }))
-    try {
-      const isEmail = emailOrUsername.includes('@')
-      const user = isEmail
-        ? await getUserByEmail(emailOrUsername.trim().toLowerCase())
-        : await getUserByUsername(emailOrUsername.trim().toLowerCase())
-
-      if (!user) {
-        setState(s => ({ ...s, isLoading: false, error: 'USER NOT FOUND' }))
-        return
-      }
-      if (user.status === 'banned') {
-        setState(s => ({ ...s, isLoading: false, error: 'ACCOUNT BANNED' }))
-        return
-      }
-      if (user.status === 'suspended') {
-        setState(s => ({ ...s, isLoading: false, error: 'ACCOUNT SUSPENDED' }))
-        return
-      }
-      if (!user.password) {
-        setState(s => ({ ...s, isLoading: false, error: 'INVALID CREDENTIALS' }))
-        return
-      }
-
-      const valid = await bcryptjs.compare(password, user.password)
-      if (!valid) {
-        setState(s => ({ ...s, isLoading: false, error: 'INCORRECT PASSWORD' }))
-        return
-      }
-
-      await SecureStore.setItemAsync(SESSION_KEY, user.id)
-      setState({ user, isAuthenticated: true, isLoading: false, error: null })
-    } catch (e) {
-      setState(s => ({ ...s, isLoading: false, error: 'LOGIN FAILED. TRY AGAIN.' }))
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+    if (error) {
+      setState(s => ({ ...s, isLoading: false, error: 'INVALID CREDENTIALS' }))
     }
+    // On success, onAuthStateChange fires and sets the user
   }, [])
 
   const signup = useCallback(async (
     name: string,
     username: string,
     email: string,
-    password: string
+    password: string,
   ) => {
     setState(s => ({ ...s, isLoading: true, error: null }))
+
+    if (!name.trim() || name.trim().length < 2) {
+      setState(s => ({ ...s, isLoading: false, error: 'NAME TOO SHORT' }))
+      return
+    }
+    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
+      setState(s => ({ ...s, isLoading: false, error: 'USERNAME: 3-20 CHARS, LETTERS/NUMBERS/_/-' }))
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setState(s => ({ ...s, isLoading: false, error: 'INVALID EMAIL' }))
+      return
+    }
+    if (password.length < 8) {
+      setState(s => ({ ...s, isLoading: false, error: 'PASSWORD MIN 8 CHARS' }))
+      return
+    }
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+
+    if (signUpError) {
+      setState(s => ({ ...s, isLoading: false, error: signUpError.message.toUpperCase() }))
+      return
+    }
+
+    const authUser = data.user
+    if (!authUser) {
+      setState(s => ({ ...s, isLoading: false, error: 'SIGNUP FAILED. TRY AGAIN.' }))
+      return
+    }
+
+    // Check if email already exists (existing user — link their profile)
+    const existingUser = await getUserByEmail(email.trim().toLowerCase())
+
+    if (existingUser) {
+      const linked = await linkUserAuthId(email.trim().toLowerCase(), authUser.id)
+      if (linked) {
+        setState({ user: linked, isAuthenticated: true, isLoading: false, error: null })
+      } else {
+        setState(s => ({ ...s, isLoading: false, error: 'PROFILE LINK FAILED. TRY AGAIN.' }))
+        await supabase.auth.signOut()
+      }
+      return
+    }
+
+    // Brand new user — create profile
+    const avatars = ['🎯', '🔥', '⚡', '💀', '🎮', '🃏', '🏆', '👾', '🎲', '🌀']
+    const avatar = avatars[Math.floor(Math.random() * avatars.length)]
     try {
-      // Validate
-      if (!name.trim() || name.trim().length < 2) {
-        setState(s => ({ ...s, isLoading: false, error: 'NAME TOO SHORT' }))
-        return
-      }
-      if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
-        setState(s => ({
-          ...s, isLoading: false,
-          error: 'USERNAME: 3-20 CHARS, LETTERS/NUMBERS/_/-'
-        }))
-        return
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setState(s => ({ ...s, isLoading: false, error: 'INVALID EMAIL' }))
-        return
-      }
-      if (password.length < 8) {
-        setState(s => ({ ...s, isLoading: false, error: 'PASSWORD MIN 8 CHARS' }))
-        return
-      }
-
-      // Check duplicates
-      const [existingEmail, existingUsername] = await Promise.all([
-        getUserByEmail(email.toLowerCase()),
-        getUserByUsername(username.toLowerCase()),
-      ])
-      if (existingEmail) {
-        setState(s => ({ ...s, isLoading: false, error: 'EMAIL ALREADY REGISTERED' }))
-        return
-      }
-      if (existingUsername) {
-        setState(s => ({ ...s, isLoading: false, error: 'USERNAME TAKEN' }))
-        return
-      }
-
-      const hashedPassword = await bcryptjs.hash(password, 10)
-      const avatars = ['🎯', '🔥', '⚡', '💀', '🎮', '🃏', '🏆', '👾', '🎲', '🌀']
-      const avatar = avatars[Math.floor(Math.random() * avatars.length)]
-
-      const user = await createUser({
+      const newUser = await createUserProfile({
+        authId: authUser.id,
         name: name.trim(),
         username: username.trim().toLowerCase(),
         email: email.trim().toLowerCase(),
-        password: hashedPassword,
         avatar,
       })
-
-      await SecureStore.setItemAsync(SESSION_KEY, user.id)
-      setState({ user, isAuthenticated: true, isLoading: false, error: null })
-    } catch (e) {
-      setState(s => ({ ...s, isLoading: false, error: 'SIGNUP FAILED. TRY AGAIN.' }))
+      setState({ user: newUser, isAuthenticated: true, isLoading: false, error: null })
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error('[SIGNUP] createUserProfile failed:', msg)
+      setState(s => ({ ...s, isLoading: false, error: msg.toUpperCase() }))
+      await supabase.auth.signOut()
     }
   }, [])
 
   const logout = useCallback(async () => {
-    await SecureStore.deleteItemAsync(SESSION_KEY)
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // ignore sign-out errors
+    }
     setState({ user: null, isAuthenticated: false, isLoading: false, error: null })
   }, [])
 

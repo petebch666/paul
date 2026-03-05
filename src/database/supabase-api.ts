@@ -71,12 +71,16 @@ function transformUser(row: Record<string, unknown>): User {
 // POLL OPERATIONS
 // ─────────────────────────────────────────────
 
-export async function getPollsWithVoteStatus(userId: string): Promise<Poll[]> {
+export async function getPollsWithVoteStatus(
+  userId: string,
+  offset = 0,
+  limit = 20,
+): Promise<{ polls: Poll[]; hasMore: boolean }> {
   const { data: pollsData, error: pollsError } = await supabase
     .from('polls')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(50)
+    .range(offset, offset + limit - 1)
 
   if (pollsError) throw new Error(pollsError.message)
 
@@ -105,7 +109,7 @@ export async function getPollsWithVoteStatus(userId: string): Promise<Poll[]> {
       return poll
     })
 
-  return polls
+  return { polls, hasMore: (pollsData || []).length === limit }
 }
 
 export async function castVote(pollId: string, userId: string, option: 'A' | 'B'): Promise<void> {
@@ -222,48 +226,57 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return data ? transformUser(data) : null
 }
 
-export async function getUserByUsername(username: string): Promise<User | null> {
+export async function getUserByAuthId(authId: string): Promise<User | null> {
   const { data, error } = await supabase
     .from('users')
     .select('*')
-    .eq('username', username.toLowerCase())
+    .eq('auth_id', authId)
     .maybeSingle()
 
   if (error) return null
   return data ? transformUser(data) : null
 }
 
-export async function createUser(userData: {
+export async function createUserProfile(userData: {
+  authId: string
   name: string
   username: string
   email: string
-  password: string
   avatar: string
 }): Promise<User> {
-  const newUser = {
-    name: userData.name,
-    username: userData.username.toLowerCase(),
-    email: userData.email.toLowerCase(),
-    password: userData.password,
-    avatar: userData.avatar,
-    role: 'user',
-    followers: 0,
-    following: 0,
-    reputation: 0,
-    poll_count: 0,
-    win_rate: 0,
-    join_date: new Date().toISOString(),
-    status: 'active',
-  }
-
   const { data, error } = await supabase
     .from('users')
-    .insert(newUser)
+    .insert({
+      auth_id: userData.authId,
+      name: userData.name,
+      username: userData.username.toLowerCase(),
+      email: userData.email.toLowerCase(),
+      avatar: userData.avatar,
+      role: 'user',
+      followers: 0,
+      following: 0,
+      reputation: 0,
+      poll_count: 0,
+      win_rate: 0,
+      join_date: new Date().toISOString(),
+    })
     .select()
     .single()
 
   if (error) throw new Error(error.message)
   return transformUser(data)
+}
+
+export async function linkUserAuthId(email: string, authId: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .update({ auth_id: authId })
+    .eq('email', email.toLowerCase())
+    .select()
+    .maybeSingle()
+
+  if (error) return null
+  return data ? transformUser(data) : null
 }
 
 export async function getUserPolls(userId: string): Promise<Poll[]> {

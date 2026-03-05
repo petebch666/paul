@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../theme'
@@ -141,14 +140,7 @@ export default function ProfileScreen() {
   }
 
   function handleLogout() {
-    Alert.alert(
-      'LOGOUT',
-      'ARE YOU SURE?',
-      [
-        { text: 'CANCEL', style: 'cancel' },
-        { text: 'LOGOUT', style: 'destructive', onPress: logout },
-      ]
-    )
+    logout()
   }
 
   if (!user) return null

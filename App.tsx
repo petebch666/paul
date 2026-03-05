@@ -1,5 +1,5 @@
 import React from 'react'
-console.log('[PAUL] App.tsx module loaded')
+import { registerRootComponent } from 'expo'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -37,17 +37,15 @@ function AppContent() {
 }
 
 export default function App() {
-  console.log('[PAUL] App() render')
   const [fontsLoaded] = useFonts({
     Silkscreen_400Regular,
     Silkscreen_700Bold,
   })
 
-  console.log('[PAUL] fontsLoaded:', fontsLoaded)
   if (!fontsLoaded) {
     return (
       <View style={styles.loading}>
-        <Text style={{ color: '#fff', fontSize: 16 }}>LOADING FONTS...</Text>
+        <Text>.</Text>
       </View>
     )
   }
@@ -63,6 +61,8 @@ export default function App() {
     </GestureHandlerRootView>
   )
 }
+
+registerRootComponent(App)
 
 const styles = StyleSheet.create({
   loading: {

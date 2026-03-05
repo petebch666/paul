@@ -2,9 +2,12 @@ import { useState, useCallback, useRef } from 'react'
 import { Poll, CreatePollFormData } from '../types'
 import { getPollsWithVoteStatus, castVote, createPoll } from '../database/supabase-api'
 
+const PAGE_SIZE = 200
+
 interface PollsState {
   polls: Poll[]
   isLoading: boolean
+  isLoadingMore: boolean
   error: string | null
   hasMore: boolean
 }
@@ -12,24 +15,52 @@ interface PollsState {
 export function usePolls(userId: string) {
   const [state, setState] = useState<PollsState>({
     polls: [],
-    isLoading: false,
+    isLoading: true,
+    isLoadingMore: false,
     error: null,
     hasMore: true,
   })
 
   const loadingRef = useRef(false)
+  const loadingMoreRef = useRef(false)
+  const offsetRef = useRef(0)
+  const hasMoreRef = useRef(true)
 
   const loadPolls = useCallback(async () => {
     if (loadingRef.current) return
     loadingRef.current = true
     setState(s => ({ ...s, isLoading: true, error: null }))
     try {
-      const polls = await getPollsWithVoteStatus(userId)
-      setState({ polls, isLoading: false, error: null, hasMore: false })
+      const { polls, hasMore } = await getPollsWithVoteStatus(userId, 0, PAGE_SIZE)
+      offsetRef.current = polls.length
+      hasMoreRef.current = hasMore
+      setState({ polls, isLoading: false, isLoadingMore: false, error: null, hasMore })
     } catch (e) {
-      setState(s => ({ ...s, isLoading: false, error: 'FAILED TO LOAD POLLS' }))
+      const msg = e instanceof Error ? e.message.toUpperCase() : 'FAILED TO LOAD POLLS'
+      setState(s => ({ ...s, isLoading: false, error: msg }))
     } finally {
       loadingRef.current = false
+    }
+  }, [userId])
+
+  const loadMore = useCallback(async () => {
+    if (!hasMoreRef.current || loadingRef.current || loadingMoreRef.current) return
+    loadingMoreRef.current = true
+    setState(s => ({ ...s, isLoadingMore: true }))
+    try {
+      const { polls: newPolls, hasMore } = await getPollsWithVoteStatus(userId, offsetRef.current, PAGE_SIZE)
+      offsetRef.current += newPolls.length
+      hasMoreRef.current = hasMore
+      setState(s => ({
+        ...s,
+        polls: [...s.polls, ...newPolls],
+        isLoadingMore: false,
+        hasMore,
+      }))
+    } catch {
+      setState(s => ({ ...s, isLoadingMore: false }))
+    } finally {
+      loadingMoreRef.current = false
     }
   }, [userId])
 
@@ -85,9 +116,11 @@ export function usePolls(userId: string) {
   return {
     polls: state.polls,
     isLoading: state.isLoading,
+    isLoadingMore: state.isLoadingMore,
     error: state.error,
     hasMore: state.hasMore,
     loadPolls,
+    loadMore,
     vote,
     submitPoll,
     removePollFromList,
