@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
   Dimensions,
   ActivityIndicator,
   ScrollView,
+  RefreshControl,
+  TouchableOpacity,
 } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Reanimated, {
@@ -17,19 +19,18 @@ import Reanimated, {
   Extrapolation,
   useAnimatedScrollHandler,
 } from 'react-native-reanimated'
-import { Flame } from 'lucide-react-native'
+import { Flame, List, LayoutGrid } from 'lucide-react-native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
 import { usePolls } from '../hooks/usePolls'
 import { Poll } from '../types'
-import { Screen, TabBar, PixelBar, Button, Card, Divider, Chip } from '../components/ui'
+import { CATEGORIES } from '../constants/categories'
+import { Screen, TabBar, PixelBar, Button, Card, Divider, Chip, PollRow } from '../components/ui'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.35
 
 const AnimScrollView = Reanimated.createAnimatedComponent(ScrollView)
-
-const CATEGORIES = ['GENERAL', 'SPORTS', 'MUSIC', 'TECH', 'FOOD', 'MOVIES', 'POLITICS', 'SCIENCE', 'GAMING', 'OTHER']
 
 const FILTER_TABS = [
   { label: 'ALL', value: 'ALL' },
@@ -38,6 +39,14 @@ const FILTER_TABS = [
   { label: 'EXPIRED', value: 'EXPIRED' },
   { label: 'VOTED', value: 'VOTED' },
 ]
+
+const EMPTY_STATE_MESSAGES: Record<string, string> = {
+  ALL: 'NO POLLS YET',
+  TRENDING: 'NO TRENDING POLLS YET',
+  EXPIRING: 'NO POLLS EXPIRING SOON',
+  EXPIRED: 'NO EXPIRED POLLS',
+  VOTED: 'YOU HAVEN\'T VOTED YET',
+}
 
 function isExpiringSoon(poll: Poll): boolean {
   if (poll.isExpired || !poll.timerEnabled) return false
@@ -63,6 +72,7 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
   const isSwiped = useSharedValue(false)
   const [voted, setVoted] = useState(poll.isVoted)
   const [localPoll, setLocalPoll] = useState(poll)
+  const [voteError, setVoteError] = useState<string | null>(null)
 
   const callbacksRef = useRef({ onVote, onAdvance })
   callbacksRef.current = { onVote, onAdvance }
@@ -72,12 +82,24 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
     isSwiped.value = false
     setVoted(poll.isVoted)
     setLocalPoll(poll)
+    setVoteError(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poll.id])
 
   function doVote(option: 'A' | 'B') {
     setVoted(true)
     callbacksRef.current.onVote(option)
+    setTimeout(() => {
+      callbacksRef.current.onAdvance()
+    }, 500)
+  }
+
+  function doVoteWithError(option: 'A' | 'B') {
+    setVoted(true)
+    Promise.resolve(callbacksRef.current.onVote(option)).catch(() => {
+      setVoted(false)
+      setVoteError('VOTE FAILED — TRY AGAIN')
+    })
     setTimeout(() => {
       callbacksRef.current.onAdvance()
     }, 500)
@@ -95,19 +117,18 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
       if (e.translationX > SWIPE_THRESHOLD) {
         isSwiped.value = true
         translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: theme.animation.normal }, () => {
-          runOnJS(doVote)('A')
+          runOnJS(doVoteWithError)('A')
         })
       } else if (e.translationX < -SWIPE_THRESHOLD) {
         isSwiped.value = true
         translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: theme.animation.normal }, () => {
-          runOnJS(doVote)('B')
+          runOnJS(doVoteWithError)('B')
         })
       } else {
         translateX.value = withSpring(0, theme.animation.spring)
       }
     })
 
-  // Scroll-driven scale + opacity (UI thread)
   const animStyle = useAnimatedStyle(() => {
     if (slotHeight === 0) return {}
     const distance = scrollY.value - index * slotHeight
@@ -116,7 +137,6 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
     return { transform: [{ scale }], opacity }
   })
 
-  // Pan-driven translate + rotate
   const cardInnerStyle = useAnimatedStyle(() => {
     const rotate = `${interpolate(translateX.value, [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2], [-5, 0, 5], Extrapolation.CLAMP)}deg`
     return { transform: [{ translateX: translateX.value }, { rotate }] }
@@ -142,7 +162,7 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
             animatedStyle={cardInnerStyle}
             style={{ flex: 1, margin: theme.spacing.md, justifyContent: 'space-between' }}
           >
-            {/* Vote A / Vote B overlays */}
+            {/* Vote overlays */}
             <Reanimated.View style={[{
               position: 'absolute', top: theme.spacing.lg, right: theme.spacing.md, zIndex: 10,
               borderWidth: 2, borderColor: theme.colors.text, padding: theme.spacing.sm,
@@ -156,7 +176,7 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
               <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.sm, color: theme.colors.text, letterSpacing: 2 }}>VOTE B</Text>
             </Reanimated.View>
 
-            {/* Category + flame badge */}
+            {/* Category + flame */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 3 }}>
                 {localPoll.category}
@@ -172,6 +192,12 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
             {localPoll.isConfession && (
               <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.text, letterSpacing: 2, marginTop: theme.spacing.xs }}>
                 🔒 CONFESSION
+              </Text>
+            )}
+
+            {voteError && (
+              <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.danger, letterSpacing: 1, marginTop: theme.spacing.xs }}>
+                {voteError}
               </Text>
             )}
 
@@ -250,6 +276,8 @@ export default function HomeScreen() {
   const [categoryFilter, setCategoryFilter] = useState('ALL')
   const [containerHeight, setContainerHeight] = useState(0)
   const [focusedIndex, setFocusedIndex] = useState(0)
+  const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel')
+  const [refreshing, setRefreshing] = useState(false)
   const scrollY = useSharedValue(0)
   const scrollRef = useRef<any>(null)
 
@@ -259,6 +287,15 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadPolls()
+  }, [loadPolls])
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await loadPolls()
+    } finally {
+      setRefreshing(false)
+    }
   }, [loadPolls])
 
   const filtered = polls.filter(p => {
@@ -284,18 +321,28 @@ export default function HomeScreen() {
     }
   }, [focusedIndex, filtered.length, hasMore, loadMore])
 
+  const emptyMessage = EMPTY_STATE_MESSAGES[filter] || 'NO POLLS'
+
   return (
     <Screen>
       {/* Header */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md, borderBottomWidth: theme.borderWidth, borderBottomColor: theme.colors.borderMuted }}>
         <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.xl, color: theme.colors.text, letterSpacing: 8 }}>PAUL</Text>
-        <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 2 }}>
-          {filtered.length > 0 ? `${focusedIndex + 1} / ${filtered.length}${hasMore ? '+' : ''}` : '0 / 0'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 2 }}>
+            {filtered.length > 0 && viewMode === 'carousel' ? `${focusedIndex + 1} / ${filtered.length}${hasMore ? '+' : ''}` : `${filtered.length}${hasMore ? '+' : ''}`}
+          </Text>
+          <TouchableOpacity onPress={() => setViewMode(m => m === 'carousel' ? 'list' : 'carousel')}>
+            {viewMode === 'carousel'
+              ? <List size={18} color={theme.colors.textMuted} strokeWidth={1.5} />
+              : <LayoutGrid size={18} color={theme.colors.text} strokeWidth={1.5} />
+            }
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Type filter tabs */}
-      <TabBar tabs={FILTER_TABS} active={filter} onSelect={setFilter} />
+      <TabBar tabs={FILTER_TABS} active={filter} onSelect={f => { setFilter(f); setFocusedIndex(0) }} />
 
       {/* Category chips */}
       <ScrollView
@@ -317,15 +364,41 @@ export default function HomeScreen() {
           <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.sm, color: theme.colors.textMuted, letterSpacing: 4 }}>LOADING...</Text>
         </View>
       ) : error ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
-          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.danger, letterSpacing: 2 }}>{error}</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md, padding: theme.spacing.lg }}>
+          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.danger, letterSpacing: 2, textAlign: 'center' }}>{error}</Text>
           <Button variant="secondary" onPress={loadPolls}>RETRY</Button>
         </View>
       ) : filtered.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.sm, color: theme.colors.textMuted, letterSpacing: 4 }}>NO POLLS</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.textDim} />}
+        >
+          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.sm, color: theme.colors.textMuted, letterSpacing: 4 }}>{emptyMessage}</Text>
+        </ScrollView>
+      ) : viewMode === 'list' ? (
+        // ── LIST MODE ──
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: theme.spacing.xxl }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.textDim} />}
+          onScroll={e => {
+            const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent
+            const nearEnd = contentOffset.y + layoutMeasurement.height >= contentSize.height - 200
+            if (nearEnd && hasMore) loadMore()
+          }}
+          scrollEventThrottle={200}
+        >
+          {filtered.map(p => (
+            <PollRow key={p.id} poll={p} variant="profile" />
+          ))}
+          {isLoadingMore && (
+            <View style={{ paddingVertical: theme.spacing.lg, alignItems: 'center' }}>
+              <ActivityIndicator color={theme.colors.textDim} size="small" />
+            </View>
+          )}
+        </ScrollView>
       ) : (
+        // ── CAROUSEL MODE ──
         <View style={{ flex: 1 }} onLayout={e => setContainerHeight(e.nativeEvent.layout.height)}>
           {containerHeight > 0 && (
             <AnimScrollView
@@ -335,6 +408,7 @@ export default function HomeScreen() {
               snapToInterval={containerHeight}
               decelerationRate="fast"
               showsVerticalScrollIndicator={false}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.textDim} />}
               onMomentumScrollEnd={e => {
                 const idx = Math.round(e.nativeEvent.contentOffset.y / containerHeight)
                 setFocusedIndex(Math.max(0, Math.min(idx, filtered.length - 1)))
@@ -348,7 +422,7 @@ export default function HomeScreen() {
                   scrollY={scrollY}
                   slotHeight={containerHeight}
                   isFocused={focusedIndex === i}
-                  onVote={(option) => vote(poll.id, option).catch(() => {})}
+                  onVote={(option) => vote(poll.id, option)}
                   onAdvance={() => scrollRef.current?.scrollTo({ y: (i + 1) * containerHeight, animated: true })}
                 />
               ))}

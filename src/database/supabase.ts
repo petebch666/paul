@@ -23,7 +23,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 })
 
 export const isSupabaseConfigured = (): boolean => {
-  return Boolean(supabaseUrl && supabaseAnonKey)
+  if (!supabaseUrl || !supabaseAnonKey) return false
+  if (!supabaseUrl.startsWith('https://')) {
+    console.error('[Supabase] URL must use HTTPS')
+    return false
+  }
+  return true
 }
 
 export default supabase

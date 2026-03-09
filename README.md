@@ -1,180 +1,134 @@
 # PAUL
-
 > Binary polls. Swipe to vote. Pure black.
 
-A mobile-first polling app built with **React Native (Expo)**, **Supabase**, and a brutal 8-bit aesthetic. No gradients. No noise. Just questions and answers.
+## What is PAUL?
+Binary polling app. Every question has two choices. Swipe right = A. Swipe left = B.
+No noise. No ads. No algorithmic manipulation. Pure signal.
 
----
+## Stack
+React Native 0.81 + Expo SDK 54 | TypeScript | Supabase (PostgreSQL + Realtime)
+Auth: Supabase Auth + SecureStore | Font: Inter | Navigation: React Navigation 7
+Gestures: RNGH v2 + Reanimated v3 | Icons: Lucide
 
-## STACK
-
-| Layer | Tech |
-|---|---|
-| Mobile | React Native 0.76 (Expo SDK 52) |
-| Language | TypeScript |
-| Backend | Supabase (PostgreSQL + Realtime) |
-| Auth | bcryptjs + SecureStore |
-| Font | Silkscreen (Google Fonts) |
-| Navigation | React Navigation 6 (Bottom Tabs) |
-
----
-
-## SCREENS
-
+## Screens
 ```
-AUTH      Login / Sign up
-HOME      Swipe-based poll feed
-CREATE    New poll form
-PROFILE   User stats + poll history
-ADMIN     User management + moderation (admin only)
+AUTH          Login / Sign up / Forgot password
+HOME          Carousel feed (swipe to vote) + List mode toggle
+CREATE        New poll (title, options, category, timer) → UNDER REVIEW state
+PROFILE       Stats + activity grid + poll history + bio edit
+ADMIN         Stats dashboard · Users · Polls · Moderation queue · Audit log
 ```
 
----
+## Features
 
-## DESIGN
+### v1 (live)
+- Email/username login + signup (with password confirm)
+- Forgot password (Supabase email reset)
+- Swipe carousel with snap + scale/opacity animations
+- Vote A/B with swipe gesture (Reanimated) + optimistic rollback on failure
+- Feed filters: ALL / TRENDING / 🔥 EXPIRING / EXPIRED / VOTED
+- Category filter chips (10 categories, centralised in `src/constants/categories.ts`)
+- Pull-to-refresh on home feed
+- Contextual empty states per filter
+- List/carousel toggle in home header
+- Poll creation with timer → UNDER REVIEW state
+- Profile: stats + poll history + voted history + bio edit + activity grid
+- Admin: 5 tabs (Stats, Users, Polls, Queue, Audit Log) with pagination + audit logging
 
-- Background: `#000000`
-- Text: `#FFFFFF`
-- Font: **Silkscreen** — 8-bit pixel typeface
-- Borders: 1px white, zero border radius
-- No icons, no gradients, no color accents
+### v2 (in progress)
+- Voting streaks + badges
+- Real-time vote counts (Supabase Realtime)
+- Public user profiles + follow system
+- Notifications center
+- LLM content moderation (Claude claude-haiku-4-5 via Supabase Edge Function)
 
-### Voting UI
+### v3 (planned)
+- Deathmatch polls (1v1 user challenge)
+- Confession polls (anonymous author)
+- Vote predictions (predict the split before voting)
+- Leaderboards (rep / streak / prediction accuracy)
+- Poll + user search
+- Deep links / share
+- Push notifications
 
-Swipe right to vote **A**. Swipe left to vote **B**.
+## Content Moderation
+Every poll goes through automated LLM review (Supabase Edge Function + Claude API)
+before going live.
 
 ```
-+-------------------------------+
-| SPORTS            ⏱ 5H 20M  |
-|                               |
-| Is Messi better than Ronaldo? |
-|                               |
-|  [ A ]          [ B ]        |
-|                               |
-| <- VOTE B        VOTE A ->   |
-+-------------------------------+
+User submits poll → validation_status = 'pending'
+      ↓
+Edge Function: POST to Claude claude-haiku-4-5
+  Checks: hate speech, illegal content, harassment, incitement, spam
+      ↓
+safe + confidence ≥ 80%  → approved (auto-live)
+flagged OR confidence < 80% → pending (admin queue)
+      ↓
+Admin QUEUE tab: poll + LLM verdict + confidence + reason
+[APPROVE] or [REJECT with reason]
 ```
 
-After voting, results appear as pixel bars:
+## HTTPS
+- All API traffic uses HTTPS only
+- Android: `usesCleartextTraffic: false`
+- iOS: `NSAllowsArbitraryLoads: false`
+- Supabase URL validated to start with `https://` at runtime
 
+## Design
 ```
-A  ████████░░  65%
-B  ████░░░░░░  35%
-             247 VOTES
+Background: #000000  |  Text: #FFFFFF  |  Cards: #0A0A0A
+Font: Inter (400/500/600/700)
+Borders: 1px #333  |  borderRadius: xs–md (2–8px)
+No gradients. No decoration. Pure signal.
 ```
 
----
-
-## FEATURES (v1 — Core)
-
-- Email/username login and sign up
-- Swipe left/right to vote on polls
-- Filter feed: ALL / TRENDING / EXPIRED / VOTED
-- Create polls with options, category, and timer
-- Profile page with stats (polls, followers, reputation, win rate)
-- Admin panel: stats dashboard, user management, poll deletion
-
----
-
-## GETTING STARTED
-
-### Prerequisites
-
-- Node.js 18+
-- Expo CLI: `npm install -g expo-cli`
-- Expo Go app on your phone (for testing)
-
-### Install
-
+## Getting started
 ```bash
-git clone <repo>
-cd paul
-git checkout move_to_v1
 npm install
+npx expo start --clear
 ```
 
-### Run
-
+## Build
 ```bash
-npx expo start
-```
-
-Scan the QR code with **Expo Go** (iOS/Android) to run on your device.
-
-### Build (production)
-
-```bash
-# Android
 eas build --platform android
-
-# iOS
 eas build --platform ios
 ```
 
----
-
-## PROJECT STRUCTURE
-
+## Project structure
 ```
-App.tsx                    Entry point — fonts, providers, auth gate
-app.json                   Expo config
-babel.config.js
-
+App.tsx, app.json
 src/
-  theme/index.ts           Design tokens (colors, fonts, spacing)
-  types/index.ts           TypeScript interfaces
-
-  database/
-    supabase.ts            Supabase client (AsyncStorage for RN)
-    supabase-api.ts        Polls, users, votes, admin operations
-
-  hooks/
-    useAuth.ts             Auth context + provider (SecureStore session)
-    usePolls.ts            Poll state management
-
-  navigation/
-    index.tsx              Bottom tab navigator
-
-  screens/
-    AuthScreen.tsx         Login + signup
-    HomeScreen.tsx         Swipe poll feed
-    CreateScreen.tsx       Poll creation
-    ProfileScreen.tsx      User profile + history
-    AdminScreen.tsx        Admin dashboard
+  constants/   categories.ts
+  theme/       index.ts (design tokens)
+  types/       index.ts
+  hooks/       useAuth · usePolls · useBreakpoint
+  database/    supabase.ts · supabase-api.ts
+  navigation/  index.tsx (stack + bottom tabs)
+  screens/     Auth · Home · Create · Profile · PublicProfile · Admin
+  components/
+    ui/        Screen · Card · Button · Input · TabBar · Chip · PixelBar
+               StatBox · PollRow · UserRow · SectionHeader · ErrorBox
+               Divider · ActivityGrid · MiniBarChart
+supabase/
+  functions/   moderate-poll/ (Edge Function — LLM content moderation)
+MIGRATIONS-V2-ROADMAP.sql   DB migrations for v2
 ```
 
----
+## Database tables
+```
+users           id, auth_id, name, username, email, avatar, role, status, bio
+polls           id, title, option_a/b, votes_a/b, category, validation_status, moderation_result
+votes           id, poll_id, user_id, option, created_at
+notifications   id, user_id, type, message, is_read
+poll_history    id, poll_id, user_id, voted_at
+user_follows    id, follower_id, following_id  (migration: MIGRATIONS-V2-ROADMAP.sql)
+user_streaks    id, user_id, current_streak, longest_streak
+vote_predictions id, poll_id, user_id, predicted_pct_a, actual_pct_a, score
+admin_audit_log id, admin_id, action_type, target_id, target_type, reason
+```
 
-## DATABASE
-
-Connects to the existing Supabase project. Schema unchanged from `go_live`.
-
-Key tables: `users`, `polls`, `votes`, `notifications`, `poll_history`, `admin_audit_log`
-
----
-
-## ENVIRONMENT
-
-Supabase credentials are stored in `app.json` under `expo.extra`. For production builds, move these to EAS Secrets.
-
----
-
-## BRANCH STRATEGY
-
-| Branch | Purpose |
-|---|---|
-| `go_live` | Original Ionic/React web app |
-| `move_to_v1` | React Native rebuild (this branch) |
-
----
-
-## ROADMAP (post v1)
-
-- Deathmatch polls
-- Shadow Deathmatch (anonymous)
-- Voting streaks
-- Live vote animations (Supabase Realtime)
-- Predictions system
-- Confession polls
-- Push notifications
-- EAS Build + App Store submission
+## Branch strategy
+```
+go_live      Original Ionic/React web app (production)
+move_to_v1   React Native rebuild (active development)
+```

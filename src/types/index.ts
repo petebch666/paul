@@ -24,6 +24,13 @@ export interface Poll {
   deathmatchStatus?: 'pending' | 'accepted' | 'rejected'
   validationStatus?: 'pending' | 'approved' | 'rejected'
   isConfession?: boolean
+  moderationResult?: {
+    verdict: 'safe' | 'flagged'
+    reason: string
+    confidence: number
+    model: string
+    timestamp: string
+  }
 }
 
 export interface User {
@@ -42,6 +49,7 @@ export interface User {
   joinDate: Date
   status?: 'active' | 'suspended' | 'banned'
   statusReason?: string
+  bio?: string
 }
 
 export interface Vote {

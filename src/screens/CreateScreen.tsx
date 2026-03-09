@@ -1,14 +1,10 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView, Alert } from 'react-native'
+import { View, Text, ScrollView } from 'react-native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
 import { usePolls } from '../hooks/usePolls'
+import { CATEGORIES } from '../constants/categories'
 import { Screen, Input, Chip, Button, ErrorBox, SectionHeader, Divider } from '../components/ui'
-
-const CATEGORIES = [
-  'GENERAL', 'SPORTS', 'MUSIC', 'TECH', 'FOOD',
-  'MOVIES', 'POLITICS', 'SCIENCE', 'GAMING', 'OTHER',
-]
 
 const TIMERS = [
   { label: '30M', value: 30 },
@@ -30,6 +26,8 @@ export default function CreateScreen() {
   const [timerDuration, setTimerDuration] = useState(1440)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [submitted, setSubmitted] = useState(false)
+  const [submittedTitle, setSubmittedTitle] = useState('')
 
   function validate(): string | null {
     if (!title.trim() || title.trim().length < 5) return 'QUESTION TOO SHORT (MIN 5 CHARS)'
@@ -61,18 +59,49 @@ export default function CreateScreen() {
         },
         { id: user!.id, name: user!.name, username: user!.username }
       )
-      setTitle('')
-      setOptionA('')
-      setOptionB('')
-      setCategory('GENERAL')
-      setTimerEnabled(true)
-      setTimerDuration(1440)
-      Alert.alert('CREATED', 'YOUR POLL IS LIVE.')
+      setSubmittedTitle(title.trim())
+      setSubmitted(true)
     } catch {
       setError('FAILED TO CREATE POLL. TRY AGAIN.')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  function handleCreateAnother() {
+    setTitle('')
+    setOptionA('')
+    setOptionB('')
+    setCategory('GENERAL')
+    setTimerEnabled(true)
+    setTimerDuration(1440)
+    setError(null)
+    setSubmitted(false)
+    setSubmittedTitle('')
+  }
+
+  if (submitted) {
+    return (
+      <Screen>
+        <SectionHeader title="CREATE POLL" />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xxl, gap: theme.spacing.lg }}>
+          <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.xl, color: theme.colors.text, letterSpacing: 4, textAlign: 'center' }}>
+            UNDER REVIEW
+          </Text>
+          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 2, textAlign: 'center', lineHeight: 18 }}>
+            "{submittedTitle}"
+          </Text>
+          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textDim, letterSpacing: 1, textAlign: 'center', lineHeight: 18 }}>
+            YOUR POLL IS BEING REVIEWED FOR CONTENT. IT WILL GO LIVE ONCE APPROVED.
+          </Text>
+          <View style={{ width: '100%', gap: theme.spacing.sm }}>
+            <Button variant="primary" fullWidth onPress={handleCreateAnother}>
+              CREATE ANOTHER
+            </Button>
+          </View>
+        </View>
+      </Screen>
+    )
   }
 
   return (

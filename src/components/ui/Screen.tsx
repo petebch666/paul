@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Reanimated, {
   useSharedValue,
@@ -7,6 +7,8 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated'
 import { theme } from '../../theme'
+
+const MAX_WIDTH = 960
 
 interface ScreenProps {
   children: React.ReactNode
@@ -16,6 +18,8 @@ interface ScreenProps {
 }
 
 export function Screen({ children, scroll = false, keyboardAvoiding = false, padding = false }: ScreenProps) {
+  const { width } = useWindowDimensions()
+  const isTablet = width >= 768
   const opacity = useSharedValue(0)
   const translateY = useSharedValue(16)
 
@@ -30,19 +34,21 @@ export function Screen({ children, scroll = false, keyboardAvoiding = false, pad
     transform: [{ translateY: translateY.value }],
   }))
 
+  const tabletStyle = isTablet ? { maxWidth: MAX_WIDTH, alignSelf: 'center' as const, width: '100%' } : {}
+
   const scrollContent = (
     <ScrollView
       style={{ flex: 1 }}
       contentContainerStyle={[styles.scrollContent, padding && styles.padded]}
       keyboardShouldPersistTaps="handled"
     >
-      {children}
+      <View style={tabletStyle}>{children}</View>
     </ScrollView>
   )
 
   const staticContent = (
     <Reanimated.View style={[styles.flex, padding && styles.padded, animStyle]}>
-      {children}
+      <View style={[styles.flex, tabletStyle]}>{children}</View>
     </Reanimated.View>
   )
 

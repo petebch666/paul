@@ -44,6 +44,7 @@ function transformPoll(row: Record<string, unknown>): Poll {
     deathmatchStatus: row.deathmatch_status as Poll['deathmatchStatus'],
     validationStatus: row.validation_status as Poll['validationStatus'],
     isConfession: Boolean(row.is_confession),
+    moderationResult: row.moderation_result as Poll['moderationResult'],
   }
 }
 
@@ -64,6 +65,22 @@ function transformUser(row: Record<string, unknown>): User {
     joinDate: new Date(row.join_date as string),
     status: (row.status as User['status']) || 'active',
     statusReason: row.status_reason as string | undefined,
+    bio: row.bio as string | undefined,
+  }
+}
+
+function transformAuditLog(row: Record<string, unknown>): AdminAuditLog {
+  return {
+    id: row.id as string,
+    adminId: row.admin_id as string,
+    adminUsername: (row.admin_username as string) || '',
+    actionType: row.action_type as AdminAuditLog['actionType'],
+    targetId: row.target_id as string,
+    targetType: row.target_type as AdminAuditLog['targetType'],
+    reason: row.reason as string | undefined,
+    previousValue: row.previous_value as string | undefined,
+    newValue: row.new_value as string | undefined,
+    createdAt: new Date(row.created_at as string),
   }
 }
 
@@ -113,25 +130,35 @@ export async function getPollsWithVoteStatus(
 }
 
 export async function castVote(pollId: string, userId: string, option: 'A' | 'B'): Promise<void> {
-  const { error: voteError } = await supabase
-    .from('votes')
-    .insert({ poll_id: pollId, user_id: userId, option })
+  // Attempt atomic RPC first; fall back to manual update if RPC doesn't exist yet
+  const { error: rpcError } = await supabase.rpc('cast_vote', {
+    p_poll_id: pollId,
+    p_user_id: userId,
+    p_option: option,
+  })
 
-  if (voteError) throw new Error(voteError.message)
+  if (rpcError) {
+    // Fallback: insert vote + manual increment (non-atomic, acceptable until RPC is deployed)
+    const { error: voteError } = await supabase
+      .from('votes')
+      .insert({ poll_id: pollId, user_id: userId, option })
 
-  const column = option === 'A' ? 'votes_option_a' : 'votes_option_b'
-  const { data: poll } = await supabase
-    .from('polls')
-    .select(column)
-    .eq('id', pollId)
-    .single()
+    if (voteError) throw new Error(voteError.message)
 
-  if (poll) {
-    const current = Number((poll as Record<string, unknown>)[column] ?? 0)
-    await supabase
+    const column = option === 'A' ? 'votes_option_a' : 'votes_option_b'
+    const { data: poll } = await supabase
       .from('polls')
-      .update({ [column]: current + 1 })
+      .select(column)
       .eq('id', pollId)
+      .single()
+
+    if (poll) {
+      const current = Number((poll as Record<string, unknown>)[column] ?? 0)
+      await supabase
+        .from('polls')
+        .update({ [column]: current + 1 })
+        .eq('id', pollId)
+    }
   }
 }
 
@@ -173,6 +200,7 @@ export async function createPoll(data: {
     deathmatch_status: data.isDeathmatch ? 'pending' : null,
     is_confession: data.isConfession || false,
     trending_score: 0,
+    validation_status: 'pending',
   }
 
   const { data: inserted, error } = await supabase
@@ -279,15 +307,77 @@ export async function linkUserAuthId(email: string, authId: string): Promise<Use
   return data ? transformUser(data) : null
 }
 
-export async function getUserPolls(userId: string): Promise<Poll[]> {
+export async function getUserPolls(userId: string, offset = 0, limit = 20): Promise<{ polls: Poll[]; hasMore: boolean }> {
   const { data, error } = await supabase
     .from('polls')
     .select('*')
     .eq('author_id', userId)
     .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
   if (error) throw new Error(error.message)
-  return (data || []).map(transformPoll)
+  const polls = (data || []).map(transformPoll)
+  return { polls, hasMore: polls.length === limit }
+}
+
+export async function updateUserProfile(
+  userId: string,
+  updates: { name?: string; bio?: string; avatar?: string },
+): Promise<User> {
+  const { data, error } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  return transformUser(data)
+}
+
+export async function getUserVoteHistory(
+  userId: string,
+  offset = 0,
+  limit = 20,
+): Promise<{ polls: Poll[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from('poll_history')
+    .select('poll_id, polls(*)')
+    .eq('user_id', userId)
+    .order('voted_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new Error(error.message)
+  const polls = (data || [])
+    .map((row: Record<string, unknown>) => {
+      const pollData = row.polls as Record<string, unknown> | null
+      return pollData ? transformPoll(pollData) : null
+    })
+    .filter((p): p is Poll => p !== null)
+
+  return { polls, hasMore: polls.length === limit }
+}
+
+export async function getUserActivity(
+  userId: string,
+  days = 30,
+): Promise<Record<string, number>> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data, error } = await supabase
+    .from('votes')
+    .select('created_at')
+    .eq('user_id', userId)
+    .gte('created_at', since)
+
+  if (error) return {}
+
+  const counts: Record<string, number> = {}
+  for (const row of data || []) {
+    const day = (row.created_at as string).slice(0, 10)
+    counts[day] = (counts[day] || 0) + 1
+  }
+  return counts
 }
 
 export async function searchUsers(query: string): Promise<User[]> {
@@ -321,32 +411,117 @@ export async function getAdminStats(): Promise<AdminStats> {
   return { totalUsers, totalPolls, totalVotes, activeUsers, pendingPolls }
 }
 
-export async function getAllUsers(): Promise<User[]> {
+export async function getAdminStatsDetailed(): Promise<{
+  daily: Array<{ date: string; votes: number; polls: number }>
+  topPolls: Poll[]
+}> {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const [votesRes, pollsRes, topPollsRes] = await Promise.all([
+    supabase.from('votes').select('created_at').gte('created_at', since),
+    supabase.from('polls').select('created_at').gte('created_at', since),
+    supabase.from('polls').select('*').order('votes_option_a', { ascending: false }).limit(5),
+  ])
+
+  // Build daily buckets for last 7 days
+  const daily: Array<{ date: string; votes: number; polls: number }> = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+    daily.push({ date: d.toISOString().slice(0, 10), votes: 0, polls: 0 })
+  }
+
+  for (const row of votesRes.data || []) {
+    const day = (row.created_at as string).slice(0, 10)
+    const bucket = daily.find(b => b.date === day)
+    if (bucket) bucket.votes++
+  }
+  for (const row of pollsRes.data || []) {
+    const day = (row.created_at as string).slice(0, 10)
+    const bucket = daily.find(b => b.date === day)
+    if (bucket) bucket.polls++
+  }
+
+  const topPolls = (topPollsRes.data || []).map(transformPoll)
+
+  return { daily, topPolls }
+}
+
+export async function getAllUsers(offset = 0, limit = 20): Promise<{ users: User[]; hasMore: boolean }> {
   const { data, error } = await supabase
     .from('users')
     .select('*')
     .order('join_date', { ascending: false })
-    .limit(100)
+    .range(offset, offset + limit - 1)
 
   if (error) throw new Error(error.message)
-  return (data || []).map(transformUser)
+  const users = (data || []).map(transformUser)
+  return { users, hasMore: users.length === limit }
 }
 
-export async function getAllPollsAdmin(): Promise<Poll[]> {
+export async function getAllPollsAdmin(offset = 0, limit = 20): Promise<{ polls: Poll[]; hasMore: boolean }> {
   const { data, error } = await supabase
     .from('polls')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(100)
+    .range(offset, offset + limit - 1)
 
   if (error) throw new Error(error.message)
-  return (data || []).map(transformPoll)
+  const polls = (data || []).map(transformPoll)
+  return { polls, hasMore: polls.length === limit }
+}
+
+export async function getPendingPolls(offset = 0, limit = 20): Promise<{ polls: Poll[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from('polls')
+    .select('*')
+    .eq('validation_status', 'pending')
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new Error(error.message)
+  const polls = (data || []).map(transformPoll)
+  return { polls, hasMore: polls.length === limit }
+}
+
+export async function approvePoll(pollId: string, adminId: string, adminUsername: string): Promise<void> {
+  const { error } = await supabase
+    .from('polls')
+    .update({ validation_status: 'approved' })
+    .eq('id', pollId)
+
+  if (error) throw new Error(error.message)
+
+  await logAdminAction(adminId, adminUsername, 'poll_approved', pollId, 'poll')
+}
+
+export async function rejectPoll(pollId: string, adminId: string, adminUsername: string, reason: string): Promise<void> {
+  const { error } = await supabase
+    .from('polls')
+    .update({ validation_status: 'rejected' })
+    .eq('id', pollId)
+
+  if (error) throw new Error(error.message)
+
+  await logAdminAction(adminId, adminUsername, 'poll_rejected', pollId, 'poll', reason)
+}
+
+export async function getModerationResult(pollId: string): Promise<Poll['moderationResult'] | null> {
+  const { data, error } = await supabase
+    .from('polls')
+    .select('moderation_result')
+    .eq('id', pollId)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return (data as Record<string, unknown>).moderation_result as Poll['moderationResult']
 }
 
 export async function updateUserStatus(
   userId: string,
   status: 'active' | 'suspended' | 'banned',
-  reason: string
+  reason: string,
+  adminId?: string,
+  adminUsername?: string,
 ): Promise<void> {
   const { error } = await supabase
     .from('users')
@@ -354,22 +529,82 @@ export async function updateUserStatus(
     .eq('id', userId)
 
   if (error) throw new Error(error.message)
+
+  if (adminId && adminUsername) {
+    const action = status === 'banned'
+      ? 'user_banned'
+      : status === 'suspended'
+        ? 'user_suspended'
+        : 'user_unsuspended'
+    await logAdminAction(adminId, adminUsername, action as AdminAuditLog['actionType'], userId, 'user', reason)
+  }
 }
 
-export async function deletePollAdmin(pollId: string): Promise<void> {
+export async function deletePollAdmin(pollId: string, adminId?: string, adminUsername?: string): Promise<void> {
   const { error } = await supabase
     .from('polls')
     .delete()
     .eq('id', pollId)
 
   if (error) throw new Error(error.message)
+
+  if (adminId && adminUsername) {
+    await logAdminAction(adminId, adminUsername, 'poll_deleted', pollId, 'poll')
+  }
 }
 
-export async function updateUserRole(userId: string, role: 'user' | 'admin'): Promise<void> {
+export async function updateUserRole(
+  userId: string,
+  role: 'user' | 'admin',
+  adminId?: string,
+  adminUsername?: string,
+): Promise<void> {
   const { error } = await supabase
     .from('users')
     .update({ role })
     .eq('id', userId)
 
   if (error) throw new Error(error.message)
+
+  if (adminId && adminUsername) {
+    await logAdminAction(adminId, adminUsername, 'user_role_changed', userId, 'user', undefined, undefined, role)
+  }
+}
+
+export async function logAdminAction(
+  adminId: string,
+  adminUsername: string,
+  actionType: AdminAuditLog['actionType'],
+  targetId: string,
+  targetType: AdminAuditLog['targetType'],
+  reason?: string,
+  previousValue?: string,
+  newValue?: string,
+): Promise<void> {
+  await supabase.from('admin_audit_log').insert({
+    admin_id: adminId,
+    admin_username: adminUsername,
+    action_type: actionType,
+    target_id: targetId,
+    target_type: targetType,
+    reason: reason || null,
+    previous_value: previousValue || null,
+    new_value: newValue || null,
+  })
+  // Fire and forget — don't throw if audit log fails
+}
+
+export async function getAuditLog(
+  offset = 0,
+  limit = 20,
+): Promise<{ logs: AdminAuditLog[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from('admin_audit_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new Error(error.message)
+  const logs = (data || []).map(transformAuditLog)
+  return { logs, hasMore: logs.length === limit }
 }

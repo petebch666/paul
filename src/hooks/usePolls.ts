@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import { Poll, CreatePollFormData } from '../types'
 import { getPollsWithVoteStatus, castVote, createPoll } from '../database/supabase-api'
 
-const PAGE_SIZE = 200
+const PAGE_SIZE = 20
 
 interface PollsState {
   polls: Poll[]
@@ -65,25 +65,26 @@ export function usePolls(userId: string) {
   }, [userId])
 
   const vote = useCallback(async (pollId: string, option: 'A' | 'B') => {
+    // Snapshot for rollback
+    let snapshot: Poll[] = []
+    setState(s => { snapshot = s.polls; return s })
+
+    // Optimistic update
+    setState(s => ({
+      ...s,
+      polls: s.polls.map(p => {
+        if (p.id !== pollId) return p
+        const updatedA = option === 'A' ? p.votesOptionA + 1 : p.votesOptionA
+        const updatedB = option === 'B' ? p.votesOptionB + 1 : p.votesOptionB
+        return { ...p, isVoted: true, votedOption: option, votesOptionA: updatedA, votesOptionB: updatedB, votes: updatedA + updatedB }
+      }),
+    }))
+
     try {
       await castVote(pollId, userId, option)
-      setState(s => ({
-        ...s,
-        polls: s.polls.map(p => {
-          if (p.id !== pollId) return p
-          const updatedA = option === 'A' ? p.votesOptionA + 1 : p.votesOptionA
-          const updatedB = option === 'B' ? p.votesOptionB + 1 : p.votesOptionB
-          return {
-            ...p,
-            isVoted: true,
-            votedOption: option,
-            votesOptionA: updatedA,
-            votesOptionB: updatedB,
-            votes: updatedA + updatedB,
-          }
-        }),
-      }))
-    } catch (e) {
+    } catch {
+      // Roll back to pre-vote state
+      setState(s => ({ ...s, polls: snapshot }))
       throw new Error('VOTE FAILED')
     }
   }, [userId])

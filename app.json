@@ -11,13 +11,19 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.pete.paul"
+      "bundleIdentifier": "com.pete.paul",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#000000"
       },
-      "package": "com.pete.paul"
+      "package": "com.pete.paul",
+      "usesCleartextTraffic": false
     },
     "newArchEnabled": true,
     "plugins": [
