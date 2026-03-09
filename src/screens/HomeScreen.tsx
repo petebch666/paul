@@ -1,385 +1,244 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
-  Animated,
-  PanResponder,
   Dimensions,
-  TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+  Extrapolation,
+  useAnimatedScrollHandler,
+} from 'react-native-reanimated'
+import { Flame } from 'lucide-react-native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
 import { usePolls } from '../hooks/usePolls'
 import { Poll } from '../types'
+import { Screen, TabBar, PixelBar, Button, Card, Divider, Chip } from '../components/ui'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.35
-const SWIPE_OUT_DURATION = 280
 
-// ─────────────────────────────────────────────
-// Pixel bar — text-based progress bar
-// ─────────────────────────────────────────────
-function PixelBar({ pct, label }: { pct: number; label: string }) {
-  const filled = Math.round(pct / 10)
-  const empty = 10 - filled
-  return (
-    <View style={barStyles.row}>
-      <Text style={barStyles.label}>{label}</Text>
-      <Text style={barStyles.bar}>
-        {'█'.repeat(filled)}{'░'.repeat(empty)}
-      </Text>
-      <Text style={barStyles.pct}>{Math.round(pct)}%</Text>
-    </View>
-  )
+const AnimScrollView = Reanimated.createAnimatedComponent(ScrollView)
+
+const CATEGORIES = ['GENERAL', 'SPORTS', 'MUSIC', 'TECH', 'FOOD', 'MOVIES', 'POLITICS', 'SCIENCE', 'GAMING', 'OTHER']
+
+const FILTER_TABS = [
+  { label: 'ALL', value: 'ALL' },
+  { label: 'TRENDING', value: 'TRENDING' },
+  { label: '🔥', value: 'EXPIRING' },
+  { label: 'EXPIRED', value: 'EXPIRED' },
+  { label: 'VOTED', value: 'VOTED' },
+]
+
+function isExpiringSoon(poll: Poll): boolean {
+  if (poll.isExpired || !poll.timerEnabled) return false
+  const hoursLeft = (new Date(poll.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60)
+  return hoursLeft > 0 && hoursLeft < 2
 }
 
-const barStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  label: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.text,
-    width: 24,
-    letterSpacing: 1,
-  },
-  bar: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.text,
-    flex: 1,
-    letterSpacing: 1,
-  },
-  pct: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    width: 36,
-    textAlign: 'right',
-  },
-})
-
 // ─────────────────────────────────────────────
-// Swipe Poll Card
+// Carousel Card
 // ─────────────────────────────────────────────
-function SwipePollCard({
-  poll,
-  onVote,
-  onAdvance,
-  onSkip,
-}: {
+interface CarouselCardProps {
   poll: Poll
+  index: number
+  scrollY: Reanimated.SharedValue<number>
+  slotHeight: number
+  isFocused: boolean
   onVote: (option: 'A' | 'B') => void
   onAdvance: () => void
-  onSkip: () => void
-}) {
-  const pan = useRef(new Animated.ValueXY()).current
+}
+
+function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onAdvance }: CarouselCardProps) {
+  const translateX = useSharedValue(0)
+  const isSwiped = useSharedValue(false)
   const [voted, setVoted] = useState(poll.isVoted)
   const [localPoll, setLocalPoll] = useState(poll)
-  const swipedRef = useRef(false)
 
-  // Always-current callbacks — avoids stale panResponder closure
   const callbacksRef = useRef({ onVote, onAdvance })
   callbacksRef.current = { onVote, onAdvance }
 
-  // Reset when poll changes
   useEffect(() => {
-    pan.setValue({ x: 0, y: 0 })
+    translateX.value = 0
+    isSwiped.value = false
     setVoted(poll.isVoted)
     setLocalPoll(poll)
-    swipedRef.current = false
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poll.id])
 
-  // Stable reference — panResponder captures this once, reads callbacks via ref
-  const swipeOut = useCallback((direction: 'left' | 'right', option: 'A' | 'B') => {
-    if (swipedRef.current) return
-    swipedRef.current = true
-    const toX = direction === 'right' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5
-    Animated.timing(pan, {
-      toValue: { x: toX, y: 0 },
-      duration: SWIPE_OUT_DURATION,
-      useNativeDriver: true,
-    }).start(() => {
-      pan.setValue({ x: 0, y: 0 })
-      setVoted(true)
-      callbacksRef.current.onVote(option)
-      setTimeout(() => {
-        callbacksRef.current.onAdvance()
-        swipedRef.current = false
-      }, 500)
+  function doVote(option: 'A' | 'B') {
+    setVoted(true)
+    callbacksRef.current.onVote(option)
+    setTimeout(() => {
+      callbacksRef.current.onAdvance()
+    }, 500)
+  }
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-15, 15])
+    .failOffsetY([-10, 10])
+    .enabled(isFocused && !voted)
+    .onUpdate(e => {
+      if (!isSwiped.value) translateX.value = e.translationX
     })
-  // pan, swipedRef, setVoted, callbacksRef are all stable refs/constants
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        !swipedRef.current && Math.abs(g.dx) > Math.abs(g.dy) && Math.abs(g.dx) > 8,
-      onPanResponderMove: Animated.event([null, { dx: pan.x }], {
-        useNativeDriver: false,
-      }),
-      onPanResponderRelease: (_, g) => {
-        if (swipedRef.current) return
-        if (g.dx > SWIPE_THRESHOLD) {
-          swipeOut('right', 'A')
-        } else if (g.dx < -SWIPE_THRESHOLD) {
-          swipeOut('left', 'B')
-        } else {
-          Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: true,
-            friction: 8,
-          }).start()
-        }
-      },
+    .onEnd(e => {
+      if (isSwiped.value) return
+      if (e.translationX > SWIPE_THRESHOLD) {
+        isSwiped.value = true
+        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: theme.animation.normal }, () => {
+          runOnJS(doVote)('A')
+        })
+      } else if (e.translationX < -SWIPE_THRESHOLD) {
+        isSwiped.value = true
+        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: theme.animation.normal }, () => {
+          runOnJS(doVote)('B')
+        })
+      } else {
+        translateX.value = withSpring(0, theme.animation.spring)
+      }
     })
-  ).current
 
-  const rotate = pan.x.interpolate({
-    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-    outputRange: ['-5deg', '0deg', '5deg'],
-    extrapolate: 'clamp',
+  // Scroll-driven scale + opacity (UI thread)
+  const animStyle = useAnimatedStyle(() => {
+    if (slotHeight === 0) return {}
+    const distance = scrollY.value - index * slotHeight
+    const scale = interpolate(distance, [-slotHeight, 0, slotHeight], [0.88, 1, 0.88], Extrapolation.CLAMP)
+    const opacity = interpolate(distance, [-slotHeight, 0, slotHeight], [0.35, 1, 0.35], Extrapolation.CLAMP)
+    return { transform: [{ scale }], opacity }
   })
 
-  const aOpacity = pan.x.interpolate({
-    inputRange: [0, SCREEN_WIDTH * 0.2],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
+  // Pan-driven translate + rotate
+  const cardInnerStyle = useAnimatedStyle(() => {
+    const rotate = `${interpolate(translateX.value, [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2], [-5, 0, 5], Extrapolation.CLAMP)}deg`
+    return { transform: [{ translateX: translateX.value }, { rotate }] }
   })
-  const bOpacity = pan.x.interpolate({
-    inputRange: [-SCREEN_WIDTH * 0.2, 0],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  })
+
+  const aOverlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, SCREEN_WIDTH * 0.2], [0, 1], Extrapolation.CLAMP),
+  }))
+
+  const bOverlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [-SCREEN_WIDTH * 0.2, 0], [1, 0], Extrapolation.CLAMP),
+  }))
 
   const pctA = localPoll.votes > 0 ? (localPoll.votesOptionA / localPoll.votes) * 100 : 50
   const pctB = localPoll.votes > 0 ? (localPoll.votesOptionB / localPoll.votes) * 100 : 50
-
-  if (voted) {
-    return (
-      <View style={cardStyles.card}>
-        <Text style={cardStyles.category}>{localPoll.category}</Text>
-        <Text style={cardStyles.title}>{localPoll.title}</Text>
-        <View style={cardStyles.divider} />
-        <PixelBar pct={pctA} label="A" />
-        <PixelBar pct={pctB} label="B" />
-        <Text style={cardStyles.voteCount}>{localPoll.votes} VOTES</Text>
-        <View style={cardStyles.divider} />
-        <View style={cardStyles.optionRow}>
-          <Text style={cardStyles.optionLabel} numberOfLines={2}>{localPoll.optionA}</Text>
-          <Text style={cardStyles.vs}>VS</Text>
-          <Text style={[cardStyles.optionLabel, cardStyles.optionRight]} numberOfLines={2}>
-            {localPoll.optionB}
-          </Text>
-        </View>
-      </View>
-    )
-  }
+  const expiring = isExpiringSoon(localPoll)
 
   return (
-    <Animated.View
-      style={[
-        cardStyles.card,
-        {
-          transform: [{ translateX: pan.x }, { rotate }],
-        },
-      ]}
-      {...panResponder.panHandlers}
-    >
-      {/* Swipe hint overlays */}
-      <Animated.View style={[cardStyles.overlay, cardStyles.overlayRight, { opacity: aOpacity }]}>
-        <Text style={cardStyles.overlayText}>VOTE A</Text>
-      </Animated.View>
-      <Animated.View style={[cardStyles.overlay, cardStyles.overlayLeft, { opacity: bOpacity }]}>
-        <Text style={cardStyles.overlayText}>VOTE B</Text>
-      </Animated.View>
+    <View style={{ height: slotHeight, justifyContent: 'center', paddingVertical: 24 }}>
+      <Reanimated.View style={[{ flex: 1 }, animStyle]}>
+        <GestureDetector gesture={panGesture}>
+          <Card
+            animatedStyle={cardInnerStyle}
+            style={{ flex: 1, margin: theme.spacing.md, justifyContent: 'space-between' }}
+          >
+            {/* Vote A / Vote B overlays */}
+            <Reanimated.View style={[{
+              position: 'absolute', top: theme.spacing.lg, right: theme.spacing.md, zIndex: 10,
+              borderWidth: 2, borderColor: theme.colors.text, padding: theme.spacing.sm,
+            }, aOverlayStyle]}>
+              <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.sm, color: theme.colors.text, letterSpacing: 2 }}>VOTE A</Text>
+            </Reanimated.View>
+            <Reanimated.View style={[{
+              position: 'absolute', top: theme.spacing.lg, left: theme.spacing.md, zIndex: 10,
+              borderWidth: 2, borderColor: theme.colors.text, padding: theme.spacing.sm,
+            }, bOverlayStyle]}>
+              <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.sm, color: theme.colors.text, letterSpacing: 2 }}>VOTE B</Text>
+            </Reanimated.View>
 
-      <Text style={cardStyles.category}>{localPoll.category}</Text>
+            {/* Category + flame badge */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 3 }}>
+                {localPoll.category}
+              </Text>
+              {expiring && <Flame size={11} color="#FF6B00" />}
+            </View>
 
-      {localPoll.isDeathmatch && (
-        <Text style={cardStyles.deathTag}>⚔ DEATHMATCH</Text>
-      )}
-      {localPoll.isConfession && (
-        <Text style={cardStyles.deathTag}>🔒 CONFESSION</Text>
-      )}
+            {localPoll.isDeathmatch && (
+              <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.text, letterSpacing: 2, marginTop: theme.spacing.xs }}>
+                ⚔ DEATHMATCH
+              </Text>
+            )}
+            {localPoll.isConfession && (
+              <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.text, letterSpacing: 2, marginTop: theme.spacing.xs }}>
+                🔒 CONFESSION
+              </Text>
+            )}
 
-      <Text style={cardStyles.title}>{localPoll.title}</Text>
-
-      <View style={cardStyles.divider} />
-
-      <View style={cardStyles.optionRow}>
-        <View style={cardStyles.optionBox}>
-          <Text style={cardStyles.optionBoxLabel}>A</Text>
-          <Text style={cardStyles.optionBoxText} numberOfLines={3}>{localPoll.optionA}</Text>
-        </View>
-        <Text style={cardStyles.vs}>VS</Text>
-        <View style={[cardStyles.optionBox, cardStyles.optionBoxRight]}>
-          <Text style={cardStyles.optionBoxLabel}>B</Text>
-          <Text style={cardStyles.optionBoxText} numberOfLines={3}>{localPoll.optionB}</Text>
-        </View>
-      </View>
-
-      <View style={cardStyles.divider} />
-
-      <View style={cardStyles.footer}>
-        <Text style={cardStyles.footerText}>← VOTE B</Text>
-        <Text style={cardStyles.footerMeta}>
-          {localPoll.timeLeft !== 'EXPIRED' ? `⏱ ${localPoll.timeLeft}` : 'EXPIRED'}
-        </Text>
-        <Text style={cardStyles.footerText}>VOTE A →</Text>
-      </View>
-
-      {localPoll.authorUsername && (
-        <Text style={cardStyles.author}>@{localPoll.authorUsername}</Text>
-      )}
-    </Animated.View>
+            {voted ? (
+              <>
+                <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.lg, color: theme.colors.text, letterSpacing: 1, lineHeight: 26, marginVertical: theme.spacing.md }}>
+                  {localPoll.title}
+                </Text>
+                <Divider />
+                <PixelBar pct={pctA} label="A" />
+                <PixelBar pct={pctB} label="B" />
+                <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 2, marginTop: theme.spacing.xs }}>
+                  {localPoll.votes} VOTES
+                </Text>
+                <Divider />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, marginVertical: theme.spacing.sm }}>
+                  <Text style={{ flex: 1, fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 1 }} numberOfLines={2}>
+                    {localPoll.optionA}
+                  </Text>
+                  <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.sm, color: theme.colors.textDim, letterSpacing: 2, paddingHorizontal: theme.spacing.xs }}>VS</Text>
+                  <Text style={{ flex: 1, fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 1, textAlign: 'right' }} numberOfLines={2}>
+                    {localPoll.optionB}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.lg, color: theme.colors.text, letterSpacing: 1, lineHeight: 26, marginVertical: theme.spacing.md }}>
+                  {localPoll.title}
+                </Text>
+                <Divider />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, marginVertical: theme.spacing.sm }}>
+                  <View style={{ flex: 1, borderWidth: theme.borderWidth, borderColor: theme.colors.borderMuted, padding: theme.spacing.sm }}>
+                    <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.lg, color: theme.colors.text, letterSpacing: 2 }}>A</Text>
+                    <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 1, marginTop: 4, lineHeight: 16 }} numberOfLines={3}>
+                      {localPoll.optionA}
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.sm, color: theme.colors.textDim, letterSpacing: 2, paddingHorizontal: theme.spacing.xs }}>VS</Text>
+                  <View style={{ flex: 1, borderWidth: theme.borderWidth, borderColor: theme.colors.borderMuted, padding: theme.spacing.sm, alignItems: 'flex-end' }}>
+                    <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.lg, color: theme.colors.text, letterSpacing: 2 }}>B</Text>
+                    <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 1, marginTop: 4, lineHeight: 16 }} numberOfLines={3}>
+                      {localPoll.optionB}
+                    </Text>
+                  </View>
+                </View>
+                <Divider />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: theme.spacing.xs }}>
+                  <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.textDim, letterSpacing: 1 }}>← VOTE B</Text>
+                  <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.textMuted, letterSpacing: 1 }}>
+                    {localPoll.timeLeft !== 'EXPIRED' ? `⏱ ${localPoll.timeLeft}` : 'EXPIRED'}
+                  </Text>
+                  <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.textDim, letterSpacing: 1 }}>VOTE A →</Text>
+                </View>
+                {localPoll.authorUsername && (
+                  <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.textDim, letterSpacing: 1, textAlign: 'right', marginTop: theme.spacing.xs }}>
+                    @{localPoll.authorUsername}
+                  </Text>
+                )}
+              </>
+            )}
+          </Card>
+        </GestureDetector>
+      </Reanimated.View>
+    </View>
   )
 }
-
-const cardStyles = StyleSheet.create({
-  card: {
-    backgroundColor: theme.colors.background,
-    borderWidth: theme.borderWidth,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.lg,
-    margin: theme.spacing.md,
-    minHeight: 380,
-    justifyContent: 'space-between',
-  },
-  overlay: {
-    position: 'absolute',
-    top: theme.spacing.lg,
-    zIndex: 10,
-    borderWidth: 2,
-    borderColor: theme.colors.text,
-    padding: theme.spacing.sm,
-  },
-  overlayRight: {
-    right: theme.spacing.md,
-  },
-  overlayLeft: {
-    left: theme.spacing.md,
-  },
-  overlayText: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text,
-    letterSpacing: 2,
-  },
-  category: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 3,
-    marginBottom: theme.spacing.xs,
-  },
-  deathTag: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.text,
-    letterSpacing: 2,
-    marginBottom: theme.spacing.xs,
-  },
-  title: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.lg,
-    color: theme.colors.text,
-    letterSpacing: 1,
-    lineHeight: 26,
-    marginVertical: theme.spacing.md,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: theme.colors.borderMuted,
-    marginVertical: theme.spacing.sm,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-    marginVertical: theme.spacing.sm,
-  },
-  optionBox: {
-    flex: 1,
-    borderWidth: theme.borderWidth,
-    borderColor: theme.colors.borderMuted,
-    padding: theme.spacing.sm,
-  },
-  optionBoxRight: {
-    alignItems: 'flex-end',
-  },
-  optionBoxLabel: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.lg,
-    color: theme.colors.text,
-    letterSpacing: 2,
-  },
-  optionBoxText: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 1,
-    marginTop: 4,
-    lineHeight: 16,
-  },
-  vs: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textDim,
-    letterSpacing: 2,
-    paddingHorizontal: theme.spacing.xs,
-  },
-  optionLabel: {
-    flex: 1,
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 1,
-  },
-  optionRight: {
-    textAlign: 'right',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: theme.spacing.xs,
-  },
-  footerText: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xxs,
-    color: theme.colors.textDim,
-    letterSpacing: 1,
-  },
-  footerMeta: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xxs,
-    color: theme.colors.textMuted,
-    letterSpacing: 1,
-  },
-  author: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xxs,
-    color: theme.colors.textDim,
-    letterSpacing: 1,
-    textAlign: 'right',
-    marginTop: theme.spacing.xs,
-  },
-  voteCount: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 2,
-    marginTop: theme.spacing.xs,
-  },
-})
 
 // ─────────────────────────────────────────────
 // HomeScreen
@@ -387,202 +246,121 @@ const cardStyles = StyleSheet.create({
 export default function HomeScreen() {
   const { user } = useAuth()
   const { polls, isLoading, isLoadingMore, error, hasMore, loadPolls, loadMore, vote } = usePolls(user!.id)
-  const [index, setIndex] = useState(0)
-  const [filter, setFilter] = useState<'ALL' | 'TRENDING' | 'EXPIRED' | 'VOTED'>('ALL')
+  const [filter, setFilter] = useState('ALL')
+  const [categoryFilter, setCategoryFilter] = useState('ALL')
+  const [containerHeight, setContainerHeight] = useState(0)
+  const [focusedIndex, setFocusedIndex] = useState(0)
+  const scrollY = useSharedValue(0)
+  const scrollRef = useRef<any>(null)
+
+  const scrollHandler = useAnimatedScrollHandler(e => {
+    scrollY.value = e.contentOffset.y
+  })
 
   useEffect(() => {
     loadPolls()
   }, [loadPolls])
 
   const filtered = polls.filter(p => {
-    if (filter === 'TRENDING') return (p.trendingScore || 0) > 0 && !p.isExpired
-    if (filter === 'EXPIRED')  return p.isExpired
-    if (filter === 'VOTED')    return p.isVoted
-    return true  // ALL: keep voted polls in deck — they show results and auto-advance
+    const typeOk = (() => {
+      if (filter === 'TRENDING') return (p.trendingScore || 0) > 0 && !p.isExpired
+      if (filter === 'EXPIRED')  return p.isExpired
+      if (filter === 'VOTED')    return p.isVoted
+      if (filter === 'EXPIRING') return isExpiringSoon(p)
+      return true
+    })()
+    const catOk = categoryFilter === 'ALL' || p.category === categoryFilter
+    return typeOk && catOk
   })
 
-  // Trigger load-more when approaching end of batch
   useEffect(() => {
-    if (filtered.length > 0 && index >= filtered.length - 5 && hasMore) {
+    setFocusedIndex(0)
+    scrollRef.current?.scrollTo({ y: 0, animated: false })
+  }, [filter, categoryFilter])
+
+  useEffect(() => {
+    if (filtered.length > 0 && focusedIndex >= filtered.length - 3 && hasMore) {
       loadMore()
     }
-  }, [index, filtered.length, hasMore, loadMore])
-
-  const currentPoll = filtered[index]
-
-  const handleVote = useCallback((option: 'A' | 'B') => {
-    if (!currentPoll || currentPoll.isExpired) return
-    vote(currentPoll.id, option).catch(() => {})
-  }, [currentPoll, vote])
-
-  const handleAdvance = useCallback(() => {
-    setIndex(i => i + 1)
-  }, [])
-
-  const handleSkip = useCallback(() => {
-    setIndex(i => Math.min(i + 1, filtered.length - 1))
-  }, [filtered.length])
-
-  // Reset index when filter changes
-  const handleFilter = (f: typeof filter) => {
-    setFilter(f)
-    setIndex(0)
-  }
-
-  const filters: Array<typeof filter> = ['ALL', 'TRENDING', 'EXPIRED', 'VOTED']
+  }, [focusedIndex, filtered.length, hasMore, loadMore])
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.logo}>PAUL</Text>
-        <Text style={styles.counter}>
-          {filtered.length > 0 ? `${index + 1}/${filtered.length}${hasMore ? '+' : ''}` : '0/0'}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md, borderBottomWidth: theme.borderWidth, borderBottomColor: theme.colors.borderMuted }}>
+        <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.xl, color: theme.colors.text, letterSpacing: 8 }}>PAUL</Text>
+        <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 2 }}>
+          {filtered.length > 0 ? `${focusedIndex + 1} / ${filtered.length}${hasMore ? '+' : ''}` : '0 / 0'}
         </Text>
       </View>
 
-      {/* Filter tabs */}
-      <View style={styles.filterRow}>
-        {filters.map(f => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterTab, filter === f && styles.filterTabActive]}
-            onPress={() => handleFilter(f)}
-          >
-            <Text style={[styles.filterTabText, filter === f && styles.filterTabTextActive]}>
-              {f}
-            </Text>
-          </TouchableOpacity>
+      {/* Type filter tabs */}
+      <TabBar tabs={FILTER_TABS} active={filter} onSelect={setFilter} />
+
+      {/* Category chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 6 }}
+        style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted }}
+      >
+        <Chip label="ALL" selected={categoryFilter === 'ALL'} onPress={() => setCategoryFilter('ALL')} size="sm" />
+        {CATEGORIES.map(c => (
+          <Chip key={c} label={c} selected={categoryFilter === c} onPress={() => setCategoryFilter(c)} size="sm" />
         ))}
-      </View>
+      </ScrollView>
 
       {/* Content */}
       {isLoading ? (
-        <View style={styles.center}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
           <ActivityIndicator color={theme.colors.text} />
-          <Text style={styles.centerText}>LOADING...</Text>
+          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.sm, color: theme.colors.textMuted, letterSpacing: 4 }}>LOADING...</Text>
         </View>
       ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={loadPolls}>
-            <Text style={styles.retryBtnText}>RETRY</Text>
-          </TouchableOpacity>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
+          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.danger, letterSpacing: 2 }}>{error}</Text>
+          <Button variant="secondary" onPress={loadPolls}>RETRY</Button>
         </View>
       ) : filtered.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.centerText}>NO POLLS</Text>
-        </View>
-      ) : index >= filtered.length ? (
-        <View style={styles.center}>
-          <Text style={styles.centerText}>ALL DONE</Text>
-          <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={() => { setIndex(0); loadPolls() }}
-          >
-            <Text style={styles.retryBtnText}>REFRESH</Text>
-          </TouchableOpacity>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.sm, color: theme.colors.textMuted, letterSpacing: 4 }}>NO POLLS</Text>
         </View>
       ) : (
-        <>
-          <SwipePollCard
-            poll={filtered[index]}
-            onVote={handleVote}
-            onAdvance={handleAdvance}
-            onSkip={handleSkip}
-          />
+        <View style={{ flex: 1 }} onLayout={e => setContainerHeight(e.nativeEvent.layout.height)}>
+          {containerHeight > 0 && (
+            <AnimScrollView
+              ref={scrollRef}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+              snapToInterval={containerHeight}
+              decelerationRate="fast"
+              showsVerticalScrollIndicator={false}
+              onMomentumScrollEnd={e => {
+                const idx = Math.round(e.nativeEvent.contentOffset.y / containerHeight)
+                setFocusedIndex(Math.max(0, Math.min(idx, filtered.length - 1)))
+              }}
+            >
+              {filtered.map((poll, i) => (
+                <CarouselCard
+                  key={poll.id}
+                  poll={poll}
+                  index={i}
+                  scrollY={scrollY}
+                  slotHeight={containerHeight}
+                  isFocused={focusedIndex === i}
+                  onVote={(option) => vote(poll.id, option).catch(() => {})}
+                  onAdvance={() => scrollRef.current?.scrollTo({ y: (i + 1) * containerHeight, animated: true })}
+                />
+              ))}
+            </AnimScrollView>
+          )}
           {isLoadingMore && (
-            <View style={styles.loadingMore}>
+            <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, alignItems: 'center' }}>
               <ActivityIndicator color={theme.colors.textDim} size="small" />
             </View>
           )}
-        </>
+        </View>
       )}
-    </SafeAreaView>
+    </Screen>
   )
 }
-
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: theme.borderWidth,
-    borderBottomColor: theme.colors.borderMuted,
-  },
-  logo: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.xl,
-    color: theme.colors.text,
-    letterSpacing: 8,
-  },
-  counter: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 2,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    borderBottomWidth: theme.borderWidth,
-    borderBottomColor: theme.colors.borderMuted,
-  },
-  filterTab: {
-    flex: 1,
-    paddingVertical: theme.spacing.sm,
-    alignItems: 'center',
-  },
-  filterTabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: theme.colors.text,
-  },
-  filterTabText: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xxs,
-    color: theme.colors.textDim,
-    letterSpacing: 1,
-  },
-  filterTabTextActive: {
-    color: theme.colors.text,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  centerText: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textMuted,
-    letterSpacing: 4,
-  },
-  errorText: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.danger,
-    letterSpacing: 2,
-  },
-  retryBtn: {
-    borderWidth: theme.borderWidth,
-    borderColor: theme.colors.border,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-  },
-  retryBtnText: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.text,
-    letterSpacing: 3,
-  },
-  loadingMore: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xs,
-  },
-})

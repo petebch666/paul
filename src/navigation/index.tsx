@@ -1,5 +1,6 @@
 import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import { Home, Plus, User, Shield } from 'lucide-react-native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
 import HomeScreen from '../screens/HomeScreen'
@@ -17,14 +18,13 @@ export default function AppNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarIcon: () => null,
         tabBarStyle: {
           backgroundColor: theme.colors.background,
           borderTopColor: theme.colors.border,
           borderTopWidth: theme.borderWidth,
           paddingBottom: 4,
           paddingTop: 8,
-          height: 56,
+          height: theme.tabBarHeight,
         },
         tabBarActiveTintColor: theme.colors.text,
         tabBarInactiveTintColor: theme.colors.textDim,
@@ -44,6 +44,9 @@ export default function AppNavigator() {
         component={HomeScreen}
         options={{
           tabBarLabel: 'HOME',
+          tabBarIcon: ({ color, focused }) => (
+            <Home size={20} color={color} strokeWidth={focused ? 2 : 1.5} />
+          ),
         }}
       />
       <Tab.Screen
@@ -51,6 +54,9 @@ export default function AppNavigator() {
         component={CreateScreen}
         options={{
           tabBarLabel: 'CREATE',
+          tabBarIcon: ({ color, focused }) => (
+            <Plus size={20} color={color} strokeWidth={focused ? 2 : 1.5} />
+          ),
         }}
       />
       <Tab.Screen
@@ -58,6 +64,9 @@ export default function AppNavigator() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'PROFILE',
+          tabBarIcon: ({ color, focused }) => (
+            <User size={20} color={color} strokeWidth={focused ? 2 : 1.5} />
+          ),
         }}
       />
       {isAdmin && (
@@ -66,6 +75,9 @@ export default function AppNavigator() {
           component={AdminScreen}
           options={{
             tabBarLabel: 'ADMIN',
+            tabBarIcon: ({ color, focused }) => (
+              <Shield size={20} color={color} strokeWidth={focused ? 2 : 1.5} />
+            ),
           }}
         />
       )}

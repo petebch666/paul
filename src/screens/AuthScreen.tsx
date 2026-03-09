@@ -1,18 +1,8 @@
 import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View, Text } from 'react-native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
+import { Screen, Button, Input, ErrorBox, Chip } from '../components/ui'
 
 type Mode = 'login' | 'signup'
 
@@ -43,217 +33,76 @@ export default function AuthScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Logo */}
-          <View style={styles.header}>
-            <Text style={styles.logo}>PAUL</Text>
-            <Text style={styles.tagline}>VOTE. DEBATE. WIN.</Text>
-          </View>
+    <Screen scroll keyboardAvoiding padding>
+      {/* Logo */}
+      <View style={{ alignItems: 'center', marginBottom: theme.spacing.xxl }}>
+        <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.xxxl, color: theme.colors.text, letterSpacing: 12 }}>
+          PAUL
+        </Text>
+        <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 4, marginTop: theme.spacing.sm }}>
+          VOTE. DEBATE. WIN.
+        </Text>
+      </View>
 
-          {/* Mode toggle */}
-          <View style={styles.modeRow}>
-            <TouchableOpacity
-              style={[styles.modeBtn, mode === 'login' && styles.modeBtnActive]}
-              onPress={() => switchMode('login')}
-            >
-              <Text style={[styles.modeBtnText, mode === 'login' && styles.modeBtnTextActive]}>
-                LOGIN
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeBtn, mode === 'signup' && styles.modeBtnActive]}
-              onPress={() => switchMode('signup')}
-            >
-              <Text style={[styles.modeBtnText, mode === 'signup' && styles.modeBtnTextActive]}>
-                SIGN UP
-              </Text>
-            </TouchableOpacity>
-          </View>
+      {/* Mode toggle */}
+      <View style={{ flexDirection: 'row', marginBottom: theme.spacing.xl }}>
+        <Chip label="LOGIN" selected={mode === 'login'} onPress={() => switchMode('login')} flex size="md" />
+        <Chip label="SIGN UP" selected={mode === 'signup'} onPress={() => switchMode('signup')} flex size="md" />
+      </View>
 
-          {/* Form */}
-          <View style={styles.form}>
-            {mode === 'signup' && (
-              <>
-                <Text style={styles.label}>NAME</Text>
-                <TextInput
-                  style={styles.input}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="YOUR NAME"
-                  placeholderTextColor={theme.colors.textDim}
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                />
-                <Text style={styles.label}>USERNAME</Text>
-                <TextInput
-                  style={styles.input}
-                  value={username}
-                  onChangeText={t => setUsername(t.toLowerCase())}
-                  placeholder="USERNAME"
-                  placeholderTextColor={theme.colors.textDim}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                />
-              </>
-            )}
-
-            <Text style={styles.label}>{mode === 'login' ? 'EMAIL OR USERNAME' : 'EMAIL'}</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder={mode === 'login' ? 'EMAIL OR USERNAME' : 'EMAIL ADDRESS'}
-              placeholderTextColor={theme.colors.textDim}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
+      {/* Form */}
+      <View style={{ gap: theme.spacing.xs }}>
+        {mode === 'signup' && (
+          <>
+            <Input
+              label="NAME"
+              value={name}
+              onChangeText={setName}
+              placeholder="YOUR NAME"
+              autoCapitalize="words"
               returnKeyType="next"
             />
-
-            <Text style={styles.label}>PASSWORD</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="PASSWORD"
-              placeholderTextColor={theme.colors.textDim}
-              secureTextEntry
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
+            <Input
+              label="USERNAME"
+              value={username}
+              onChangeText={t => setUsername(t.toLowerCase())}
+              placeholder="USERNAME"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
             />
+          </>
+        )}
 
-            {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+        <Input
+          label={mode === 'login' ? 'EMAIL OR USERNAME' : 'EMAIL'}
+          value={email}
+          onChangeText={setEmail}
+          placeholder={mode === 'login' ? 'EMAIL OR USERNAME' : 'EMAIL ADDRESS'}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          returnKeyType="next"
+        />
 
-            <TouchableOpacity
-              style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={theme.colors.background} size="small" />
-              ) : (
-                <Text style={styles.submitBtnText}>
-                  {mode === 'login' ? 'LOGIN' : 'CREATE ACCOUNT'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <Input
+          label="PASSWORD"
+          value={password}
+          onChangeText={setPassword}
+          placeholder="PASSWORD"
+          secureTextEntry
+          returnKeyType="done"
+          onSubmitEditing={handleSubmit}
+        />
+
+        {error ? <ErrorBox message={error} /> : null}
+
+        <View style={{ marginTop: theme.spacing.xl }}>
+          <Button variant="primary" fullWidth loading={isLoading} onPress={handleSubmit}>
+            {mode === 'login' ? 'LOGIN' : 'CREATE ACCOUNT'}
+          </Button>
+        </View>
+      </View>
+    </Screen>
   )
 }
-
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scroll: {
-    flexGrow: 1,
-    padding: theme.spacing.lg,
-    justifyContent: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xxl,
-  },
-  logo: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.xxxl,
-    color: theme.colors.text,
-    letterSpacing: 12,
-  },
-  tagline: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 4,
-    marginTop: theme.spacing.sm,
-  },
-  modeRow: {
-    flexDirection: 'row',
-    borderWidth: theme.borderWidth,
-    borderColor: theme.colors.border,
-    marginBottom: theme.spacing.xl,
-  },
-  modeBtn: {
-    flex: 1,
-    paddingVertical: theme.spacing.sm,
-    alignItems: 'center',
-  },
-  modeBtnActive: {
-    backgroundColor: theme.colors.text,
-  },
-  modeBtnText: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 2,
-  },
-  modeBtnTextActive: {
-    color: theme.colors.background,
-  },
-  form: {
-    gap: theme.spacing.xs,
-  },
-  label: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 2,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xs,
-  },
-  input: {
-    borderWidth: theme.borderWidth,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    color: theme.colors.text,
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    letterSpacing: 1,
-  },
-  errorBox: {
-    borderWidth: theme.borderWidth,
-    borderColor: theme.colors.danger,
-    padding: theme.spacing.sm,
-    marginTop: theme.spacing.md,
-  },
-  errorText: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.danger,
-    letterSpacing: 1,
-  },
-  submitBtn: {
-    backgroundColor: theme.colors.text,
-    padding: theme.spacing.md,
-    alignItems: 'center',
-    marginTop: theme.spacing.xl,
-  },
-  submitBtnDisabled: {
-    opacity: 0.5,
-  },
-  submitBtnText: {
-    fontFamily: theme.fonts.bold,
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.background,
-    letterSpacing: 3,
-  },
-})

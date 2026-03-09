@@ -8,6 +8,12 @@ import {
   Silkscreen_400Regular,
   Silkscreen_700Bold,
 } from '@expo-google-fonts/silkscreen'
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter'
 import { View, Text, StyleSheet } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { AuthProvider, useAuth } from './src/hooks/useAuth'
@@ -40,6 +46,10 @@ export default function App() {
   const [fontsLoaded] = useFonts({
     Silkscreen_400Regular,
     Silkscreen_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   })
 
   if (!fontsLoaded) {
