@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert } from 'react-native'
 import { theme } from '../../theme'
 import { Poll } from '../../types'
 
@@ -7,9 +7,10 @@ interface PollRowProps {
   poll: Poll
   variant: 'profile' | 'admin'
   onDelete?: (pollId: string) => void
+  onAuthorPress?: (authorId: string) => void
 }
 
-export function PollRow({ poll, variant, onDelete }: PollRowProps) {
+export function PollRow({ poll, variant, onDelete, onAuthorPress }: PollRowProps) {
   function confirmDelete() {
     Alert.alert(
       'DELETE POLL',
@@ -37,6 +38,13 @@ export function PollRow({ poll, variant, onDelete }: PollRowProps) {
           <Text style={styles.votes}>{poll.votes} VOTES</Text>
           <Text style={styles.stat}>B {pctB}%</Text>
         </View>
+        {poll.authorUsername && onAuthorPress ? (
+          <Pressable onPress={() => onAuthorPress(poll.authorId)} style={{ marginTop: 4 }}>
+            <Text style={[styles.author, { textDecorationLine: 'underline' }]}>@{poll.authorUsername}</Text>
+          </Pressable>
+        ) : poll.authorUsername ? (
+          <Text style={[styles.author, { marginTop: 4 }]}>@{poll.authorUsername}</Text>
+        ) : null}
       </View>
     )
   }
@@ -50,7 +58,13 @@ export function PollRow({ poll, variant, onDelete }: PollRowProps) {
       </View>
       <Text style={styles.title} numberOfLines={2}>{poll.title}</Text>
       <View style={styles.adminFooter}>
-        <Text style={styles.author}>@{poll.authorUsername || 'unknown'}</Text>
+        {poll.authorUsername && onAuthorPress ? (
+          <Pressable onPress={() => onAuthorPress(poll.authorId)}>
+            <Text style={[styles.author, { textDecorationLine: 'underline' }]}>@{poll.authorUsername}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.author}>@{poll.authorUsername || 'unknown'}</Text>
+        )}
         {onDelete && (
           <TouchableOpacity style={styles.deleteBtn} onPress={confirmDelete}>
             <Text style={styles.deleteBtnText}>DELETE</Text>

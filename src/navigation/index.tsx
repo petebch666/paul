@@ -1,5 +1,6 @@
 import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { Home, Plus, User, Shield } from 'lucide-react-native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
@@ -7,10 +8,17 @@ import HomeScreen from '../screens/HomeScreen'
 import CreateScreen from '../screens/CreateScreen'
 import ProfileScreen from '../screens/ProfileScreen'
 import AdminScreen from '../screens/AdminScreen'
+import PublicProfileScreen from '../screens/PublicProfileScreen'
+
+export type RootStackParamList = {
+  Main: undefined
+  PublicProfile: { userId: string }
+}
 
 const Tab = createBottomTabNavigator()
+const Stack = createNativeStackNavigator<RootStackParamList>()
 
-export default function AppNavigator() {
+function MainTabs() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
@@ -82,5 +90,14 @@ export default function AppNavigator() {
         />
       )}
     </Tab.Navigator>
+  )
+}
+
+export default function AppNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Main" component={MainTabs} />
+      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+    </Stack.Navigator>
   )
 }

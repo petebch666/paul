@@ -7,7 +7,10 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  Pressable,
 } from 'react-native'
+import { useNavigation, NavigationProp } from '@react-navigation/native'
+import { RootStackParamList } from '../navigation'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Reanimated, {
   useSharedValue,
@@ -65,9 +68,10 @@ interface CarouselCardProps {
   isFocused: boolean
   onVote: (option: 'A' | 'B') => void
   onAdvance: () => void
+  onAuthorPress: (authorId: string) => void
 }
 
-function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onAdvance }: CarouselCardProps) {
+function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onAdvance, onAuthorPress }: CarouselCardProps) {
   const translateX = useSharedValue(0)
   const isSwiped = useSharedValue(false)
   const [voted, setVoted] = useState(poll.isVoted)
@@ -253,9 +257,11 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
                   <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.textDim, letterSpacing: 1 }}>VOTE A →</Text>
                 </View>
                 {localPoll.authorUsername && (
-                  <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.textDim, letterSpacing: 1, textAlign: 'right', marginTop: theme.spacing.xs }}>
-                    @{localPoll.authorUsername}
-                  </Text>
+                  <Pressable onPress={() => onAuthorPress(localPoll.authorId)}>
+                    <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.textDim, letterSpacing: 1, textAlign: 'right', marginTop: theme.spacing.xs, textDecorationLine: 'underline' }}>
+                      @{localPoll.authorUsername}
+                    </Text>
+                  </Pressable>
                 )}
               </>
             )}
@@ -270,6 +276,10 @@ function CarouselCard({ poll, index, scrollY, slotHeight, isFocused, onVote, onA
 // HomeScreen
 // ─────────────────────────────────────────────
 export default function HomeScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
+  const goToProfile = useCallback((authorId: string) => {
+    navigation.navigate('PublicProfile', { userId: authorId })
+  }, [navigation])
   const { user } = useAuth()
   const { polls, isLoading, isLoadingMore, error, hasMore, loadPolls, loadMore, vote } = usePolls(user!.id)
   const [filter, setFilter] = useState('ALL')
@@ -389,7 +399,7 @@ export default function HomeScreen() {
           scrollEventThrottle={200}
         >
           {filtered.map(p => (
-            <PollRow key={p.id} poll={p} variant="profile" />
+            <PollRow key={p.id} poll={p} variant="profile" onAuthorPress={goToProfile} />
           ))}
           {isLoadingMore && (
             <View style={{ paddingVertical: theme.spacing.lg, alignItems: 'center' }}>
@@ -424,6 +434,7 @@ export default function HomeScreen() {
                   isFocused={focusedIndex === i}
                   onVote={(option) => vote(poll.id, option)}
                   onAdvance={() => scrollRef.current?.scrollTo({ y: (i + 1) * containerHeight, animated: true })}
+                  onAuthorPress={goToProfile}
                 />
               ))}
             </AnimScrollView>

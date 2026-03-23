@@ -4,6 +4,7 @@ import { User } from '../types'
 import {
   getUserByAuthId,
   getUserByEmail,
+  getUserByUsername,
   getUserById,
   createUserProfile,
   linkUserAuthId,
@@ -71,12 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (identifier: string, password: string) => {
     setState(s => ({ ...s, isLoading: true, error: null }))
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    })
+    const trimmed = identifier.trim().toLowerCase()
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
+    let email = trimmed
+    if (!isEmail) {
+      const userRecord = await getUserByUsername(trimmed)
+      if (!userRecord?.email) {
+        setState(s => ({ ...s, isLoading: false, error: 'USER NOT FOUND' }))
+        return
+      }
+      email = userRecord.email
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setState(s => ({ ...s, isLoading: false, error: 'INVALID CREDENTIALS' }))
     }

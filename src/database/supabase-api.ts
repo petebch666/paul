@@ -254,6 +254,17 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return data ? transformUser(data) : null
 }
 
+export async function getUserByUsername(username: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('username', username.toLowerCase())
+    .maybeSingle()
+
+  if (error) return null
+  return data ? transformUser(data) : null
+}
+
 export async function getUserByAuthId(authId: string): Promise<User | null> {
   const { data, error } = await supabase
     .from('users')

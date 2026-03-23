@@ -165,7 +165,7 @@ export default function AuthScreen() {
           placeholder={mode === 'login' ? 'EMAIL OR USERNAME' : 'EMAIL ADDRESS'}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
+          keyboardType={mode === 'login' ? 'default' : 'email-address'}
           returnKeyType="next"
         />
 
