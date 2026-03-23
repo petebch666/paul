@@ -358,8 +358,8 @@ export default function HomeScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 6 }}
-        style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted }}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center' }}
+        style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.borderMuted, maxHeight: 48 }}
       >
         <Chip label="ALL" selected={categoryFilter === 'ALL'} onPress={() => setCategoryFilter('ALL')} size="sm" />
         {CATEGORIES.map(c => (
