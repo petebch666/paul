@@ -165,10 +165,7 @@ export async function castVote(pollId: string, userId: string, option: 'A' | 'B'
   // Fire-and-forget — don't throw if this fails.
   await supabase
     .from('poll_history')
-    .upsert(
-      { poll_id: pollId, user_id: userId, voted_at: new Date().toISOString() },
-      { ignoreDuplicates: true },
-    )
+    .insert({ poll_id: pollId, user_id: userId, action: 'voted' })
 }
 
 export async function createPoll(data: {
@@ -364,7 +361,7 @@ export async function getUserVoteHistory(
     .from('poll_history')
     .select('poll_id, polls(*)')
     .eq('user_id', userId)
-    .order('voted_at', { ascending: false })
+    .order('timestamp', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (error) throw new Error(error.message)
