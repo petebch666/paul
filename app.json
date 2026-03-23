@@ -15,7 +15,8 @@
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
-        }
+        },
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -37,7 +38,11 @@
     ],
     "extra": {
       "supabaseUrl": "https://bozdmfofraqhpubrddqo.supabase.co",
-      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvemRtZm9mcmFxaHB1YnJkZHFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxOTAyMDksImV4cCI6MjA3NTc2NjIwOX0.UuWyTeT_UTlL3SdZT_4xRbVs25pbdgnl4f3-s7h2LWo"
-    }
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvemRtZm9mcmFxaHB1YnJkZHFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxOTAyMDksImV4cCI6MjA3NTc2NjIwOX0.UuWyTeT_UTlL3SdZT_4xRbVs25pbdgnl4f3-s7h2LWo",
+      "eas": {
+        "projectId": "05d17728-2527-43cd-adae-d32f84a3e933"
+      }
+    },
+    "owner": "petebch"
   }
 }
