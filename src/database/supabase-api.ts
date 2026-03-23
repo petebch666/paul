@@ -160,6 +160,15 @@ export async function castVote(pollId: string, userId: string, option: 'A' | 'B'
         .eq('id', pollId)
     }
   }
+
+  // Record in poll_history so the VOTED tab in ProfileScreen is populated.
+  // Fire-and-forget — don't throw if this fails.
+  await supabase
+    .from('poll_history')
+    .upsert(
+      { poll_id: pollId, user_id: userId, voted_at: new Date().toISOString() },
+      { ignoreDuplicates: true },
+    )
 }
 
 export async function createPoll(data: {

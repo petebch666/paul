@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native'
+import { useNavigation, NavigationProp } from '@react-navigation/native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
+import { RootStackParamList } from '../navigation'
 import { getUserPolls, getUserVoteHistory, getUserActivity, updateUserProfile } from '../database/supabase-api'
 import { Poll } from '../types'
 import { Screen, TabBar, StatBox, PollRow, Button, Input, ErrorBox } from '../components/ui'
@@ -14,6 +16,7 @@ const PROFILE_TABS = [
 ]
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
   const { user, logout, refreshUser } = useAuth()
   const [tab, setTab] = useState('POLLS')
 
@@ -242,7 +245,7 @@ export default function ProfileScreen() {
               </View>
             ) : (
               <>
-                {polls.map(p => <PollRow key={p.id} poll={p} variant="profile" />)}
+                {polls.map(p => <PollRow key={p.id} poll={p} variant="profile" onAuthorPress={id => navigation.navigate('PublicProfile', { userId: id })} />)}
                 {pollsHasMore && (
                   <Button variant="ghost" fullWidth loading={isLoadingMore} onPress={loadMorePolls}>
                     LOAD MORE
@@ -259,7 +262,7 @@ export default function ProfileScreen() {
               </View>
             ) : (
               <>
-                {votedPolls.map(p => <PollRow key={p.id} poll={p} variant="profile" />)}
+                {votedPolls.map(p => <PollRow key={p.id} poll={p} variant="profile" onAuthorPress={id => navigation.navigate('PublicProfile', { userId: id })} />)}
                 {votedHasMore && (
                   <Button variant="ghost" fullWidth loading={isLoadingMore} onPress={loadMoreVoted}>
                     LOAD MORE

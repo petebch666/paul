@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native'
+import { useNavigation, NavigationProp } from '@react-navigation/native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
+import { RootStackParamList } from '../navigation'
 import {
   getAdminStats,
   getAdminStatsDetailed,
@@ -31,6 +33,7 @@ const ADMIN_TABS = [
 const PAGE_SIZE = 20
 
 export default function AdminScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
   const { user } = useAuth()
   const [tab, setTab] = useState<AdminTab>('STATS')
 
@@ -390,7 +393,7 @@ export default function AdminScreen() {
               ) : (
                 <>
                   {filteredPolls.map(p => (
-                    <PollRow key={p.id} poll={p} variant="admin" onDelete={handleDeletePoll} />
+                    <PollRow key={p.id} poll={p} variant="admin" onDelete={handleDeletePoll} onAuthorPress={id => navigation.navigate('PublicProfile', { userId: id })} />
                   ))}
                   {pollsHasMore && !pollsSearch && (
                     <Button variant="ghost" fullWidth loading={isLoadingMore} onPress={loadMorePolls}>
