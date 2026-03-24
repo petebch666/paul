@@ -91,6 +91,23 @@ npm install
 npx expo start --clear
 ```
 
+## Testing
+```bash
+npm test              # run all tests once
+npm run test:watch    # watch mode
+npm run test:coverage # with coverage report
+```
+
+131 unit tests across 3 suites — no network, no emulator required:
+
+| Suite | What it covers |
+|---|---|
+| `auth-logic.test.ts` | Email regex, username/password/name validation (pure logic) |
+| `supabase-api.test.ts` | All DB functions — getUserBy*, castVote (RPC + fallback), getPollsWithVoteStatus, getUserVoteHistory, getUserActivity |
+| `transforms.test.ts` | transformPoll (timeLeft, isExpired, vote counts, field mapping) and transformUser |
+
+All Supabase calls are intercepted by Jest mocks — tests run offline and in milliseconds.
+
 ## Build (EAS)
 ```bash
 # Internal preview (APK — fast for testing)
