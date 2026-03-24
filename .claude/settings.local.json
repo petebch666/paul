@@ -12,7 +12,8 @@
       "Bash(npx vite build)",
       "Bash(git checkout:*)",
       "Bash(taskkill:*)",
-      "Bash(start:*)"
+      "Bash(start:*)",
+      "Bash(npx jest:*)"
     ]
   }
 }
