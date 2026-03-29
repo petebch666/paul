@@ -1,14 +1,17 @@
 import React from 'react'
+import { View, Text } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { Home, Plus, User, Shield } from 'lucide-react-native'
+import { Home, Plus, User, Shield, Bell } from 'lucide-react-native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
+import { useNotifications } from '../hooks/useNotifications'
 import HomeScreen from '../screens/HomeScreen'
 import CreateScreen from '../screens/CreateScreen'
 import ProfileScreen from '../screens/ProfileScreen'
 import AdminScreen from '../screens/AdminScreen'
 import PublicProfileScreen from '../screens/PublicProfileScreen'
+import NotificationsScreen from '../screens/NotificationsScreen'
 
 export type RootStackParamList = {
   Main: undefined
@@ -18,9 +21,37 @@ export type RootStackParamList = {
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
+function UnreadBadge({ count }: { count: number }) {
+  if (count <= 0) return null
+  return (
+    <View style={{
+      position: 'absolute',
+      top: -4,
+      right: -6,
+      backgroundColor: theme.colors.danger,
+      borderRadius: 6,
+      minWidth: 12,
+      height: 12,
+      paddingHorizontal: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <Text style={{
+        fontFamily: theme.fonts.bold,
+        fontSize: 8,
+        color: '#FFF',
+        lineHeight: 12,
+      }}>
+        {count > 9 ? '9+' : count}
+      </Text>
+    </View>
+  )
+}
+
 function MainTabs() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const { unreadCount, refreshUnreadCount } = useNotifications(user?.id || '')
 
   return (
     <Tab.Navigator
@@ -64,6 +95,22 @@ function MainTabs() {
           tabBarLabel: 'CREATE',
           tabBarIcon: ({ color, focused }) => (
             <Plus size={20} color={color} strokeWidth={focused ? 2 : 1.5} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Inbox"
+        component={NotificationsScreen}
+        listeners={{
+          tabPress: () => refreshUnreadCount(),
+        }}
+        options={{
+          tabBarLabel: 'INBOX',
+          tabBarIcon: ({ color, focused }) => (
+            <View>
+              <Bell size={20} color={color} strokeWidth={focused ? 2 : 1.5} />
+              <UnreadBadge count={unreadCount} />
+            </View>
           ),
         }}
       />

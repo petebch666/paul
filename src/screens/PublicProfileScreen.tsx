@@ -5,6 +5,8 @@ import { getUserById, getUserPolls, getUserActivity } from '../database/supabase
 import { User, Poll } from '../types'
 import { Screen, StatBox, PollRow, Button, ErrorBox } from '../components/ui'
 import { ActivityGrid } from '../components/ui/ActivityGrid'
+import { useAuth } from '../hooks/useAuth'
+import { useFriends } from '../hooks/useFriends'
 
 interface PublicProfileScreenProps {
   route?: { params?: { userId?: string } }
@@ -14,6 +16,7 @@ interface PublicProfileScreenProps {
 
 export default function PublicProfileScreen({ route, navigation, userId: propUserId }: PublicProfileScreenProps) {
   const userId = propUserId || route?.params?.userId
+  const { user: currentUser } = useAuth()
   const [user, setUser] = useState<User | null>(null)
   const [polls, setPolls] = useState<Poll[]>([])
   const [activity, setActivity] = useState<Record<string, number>>({})
@@ -22,6 +25,10 @@ export default function PublicProfileScreen({ route, navigation, userId: propUse
   const [pollsHasMore, setPollsHasMore] = useState(false)
   const [pollsOffset, setPollsOffset] = useState(0)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [following, setFollowing] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
+
+  const { follow, unfollow, checkIsFollowing } = useFriends(currentUser?.id || '')
 
   const PAGE_SIZE = 20
 
@@ -47,10 +54,31 @@ export default function PublicProfileScreen({ route, navigation, userId: propUse
       setPollsHasMore(p.hasMore)
       setPollsOffset(p.polls.length)
       setActivity(a)
+
+      if (currentUser && currentUser.id !== userId) {
+        const isF = await checkIsFollowing(userId)
+        setFollowing(isF)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message.toUpperCase() : 'FAILED TO LOAD PROFILE')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function toggleFollow() {
+    if (!userId || !currentUser || currentUser.id === userId) return
+    setFollowLoading(true)
+    try {
+      if (following) {
+        await unfollow(userId)
+        setFollowing(false)
+      } else {
+        await follow(userId)
+        setFollowing(true)
+      }
+    } catch { /* ignore */ } finally {
+      setFollowLoading(false)
     }
   }
 
@@ -141,6 +169,20 @@ export default function PublicProfileScreen({ route, navigation, userId: propUse
           <StatBox label="REP" value={user.reputation} />
           <StatBox label="WIN %" value={`${Math.round(user.winRate)}%`} />
         </View>
+
+        {/* Follow button — only shown for other users */}
+        {currentUser && currentUser.id !== userId && (
+          <View style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm, borderBottomWidth: theme.borderWidth, borderBottomColor: theme.colors.borderMuted }}>
+            <Button
+              variant={following ? 'primary' : 'ghost'}
+              fullWidth
+              loading={followLoading}
+              onPress={toggleFollow}
+            >
+              {following ? 'FOLLOWING' : 'FOLLOW'}
+            </Button>
+          </View>
+        )}
 
         {/* Activity grid */}
         <View style={{ padding: theme.spacing.lg, borderBottomWidth: theme.borderWidth, borderBottomColor: theme.colors.borderMuted }}>

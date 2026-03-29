@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { Poll, User, AdminStats, AdminAuditLog } from '../types'
+import { Poll, User, AdminStats, AdminAuditLog, PollNotification } from '../types'
 
 // ─────────────────────────────────────────────
 // Transform helpers
@@ -624,4 +624,244 @@ export async function getAuditLog(
   if (error) throw new Error(error.message)
   const logs = (data || []).map(transformAuditLog)
   return { logs, hasMore: logs.length === limit }
+}
+
+// ─────────────────────────────────────────────
+// FOLLOW SYSTEM
+// ─────────────────────────────────────────────
+
+export async function followUser(followerId: string, followingId: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_follows')
+    .insert({ follower_id: followerId, following_id: followingId })
+
+  if (error) throw new Error(error.message)
+
+  // Increment counters (fire-and-forget)
+  const [followerData, followingData] = await Promise.all([
+    supabase.from('users').select('following').eq('id', followerId).single(),
+    supabase.from('users').select('followers').eq('id', followingId).single(),
+  ])
+  await Promise.all([
+    supabase.from('users').update({ following: (followerData.data?.following || 0) + 1 }).eq('id', followerId),
+    supabase.from('users').update({ followers: (followingData.data?.followers || 0) + 1 }).eq('id', followingId),
+  ])
+}
+
+export async function unfollowUser(followerId: string, followingId: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_follows')
+    .delete()
+    .eq('follower_id', followerId)
+    .eq('following_id', followingId)
+
+  if (error) throw new Error(error.message)
+
+  // Decrement counters (fire-and-forget)
+  const [followerData, followingData] = await Promise.all([
+    supabase.from('users').select('following').eq('id', followerId).single(),
+    supabase.from('users').select('followers').eq('id', followingId).single(),
+  ])
+  await Promise.all([
+    supabase.from('users').update({ following: Math.max(0, (followerData.data?.following || 0) - 1) }).eq('id', followerId),
+    supabase.from('users').update({ followers: Math.max(0, (followingData.data?.followers || 0) - 1) }).eq('id', followingId),
+  ])
+}
+
+export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {
+  const { count } = await supabase
+    .from('user_follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('follower_id', followerId)
+    .eq('following_id', followingId)
+
+  return (count || 0) > 0
+}
+
+export async function getFollowing(
+  userId: string,
+  offset = 0,
+  limit = 20,
+): Promise<{ users: User[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from('user_follows')
+    .select('following_id, users!user_follows_following_id_fkey(*)')
+    .eq('follower_id', userId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new Error(error.message)
+  const users = (data || [])
+    .map((row: Record<string, unknown>) => {
+      const u = row.users as Record<string, unknown> | null
+      return u ? transformUser(u) : null
+    })
+    .filter((u): u is User => u !== null)
+
+  return { users, hasMore: users.length === limit }
+}
+
+export async function getFollowers(
+  userId: string,
+  offset = 0,
+  limit = 20,
+): Promise<{ users: User[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from('user_follows')
+    .select('follower_id, users!user_follows_follower_id_fkey(*)')
+    .eq('following_id', userId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new Error(error.message)
+  const users = (data || [])
+    .map((row: Record<string, unknown>) => {
+      const u = row.users as Record<string, unknown> | null
+      return u ? transformUser(u) : null
+    })
+    .filter((u): u is User => u !== null)
+
+  return { users, hasMore: users.length === limit }
+}
+
+export async function getMutualFollows(userId: string): Promise<User[]> {
+  // Users that the current user follows AND who follow the current user back
+  const { data, error } = await supabase
+    .from('user_follows')
+    .select('following_id, users!user_follows_following_id_fkey(*)')
+    .eq('follower_id', userId)
+
+  if (error) throw new Error(error.message)
+
+  const followingIds = (data || []).map((row: Record<string, unknown>) => row.following_id as string)
+  if (followingIds.length === 0) return []
+
+  // Filter to those who also follow back
+  const { data: backFollows } = await supabase
+    .from('user_follows')
+    .select('follower_id')
+    .eq('following_id', userId)
+    .in('follower_id', followingIds)
+
+  const mutualIds = new Set((backFollows || []).map((r: Record<string, unknown>) => r.follower_id as string))
+
+  return (data || [])
+    .filter((row: Record<string, unknown>) => mutualIds.has(row.following_id as string))
+    .map((row: Record<string, unknown>) => {
+      const u = row.users as Record<string, unknown> | null
+      return u ? transformUser(u) : null
+    })
+    .filter((u): u is User => u !== null)
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+function transformNotification(row: Record<string, unknown>): PollNotification {
+  return {
+    id: row.id as string,
+    pollId: row.poll_id as string,
+    userId: row.user_id as string,
+    type: row.type as PollNotification['type'],
+    message: (row.message as string) || '',
+    isRead: Boolean(row.is_read),
+    createdAt: new Date(row.created_at as string),
+  }
+}
+
+export async function getNotifications(
+  userId: string,
+  offset = 0,
+  limit = 20,
+): Promise<{ notifications: PollNotification[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new Error(error.message)
+  const notifications = (data || []).map(transformNotification)
+  return { notifications, hasMore: notifications.length === limit }
+}
+
+export async function getUnreadNotificationCount(userId: string): Promise<number> {
+  const { count } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_read', false)
+
+  return count || 0
+}
+
+export async function markNotificationsRead(userId: string): Promise<void> {
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', userId)
+    .eq('is_read', false)
+}
+
+export async function createNotification(
+  userId: string,
+  pollId: string,
+  type: PollNotification['type'],
+  message: string,
+): Promise<void> {
+  await supabase.from('notifications').insert({
+    user_id: userId,
+    poll_id: pollId,
+    type,
+    message,
+    is_read: false,
+  })
+}
+
+// ─────────────────────────────────────────────
+// DEATHMATCH CHALLENGE
+// ─────────────────────────────────────────────
+
+export async function acceptDeathmatchChallenge(
+  pollId: string,
+  _acceptingUserId: string,
+  creatorId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('polls')
+    .update({ deathmatch_status: 'accepted' })
+    .eq('id', pollId)
+
+  if (error) throw new Error(error.message)
+
+  await createNotification(creatorId, pollId, 'deathmatch_accepted', 'YOUR DEATHMATCH CHALLENGE WAS ACCEPTED!')
+}
+
+export async function rejectDeathmatchChallenge(
+  pollId: string,
+  _rejectingUserId: string,
+  creatorId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('polls')
+    .update({ deathmatch_status: 'rejected' })
+    .eq('id', pollId)
+
+  if (error) throw new Error(error.message)
+
+  await createNotification(creatorId, pollId, 'deathmatch_rejected', 'YOUR DEATHMATCH CHALLENGE WAS DECLINED.')
+}
+
+export async function getPendingChallengesForUser(userId: string): Promise<Poll[]> {
+  const { data, error } = await supabase
+    .from('polls')
+    .select('*')
+    .eq('option_b_owner_id', userId)
+    .eq('deathmatch_status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return (data || []).map(transformPoll)
 }

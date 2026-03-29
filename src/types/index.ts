@@ -64,10 +64,21 @@ export interface PollNotification {
   id: string
   pollId: string
   userId: string
-  type: 'poll_expired' | 'poll_created' | 'poll_trending' | 'deathmatch_created' | 'deathmatch_accepted'
+  type: 'poll_expired' | 'poll_created' | 'poll_trending' | 'deathmatch_created' | 'deathmatch_accepted' | 'deathmatch_rejected'
   message: string
   isRead: boolean
   createdAt: Date
+}
+
+export interface Follow {
+  id: string
+  followerId: string
+  followingId: string
+  createdAt: Date
+}
+
+export interface FriendUser extends User {
+  isFollowingBack: boolean
 }
 
 export interface CreatePollFormData {

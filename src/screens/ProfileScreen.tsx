@@ -1,19 +1,66 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native'
 import { useNavigation, NavigationProp } from '@react-navigation/native'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
 import { RootStackParamList } from '../navigation'
 import { getUserPolls, getUserVoteHistory, getUserActivity, updateUserProfile } from '../database/supabase-api'
-import { Poll } from '../types'
+import { Poll, User } from '../types'
 import { Screen, TabBar, StatBox, PollRow, Button, Input, ErrorBox } from '../components/ui'
 import { ActivityGrid } from '../components/ui/ActivityGrid'
+import { useFriends } from '../hooks/useFriends'
 
 const PROFILE_TABS = [
   { label: 'POLLS', value: 'POLLS' },
   { label: 'VOTED', value: 'VOTED' },
   { label: 'STATS', value: 'STATS' },
+  { label: 'FOLLOWING', value: 'FOLLOWING' },
+  { label: 'FOLLOWERS', value: 'FOLLOWERS' },
 ]
+
+interface FollowUserCardProps {
+  user: User
+  isFollowing: boolean
+  onFollow: () => void
+  onUnfollow: () => void
+  onPress: () => void
+}
+
+function FollowUserCard({ user, isFollowing, onFollow, onUnfollow, onPress }: FollowUserCardProps) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: theme.borderWidth,
+        borderColor: theme.colors.borderMuted,
+        padding: theme.spacing.md,
+        marginBottom: theme.spacing.xs,
+        gap: theme.spacing.sm,
+      }}
+    >
+      <Text style={{ fontSize: 28 }}>{user.avatar}</Text>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={{ fontFamily: theme.fonts.bold, fontSize: theme.fontSize.sm, color: theme.colors.text, letterSpacing: 1 }}>
+          @{user.username}
+        </Text>
+        <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xxs, color: theme.colors.textDim, letterSpacing: 1 }}>
+          {user.reputation} REP · {user.pollCount} POLLS
+        </Text>
+      </View>
+      <Button
+        variant={isFollowing ? 'primary' : 'ghost'}
+        size="sm"
+        onPress={() => {
+          isFollowing ? onUnfollow() : onFollow()
+        }}
+      >
+        {isFollowing ? 'FOLLOWING' : 'FOLLOW'}
+      </Button>
+    </TouchableOpacity>
+  )
+}
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>()
@@ -37,6 +84,20 @@ export default function ProfileScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+
+  const {
+    following: followingUsers,
+    followers: followerUsers,
+    followingHasMore,
+    followersHasMore,
+    isLoadingFollowing,
+    isLoadingFollowers,
+    isFollowingUser,
+    follow,
+    unfollow,
+    loadFollowing,
+    loadFollowers,
+  } = useFriends(user?.id || '')
 
   // Edit mode
   const [editing, setEditing] = useState(false)
@@ -65,12 +126,17 @@ export default function ProfileScreen() {
       } else if (selectedTab === 'STATS') {
         const a = await getUserActivity(user.id, 30)
         setActivity(a)
+      } else if (selectedTab === 'FOLLOWING') {
+        await loadFollowing(true)
+      } else if (selectedTab === 'FOLLOWERS') {
+        await loadFollowers(true)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message.toUpperCase() : 'FAILED TO LOAD')
     } finally {
       setIsLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   useEffect(() => {
@@ -270,8 +336,7 @@ export default function ProfileScreen() {
                 )}
               </>
             )
-          ) : (
-            // STATS tab
+          ) : tab === 'STATS' ? (
             <View style={{ gap: theme.spacing.lg }}>
               <View>
                 <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.xs, color: theme.colors.textMuted, letterSpacing: 3, marginBottom: theme.spacing.sm }}>
@@ -284,6 +349,67 @@ export default function ProfileScreen() {
                 <StatBox label="STATUS" value={(user.status || 'ACTIVE').toUpperCase()} />
               </View>
             </View>
+          ) : tab === 'FOLLOWING' ? (
+            isLoadingFollowing && followingUsers.length === 0 ? (
+              <View style={{ paddingVertical: theme.spacing.xl, alignItems: 'center' }}>
+                <ActivityIndicator color={theme.colors.text} />
+              </View>
+            ) : followingUsers.length === 0 ? (
+              <View style={{ paddingVertical: theme.spacing.xl, alignItems: 'center' }}>
+                <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.sm, color: theme.colors.textMuted, letterSpacing: 4 }}>
+                  NOT FOLLOWING ANYONE YET
+                </Text>
+              </View>
+            ) : (
+              <>
+                {followingUsers.map(u => (
+                  <FollowUserCard
+                    key={u.id}
+                    user={u}
+                    isFollowing={isFollowingUser(u.id)}
+                    onFollow={() => follow(u.id)}
+                    onUnfollow={() => unfollow(u.id)}
+                    onPress={() => navigation.navigate('PublicProfile', { userId: u.id })}
+                  />
+                ))}
+                {followingHasMore && (
+                  <Button variant="ghost" fullWidth loading={isLoadingFollowing} onPress={() => loadFollowing()}>
+                    LOAD MORE
+                  </Button>
+                )}
+              </>
+            )
+          ) : (
+            // FOLLOWERS tab
+            isLoadingFollowers && followerUsers.length === 0 ? (
+              <View style={{ paddingVertical: theme.spacing.xl, alignItems: 'center' }}>
+                <ActivityIndicator color={theme.colors.text} />
+              </View>
+            ) : followerUsers.length === 0 ? (
+              <View style={{ paddingVertical: theme.spacing.xl, alignItems: 'center' }}>
+                <Text style={{ fontFamily: theme.fonts.regular, fontSize: theme.fontSize.sm, color: theme.colors.textMuted, letterSpacing: 4 }}>
+                  NO FOLLOWERS YET
+                </Text>
+              </View>
+            ) : (
+              <>
+                {followerUsers.map(u => (
+                  <FollowUserCard
+                    key={u.id}
+                    user={u}
+                    isFollowing={isFollowingUser(u.id)}
+                    onFollow={() => follow(u.id)}
+                    onUnfollow={() => unfollow(u.id)}
+                    onPress={() => navigation.navigate('PublicProfile', { userId: u.id })}
+                  />
+                ))}
+                {followersHasMore && (
+                  <Button variant="ghost" fullWidth loading={isLoadingFollowers} onPress={() => loadFollowers()}>
+                    LOAD MORE
+                  </Button>
+                )}
+              </>
+            )
           )}
         </View>
 
