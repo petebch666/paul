@@ -1,37 +1,34 @@
 import { createClient } from '@supabase/supabase-js'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import Constants from 'expo-constants'
 
-// Get Supabase credentials from environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseUrl =
+  Constants.expoConfig?.extra?.supabaseUrl || ''
 
-// Create Supabase client
+const supabaseAnonKey =
+  Constants.expoConfig?.extra?.supabaseAnonKey || ''
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: false,
   },
   realtime: {
     params: {
-      eventsPerSecond: 10
-    }
-  }
+      eventsPerSecond: 10,
+    },
+  },
 })
 
-// Helper to check if Supabase is configured
 export const isSupabaseConfigured = (): boolean => {
-  return Boolean(supabaseUrl && supabaseAnonKey && 
-    supabaseUrl !== 'your-project-url.supabase.co' && 
-    supabaseAnonKey !== 'your-anon-key-here')
-}
-
-// Log configuration status
-if (isSupabaseConfigured()) {
-  console.log('✅ Supabase configured:', supabaseUrl)
-} else {
-  console.warn('⚠️ Supabase not configured. Add credentials to .env file.')
-  console.warn('See SUPABASE-SETUP-INSTRUCTIONS.md for details')
+  if (!supabaseUrl || !supabaseAnonKey) return false
+  if (!supabaseUrl.startsWith('https://')) {
+    console.error('[Supabase] URL must use HTTPS')
+    return false
+  }
+  return true
 }
 
 export default supabase
-

@@ -1,7 +1,0 @@
-{
-  "name": "pollz-app",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "react"
-}
