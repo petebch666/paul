@@ -1175,3 +1175,163 @@ describe('getPendingChallengesForUser', () => {
     expect(result.map((p: Poll) => p.id)).toEqual(['dm-1', 'dm-2', 'dm-3'])
   })
 })
+
+// ─────────────────────────────────────────────────────────────
+// getDeathmatchDetails
+//
+// Production code flow:
+//   1. from('polls').select('*').eq('id', pollId).single()          ← poll row
+//   2. Promise.all([
+//        from('users').select('*').eq('id', optionAOwnerId).single(), ← playerA
+//        from('users').select('*').eq('id', optionBOwnerId).single(), ← playerB
+//      ])
+//
+// All .eq() calls are non-terminal (single follows), so mockEq stays on chain.
+// Three mockSingle calls in order: poll, playerA, playerB.
+// ─────────────────────────────────────────────────────────────
+
+import { getDeathmatchDetails, completeDeathmatch } from '../database/supabase-api'
+
+describe('getDeathmatchDetails', () => {
+  const pollRow = makePollRow({
+    option_a_owner_id: 'user-a',
+    option_b_owner_id: 'user-b',
+    deathmatch_status: 'accepted',
+  })
+  const playerARow = makeUserRow({ id: 'user-a', username: 'playera' })
+  const playerBRow = makeUserRow({ id: 'user-b', username: 'playerb' })
+
+  it('should return poll, playerA, and playerB', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: pollRow, error: null })   // polls
+      .mockResolvedValueOnce({ data: playerARow, error: null }) // users playerA
+      .mockResolvedValueOnce({ data: playerBRow, error: null }) // users playerB
+
+    const result = await getDeathmatchDetails('poll-1')
+
+    expect(result.poll.id).toBe('poll-1')
+    expect(result.playerA.id).toBe('user-a')
+    expect(result.playerB.id).toBe('user-b')
+    expect(result.playerA.username).toBe('playera')
+    expect(result.playerB.username).toBe('playerb')
+  })
+
+  it('should throw if poll fetch fails', async () => {
+    mockSingle.mockResolvedValueOnce({ data: null, error: { message: 'not found' } })
+
+    await expect(getDeathmatchDetails('poll-missing')).rejects.toThrow('not found')
+  })
+
+  it('should throw if playerA fetch fails', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: pollRow, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'player A missing' } })
+      .mockResolvedValueOnce({ data: playerBRow, error: null })
+
+    await expect(getDeathmatchDetails('poll-1')).rejects.toThrow('player A missing')
+  })
+
+  it('should query polls table with the provided pollId', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: pollRow, error: null })
+      .mockResolvedValueOnce({ data: playerARow, error: null })
+      .mockResolvedValueOnce({ data: playerBRow, error: null })
+
+    await getDeathmatchDetails('poll-xyz')
+
+    expect(mockFrom).toHaveBeenCalledWith('polls')
+    expect(mockEq).toHaveBeenCalledWith('id', 'poll-xyz')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────
+// completeDeathmatch
+//
+// Production code flow (winner scenario):
+//   1. from('polls').select('deathmatch_status').eq('id', pollId).single()
+//      ← idempotency guard — if 'completed', return early
+//   2. from('polls').update({deathmatch_status:'completed'}).eq('id', pollId)
+//      ← terminal eq
+//   3. from('users').select('reputation').eq('id', winnerId).single()
+//   4. from('users').update({reputation: n+10}).eq('id', winnerId)
+//      ← terminal eq
+//   5. from('notifications').insert({...})  ← x2 (winner + loser)
+//
+// mockSingle: [guard→'pending', rep→50]
+// mockEq:     [poll-select→chain, poll-update→resolved, user-select→chain, user-update→resolved]
+// mockInsert: default returns chain (fire-and-forget)
+// ─────────────────────────────────────────────────────────────
+
+describe('completeDeathmatch', () => {
+  it('should update poll status to completed and bump winner reputation', async () => {
+    // Guard: not yet completed
+    mockSingle.mockResolvedValueOnce({ data: { deathmatch_status: 'pending' }, error: null })
+    // Poll update eq (terminal)
+    mockEq.mockReturnValueOnce(builderChain)  // poll select eq → chain
+    mockEq.mockResolvedValueOnce({ data: null, error: null }) // poll update eq → terminal
+    // Winner rep fetch
+    mockSingle.mockResolvedValueOnce({ data: { reputation: 50 }, error: null })
+    // User update eq (terminal)
+    mockEq.mockReturnValueOnce(builderChain)  // user select eq → chain
+    mockEq.mockResolvedValueOnce({ data: null, error: null }) // user update eq → terminal
+    // Notifications
+    mockInsert.mockResolvedValue({ data: null, error: null })
+
+    await completeDeathmatch('poll-1', 'winner-id', 'loser-id')
+
+    expect(mockFrom).toHaveBeenCalledWith('polls')
+    expect(mockUpdate).toHaveBeenCalledWith({ deathmatch_status: 'completed' })
+    expect(mockFrom).toHaveBeenCalledWith('users')
+    expect(mockUpdate).toHaveBeenCalledWith({ reputation: 60 })
+    expect(mockFrom).toHaveBeenCalledWith('notifications')
+  })
+
+  it('should return early and skip all updates if already completed (idempotent)', async () => {
+    mockSingle.mockResolvedValueOnce({ data: { deathmatch_status: 'completed' }, error: null })
+
+    await completeDeathmatch('poll-1', 'winner-id', 'loser-id')
+
+    // update should never be called after the guard returns early
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('should skip reputation bump and send draw notification on draw (both null)', async () => {
+    mockSingle.mockResolvedValueOnce({ data: { deathmatch_status: 'accepted' }, error: null })
+    // Poll update eq (terminal)
+    mockEq.mockReturnValueOnce(builderChain)
+    mockEq.mockResolvedValueOnce({ data: null, error: null })
+
+    await completeDeathmatch('poll-1', null, null)
+
+    // No reputation update — update called only once (for deathmatch_status)
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).toHaveBeenCalledWith({ deathmatch_status: 'completed' })
+    // No notifications when both ids are null
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('should notify both winner and loser', async () => {
+    mockSingle.mockResolvedValueOnce({ data: { deathmatch_status: 'pending' }, error: null })
+    mockEq.mockReturnValueOnce(builderChain)
+    mockEq.mockResolvedValueOnce({ data: null, error: null })
+    mockSingle.mockResolvedValueOnce({ data: { reputation: 0 }, error: null })
+    mockEq.mockReturnValueOnce(builderChain)
+    mockEq.mockResolvedValueOnce({ data: null, error: null })
+
+    const insertCalls: unknown[] = []
+    mockInsert.mockImplementation((row: unknown) => {
+      insertCalls.push(row)
+      return Promise.resolve({ data: null, error: null })
+    })
+
+    await completeDeathmatch('poll-1', 'winner-id', 'loser-id')
+
+    expect(insertCalls).toHaveLength(2)
+    const types = insertCalls.map((r: unknown) => (r as Record<string, unknown>).type)
+    expect(types).toEqual(['deathmatch_result', 'deathmatch_result'])
+    const userIds = insertCalls.map((r: unknown) => (r as Record<string, unknown>).user_id)
+    expect(userIds).toContain('winner-id')
+    expect(userIds).toContain('loser-id')
+  })
+})

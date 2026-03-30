@@ -213,7 +213,7 @@ export default function AdminScreen() {
       [
         { text: 'CANCEL', style: 'cancel' },
         {
-          text: 'REJECT', style: 'destructive', onPress: async (reason) => {
+          text: 'REJECT', style: 'destructive', onPress: async (reason: string | undefined) => {
             try {
               await rejectPoll(pollId, user!.id, user!.username, reason || 'No reason given')
               setQueue(prev => prev.filter(p => p.id !== pollId))

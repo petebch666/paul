@@ -12,10 +12,12 @@ import ProfileScreen from '../screens/ProfileScreen'
 import AdminScreen from '../screens/AdminScreen'
 import PublicProfileScreen from '../screens/PublicProfileScreen'
 import NotificationsScreen from '../screens/NotificationsScreen'
+import DeathMatchScreen from '../screens/DeathMatchScreen'
 
 export type RootStackParamList = {
   Main: undefined
   PublicProfile: { userId: string }
+  DeathmatchBattle: { pollId: string }
 }
 
 const Tab = createBottomTabNavigator()
@@ -145,6 +147,7 @@ export default function AppNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <Stack.Screen name="DeathmatchBattle" component={DeathMatchScreen} />
     </Stack.Navigator>
   )
 }

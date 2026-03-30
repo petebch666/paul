@@ -21,7 +21,7 @@ export interface Poll {
   isDeathmatch: boolean
   optionAOwnerId?: string
   optionBOwnerId?: string
-  deathmatchStatus?: 'pending' | 'accepted' | 'rejected'
+  deathmatchStatus?: 'pending' | 'accepted' | 'rejected' | 'completed'
   validationStatus?: 'pending' | 'approved' | 'rejected'
   isConfession?: boolean
   moderationResult?: {
@@ -64,7 +64,7 @@ export interface PollNotification {
   id: string
   pollId: string
   userId: string
-  type: 'poll_expired' | 'poll_created' | 'poll_trending' | 'deathmatch_created' | 'deathmatch_accepted' | 'deathmatch_rejected'
+  type: 'poll_expired' | 'poll_created' | 'poll_trending' | 'deathmatch_created' | 'deathmatch_accepted' | 'deathmatch_rejected' | 'deathmatch_result'
   message: string
   isRead: boolean
   createdAt: Date

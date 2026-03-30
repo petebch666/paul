@@ -160,7 +160,8 @@ describe('transformPoll — timeLeft calculation', () => {
   })
 
   it('should produce "XH YM" format when exactly 1h remains', async () => {
-    const poll = await transformViaHistory(pollRowWithExpiry(60 * 60 * 1000))
+    // Add a 10s buffer so sub-second execution timing never crosses the hour boundary
+    const poll = await transformViaHistory(pollRowWithExpiry(60 * 60 * 1000 + 10_000))
     expect(poll.timeLeft).toMatch(/^1H \d+M$/)
   })
 
@@ -174,10 +175,8 @@ describe('transformPoll — timeLeft calculation', () => {
   })
 
   it('should produce "XH 0M" when the remaining time is an exact hour boundary', async () => {
-    // Exactly 3 hours — no remainder minutes
-    const poll = await transformViaHistory(pollRowWithExpiry(3 * 60 * 60 * 1000))
-    // Due to sub-second execution, the minutes might be 59 (floor rounding)
-    // We just assert the hours portion is correct and the format is right
+    // Add a 10s buffer so sub-second execution timing never crosses the 3-hour boundary
+    const poll = await transformViaHistory(pollRowWithExpiry(3 * 60 * 60 * 1000 + 10_000))
     expect(poll.timeLeft).toMatch(/^3H \d+M$/)
   })
 })

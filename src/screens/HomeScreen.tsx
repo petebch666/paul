@@ -21,6 +21,7 @@ import Reanimated, {
   interpolate,
   Extrapolation,
   useAnimatedScrollHandler,
+  SharedValue,
 } from 'react-native-reanimated'
 import { Flame, List, LayoutGrid } from 'lucide-react-native'
 import { theme } from '../theme'
@@ -63,7 +64,7 @@ function isExpiringSoon(poll: Poll): boolean {
 interface CarouselCardProps {
   poll: Poll
   index: number
-  scrollY: Reanimated.SharedValue<number>
+  scrollY: SharedValue<number>
   slotHeight: number
   isFocused: boolean
   onVote: (option: 'A' | 'B') => void
@@ -398,9 +399,16 @@ export default function HomeScreen() {
           }}
           scrollEventThrottle={200}
         >
-          {filtered.map(p => (
-            <PollRow key={p.id} poll={p} variant="profile" onAuthorPress={goToProfile} />
-          ))}
+          {filtered.map(p => {
+            if (p.isDeathmatch && p.deathmatchStatus === 'accepted') {
+              return (
+                <TouchableOpacity key={p.id} onPress={() => navigation.navigate('DeathmatchBattle', { pollId: p.id })}>
+                  <PollRow poll={p} variant="profile" onAuthorPress={goToProfile} />
+                </TouchableOpacity>
+              )
+            }
+            return <PollRow key={p.id} poll={p} variant="profile" onAuthorPress={goToProfile} />
+          })}
           {isLoadingMore && (
             <View style={{ paddingVertical: theme.spacing.lg, alignItems: 'center' }}>
               <ActivityIndicator color={theme.colors.textDim} size="small" />

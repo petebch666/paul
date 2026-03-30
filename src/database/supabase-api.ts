@@ -865,3 +865,81 @@ export async function getPendingChallengesForUser(userId: string): Promise<Poll[
   if (error) throw new Error(error.message)
   return (data || []).map(transformPoll)
 }
+
+export async function getDeathmatchDetails(
+  pollId: string,
+): Promise<{ poll: Poll; playerA: User; playerB: User }> {
+  const { data: pollRow, error: pollError } = await supabase
+    .from('polls')
+    .select('*')
+    .eq('id', pollId)
+    .single()
+
+  if (pollError) throw new Error(pollError.message)
+
+  const poll = transformPoll(pollRow)
+
+  const [playerARes, playerBRes] = await Promise.all([
+    supabase.from('users').select('*').eq('id', poll.optionAOwnerId!).single(),
+    supabase.from('users').select('*').eq('id', poll.optionBOwnerId!).single(),
+  ])
+
+  if (playerARes.error) throw new Error(playerARes.error.message)
+  if (playerBRes.error) throw new Error(playerBRes.error.message)
+
+  return {
+    poll,
+    playerA: transformUser(playerARes.data),
+    playerB: transformUser(playerBRes.data),
+  }
+}
+
+export async function completeDeathmatch(
+  pollId: string,
+  winnerId: string | null,
+  loserId: string | null,
+): Promise<void> {
+  // Idempotency guard
+  const { data: existing } = await supabase
+    .from('polls')
+    .select('deathmatch_status')
+    .eq('id', pollId)
+    .single()
+
+  if ((existing as Record<string, unknown>)?.deathmatch_status === 'completed') return
+
+  await supabase
+    .from('polls')
+    .update({ deathmatch_status: 'completed' })
+    .eq('id', pollId)
+
+  const isDraw = winnerId === null || loserId === null
+
+  if (!isDraw && winnerId) {
+    // Increment winner reputation
+    const { data: winnerRow } = await supabase
+      .from('users')
+      .select('reputation')
+      .eq('id', winnerId)
+      .single()
+
+    if (winnerRow) {
+      await supabase
+        .from('users')
+        .update({ reputation: ((winnerRow as Record<string, unknown>).reputation as number || 0) + 10 })
+        .eq('id', winnerId)
+    }
+
+    // Notify both players
+    await Promise.all([
+      createNotification(winnerId, pollId, 'deathmatch_result', 'YOU WON THE DEATHMATCH! +10 REPUTATION'),
+      loserId ? createNotification(loserId, pollId, 'deathmatch_result', 'YOU LOST THE DEATHMATCH. BETTER LUCK NEXT TIME.') : Promise.resolve(),
+    ])
+  } else {
+    // Draw — notify both if we have IDs
+    const ids = [winnerId, loserId].filter(Boolean) as string[]
+    await Promise.all(
+      ids.map(id => createNotification(id, pollId, 'deathmatch_result', 'THE DEATHMATCH ENDED IN A DRAW.'))
+    )
+  }
+}

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View, ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Reanimated, {
   useSharedValue,
@@ -34,7 +34,9 @@ export function Screen({ children, scroll = false, keyboardAvoiding = false, pad
     transform: [{ translateY: translateY.value }],
   }))
 
-  const tabletStyle = isTablet ? { maxWidth: MAX_WIDTH, alignSelf: 'center' as const, width: '100%' } : {}
+  const tabletStyle: ViewStyle | undefined = isTablet
+    ? { maxWidth: MAX_WIDTH, alignSelf: 'center', width: '100%' }
+    : undefined
 
   const scrollContent = (
     <ScrollView

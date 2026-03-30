@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react'
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native'
-import { useFocusEffect } from '@react-navigation/native'
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native'
+import { RootStackParamList } from '../navigation'
 import { theme } from '../theme'
 import { useAuth } from '../hooks/useAuth'
 import { useNotifications } from '../hooks/useNotifications'
@@ -117,11 +118,12 @@ function ChallengeCard({ poll, onAccept, onReject, isActing }: ChallengeCardProp
 
 interface NotificationRowProps {
   notification: PollNotification
+  onPress?: () => void
 }
 
-function NotificationRow({ notification }: NotificationRowProps) {
+function NotificationRow({ notification, onPress }: NotificationRowProps) {
   const isUnread = !notification.isRead
-  return (
+  const inner = (
     <View style={{
       borderWidth: theme.borderWidth,
       borderColor: isUnread ? theme.colors.borderMuted : theme.colors.textDim,
@@ -155,11 +157,17 @@ function NotificationRow({ notification }: NotificationRowProps) {
       </Text>
     </View>
   )
+
+  if (onPress) {
+    return <TouchableOpacity onPress={onPress}>{inner}</TouchableOpacity>
+  }
+  return inner
 }
 
 export default function NotificationsScreen() {
   const { user } = useAuth()
   const userId = user?.id || ''
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
   const {
     notifications,
     unreadCount,
@@ -189,6 +197,7 @@ export default function NotificationsScreen() {
     setActingPollId(poll.id)
     try {
       await acceptChallenge(poll.id, poll.authorId)
+      navigation.navigate('DeathmatchBattle', { pollId: poll.id })
     } finally {
       setActingPollId(null)
     }
@@ -286,7 +295,15 @@ export default function NotificationsScreen() {
                 </Text>
               )}
               {regularNotifications.map(n => (
-                <NotificationRow key={n.id} notification={n} />
+                <NotificationRow
+                  key={n.id}
+                  notification={n}
+                  onPress={
+                    (n.type === 'deathmatch_accepted' || n.type === 'deathmatch_result') && n.pollId
+                      ? () => navigation.navigate('DeathmatchBattle', { pollId: n.pollId })
+                      : undefined
+                  }
+                />
               ))}
               {hasMore && (
                 <Button
