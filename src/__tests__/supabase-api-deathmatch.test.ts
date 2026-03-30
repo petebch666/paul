@@ -191,18 +191,25 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────
 
 describe('followUser', () => {
-  // Helper to set up the standard followUser mock sequence:
-  //   insert → single (follower data) → single (following data) → eq (update1) → eq (update2)
+  // Helper to set up the standard followUser mock sequence.
+  //
+  // eq calls in order:
+  //   [select eq(id) for follower] → must return chain (step 2a)
+  //   [select eq(id) for target]   → must return chain (step 2b)
+  //   [update eq(id) for follower] → terminal resolve (step 3a)
+  //   [update eq(id) for target]   → terminal resolve (step 3b)
   function setupFollowMocks(followerFollowing = 5, targetFollowers = 10) {
-    // Step 1: user_follows insert
+    // Step 1: user_follows insert → terminal
     mockInsert.mockResolvedValueOnce({ data: null, error: null })
-    // Step 2a: select following count for follower
+    // Step 2a: select('following').eq('id', followerId) → chain, then .single()
+    mockEq.mockReturnValueOnce(builderChain)
     mockSingle.mockResolvedValueOnce({ data: { following: followerFollowing }, error: null })
-    // Step 2b: select followers count for target
+    // Step 2b: select('followers').eq('id', followingId) → chain, then .single()
+    mockEq.mockReturnValueOnce(builderChain)
     mockSingle.mockResolvedValueOnce({ data: { followers: targetFollowers }, error: null })
-    // Step 3a: update following counter → terminal eq
+    // Step 3a: update({following: N+1}).eq('id', followerId) → terminal
     mockEq.mockResolvedValueOnce({ data: null, error: null })
-    // Step 3b: update followers counter → terminal eq
+    // Step 3b: update({followers: N+1}).eq('id', followingId) → terminal
     mockEq.mockResolvedValueOnce({ data: null, error: null })
   }
 
@@ -244,7 +251,9 @@ describe('followUser', () => {
 
   it('should treat null counter values as 0 when incrementing', async () => {
     mockInsert.mockResolvedValueOnce({ data: null, error: null })
+    mockEq.mockReturnValueOnce(builderChain)
     mockSingle.mockResolvedValueOnce({ data: { following: null }, error: null })
+    mockEq.mockReturnValueOnce(builderChain)
     mockSingle.mockResolvedValueOnce({ data: { followers: null }, error: null })
     mockEq.mockResolvedValueOnce({ data: null, error: null })
     mockEq.mockResolvedValueOnce({ data: null, error: null })
@@ -257,7 +266,9 @@ describe('followUser', () => {
 
   it('should treat missing user data (null) as 0 when incrementing', async () => {
     mockInsert.mockResolvedValueOnce({ data: null, error: null })
+    mockEq.mockReturnValueOnce(builderChain)
     mockSingle.mockResolvedValueOnce({ data: null, error: null })
+    mockEq.mockReturnValueOnce(builderChain)
     mockSingle.mockResolvedValueOnce({ data: null, error: null })
     mockEq.mockResolvedValueOnce({ data: null, error: null })
     mockEq.mockResolvedValueOnce({ data: null, error: null })
@@ -301,17 +312,26 @@ describe('followUser', () => {
 
 describe('unfollowUser', () => {
   // Helper: set up the standard unfollow mock sequence.
-  // eq calls: [delete eq(following_id) terminal, update eq1, update eq2]
-  // (delete's first eq returns the chain, second eq is terminal)
+  //
+  // eq calls in order:
+  //   [delete eq(follower_id)]  → must return chain
+  //   [delete eq(following_id)] → terminal resolve (delete chain ends here)
+  //   [select eq(id) follower]  → must return chain (for .single())
+  //   [select eq(id) target]    → must return chain (for .single())
+  //   [update eq(id) follower]  → terminal resolve
+  //   [update eq(id) target]    → terminal resolve
   function setupUnfollowMocks(followerFollowing = 5, targetFollowers = 10) {
-    // eq(follower_id) returns chain (already default), eq(following_id) is terminal
-    mockEq.mockResolvedValueOnce({ data: null, error: null }) // delete terminal
+    // delete chain: eq(follower_id) → chain; eq(following_id) → terminal
+    mockEq.mockReturnValueOnce(builderChain)             // delete eq(follower_id)
+    mockEq.mockResolvedValueOnce({ data: null, error: null }) // delete terminal eq(following_id)
     // selects for counter values
+    mockEq.mockReturnValueOnce(builderChain)             // select eq(id) for follower → .single()
     mockSingle.mockResolvedValueOnce({ data: { following: followerFollowing }, error: null })
+    mockEq.mockReturnValueOnce(builderChain)             // select eq(id) for target → .single()
     mockSingle.mockResolvedValueOnce({ data: { followers: targetFollowers }, error: null })
     // update terminal eqs
-    mockEq.mockResolvedValueOnce({ data: null, error: null })
-    mockEq.mockResolvedValueOnce({ data: null, error: null })
+    mockEq.mockResolvedValueOnce({ data: null, error: null }) // update(following) eq(id)
+    mockEq.mockResolvedValueOnce({ data: null, error: null }) // update(followers) eq(id)
   }
 
   it('should delete from user_follows with correct eq conditions', async () => {
@@ -326,6 +346,8 @@ describe('unfollowUser', () => {
   })
 
   it('should throw when the delete fails', async () => {
+    // eq(follower_id) → chain; eq(following_id) → error terminal
+    mockEq.mockReturnValueOnce(builderChain)
     mockEq.mockResolvedValueOnce({ data: null, error: { message: 'row not found' } })
 
     await expect(unfollowUser('user-1', 'user-2')).rejects.toThrow('row not found')
@@ -348,12 +370,15 @@ describe('unfollowUser', () => {
   })
 
   it('should not decrement below 0 (floor at 0)', async () => {
-    // Counters already at 0
-    mockEq.mockResolvedValueOnce({ data: null, error: null })
+    // Counters already at 0 — Math.max(0, 0-1) = 0
+    mockEq.mockReturnValueOnce(builderChain)             // delete eq(follower_id)
+    mockEq.mockResolvedValueOnce({ data: null, error: null }) // delete terminal
+    mockEq.mockReturnValueOnce(builderChain)             // select eq(id) follower
     mockSingle.mockResolvedValueOnce({ data: { following: 0 }, error: null })
+    mockEq.mockReturnValueOnce(builderChain)             // select eq(id) target
     mockSingle.mockResolvedValueOnce({ data: { followers: 0 }, error: null })
-    mockEq.mockResolvedValueOnce({ data: null, error: null })
-    mockEq.mockResolvedValueOnce({ data: null, error: null })
+    mockEq.mockResolvedValueOnce({ data: null, error: null }) // update terminal
+    mockEq.mockResolvedValueOnce({ data: null, error: null }) // update terminal
 
     await unfollowUser('user-1', 'user-2')
 
@@ -823,16 +848,17 @@ describe('getNotifications', () => {
 // Production code:
 //   from('notifications')
 //     .select('*', { count: 'exact', head: true })
-//     .eq('user_id', userId)
-//     .eq('is_read', false)
-//   → reads .count from the destructured result (not chained .then)
+//     .eq('user_id', userId)     ← 1st eq: must return chain
+//     .eq('is_read', false)      ← 2nd eq: terminal, resolves with { count }
+//   → reads .count from the destructured result
 //
-// Terminal: second eq() call
+// Terminal: second eq() call.
+// Queue: mockReturnValueOnce(chain) for 1st, mockResolvedValueOnce for 2nd.
 // ─────────────────────────────────────────────────────────────
 
 describe('getUnreadNotificationCount', () => {
   it('should return the count from the query result', async () => {
-    // first eq(user_id) returns chain (default), second eq(is_read) resolves with count
+    mockEq.mockReturnValueOnce(builderChain)
     mockEq.mockResolvedValueOnce({ count: 5, error: null })
 
     const count = await getUnreadNotificationCount('user-1')
@@ -841,6 +867,7 @@ describe('getUnreadNotificationCount', () => {
   })
 
   it('should return 0 when count is null', async () => {
+    mockEq.mockReturnValueOnce(builderChain)
     mockEq.mockResolvedValueOnce({ count: null, error: null })
 
     const count = await getUnreadNotificationCount('user-1')
@@ -849,6 +876,7 @@ describe('getUnreadNotificationCount', () => {
   })
 
   it('should return 0 when count is 0', async () => {
+    mockEq.mockReturnValueOnce(builderChain)
     mockEq.mockResolvedValueOnce({ count: 0, error: null })
 
     const count = await getUnreadNotificationCount('user-1')
@@ -857,6 +885,7 @@ describe('getUnreadNotificationCount', () => {
   })
 
   it('should query notifications with user_id eq and is_read eq false', async () => {
+    mockEq.mockReturnValueOnce(builderChain)
     mockEq.mockResolvedValueOnce({ count: 3, error: null })
 
     await getUnreadNotificationCount('user-abc')
@@ -871,13 +900,16 @@ describe('getUnreadNotificationCount', () => {
 // markNotificationsRead
 //
 // Production code:
-//   from('notifications').update({is_read: true}).eq('user_id', userId).eq('is_read', false)
-// Terminal: second eq() call (fire-and-forget, no error check)
+//   from('notifications')
+//     .update({is_read: true})
+//     .eq('user_id', userId)    ← 1st eq: must return chain
+//     .eq('is_read', false)     ← 2nd eq: terminal (fire-and-forget)
 // ─────────────────────────────────────────────────────────────
 
 describe('markNotificationsRead', () => {
   it('should call update with is_read=true on notifications table', async () => {
-    // second eq is terminal — first eq returns chain (default)
+    // 1st eq returns chain, 2nd eq is terminal
+    mockEq.mockReturnValueOnce(builderChain)
     mockEq.mockResolvedValueOnce({ data: null, error: null })
 
     await markNotificationsRead('user-1')
@@ -890,6 +922,7 @@ describe('markNotificationsRead', () => {
 
   it('should not throw even if the update call rejects (fire-and-forget pattern)', async () => {
     // The implementation does not check for errors from markNotificationsRead
+    mockEq.mockReturnValueOnce(builderChain)
     mockEq.mockResolvedValueOnce({ data: null, error: { message: 'update failed' } })
 
     await expect(markNotificationsRead('user-1')).resolves.toBeUndefined()
